@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+/* background */
+.ethereal-bg {
+  background: radial-gradient(
+    circle at 50% 25%,
+    #ffeef2 0%,
+    #fed7e2 28%,
+    #e2eafc 70%,
+    #d8e2fd 100%
+  );
+  background-attachment: fixed;
+}
+
+.sky-arc {
+  position: absolute;
+  width: 1200px;
+  height: 400px;
+  border-radius: 50%;
+  border-top: 1.5px solid rgba(255, 255, 255, 0.65);
+  filter: blur(1px);
+  pointer-events: none;
+}
+
+.ambient-cloud {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(60px);
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.shadow-glass {
+  box-shadow: 0 20px 50px -12px rgba(15, 23, 42, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.8) inset;
+}
