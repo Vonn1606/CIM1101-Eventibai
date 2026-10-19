@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+
 export default function Header() {
   return (
     <header className="w-full px-6 py-5 max-w-7xl mx-auto flex items-center justify-between relative z-10">
@@ -9,9 +10,11 @@ export default function Header() {
         className="flex items-center gap-2.5 group focus:outline-none"
       >
         <div className="w-9 h-9 rounded-xl bg-white/90 border border-white/80 shadow-sm flex items-center justify-center text-rose-600 transition transform group-hover:scale-105">
-          <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-            <path d="M19.5 7.05h-15a1.5 1.5 0 0 0-1.5 1.5v2.2a2 2 0 0 1 0 4v2.2a1.5 1.5 0 0 0 1.5 1.5h15a1.5 1.5 0 0 0 1.5-1.5v-2.2a2 2 0 0 1 0-4v-2.2a1.5 1.5 0 0 0-1.5-1.5zm-5 7.95a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm0-4a1 1 0 1 1 0-2 1 1 0 0 1 0 2z" />
-          </svg>
+          <img
+            src="/eventify-logo.svg"
+            alt="Icon"
+            className="w-5 h-5 object-contain"
+          />
         </div>
         <div className="flex flex-col">
           <span className="text-sm font-bold tracking-tight text-slate-800">

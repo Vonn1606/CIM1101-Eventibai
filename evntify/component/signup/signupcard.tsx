@@ -1,10 +1,17 @@
 import SignUpForm from "./signupform";
+
 import SsoButtons from "../layout/SsoButtons";
 
+
+
 export default function SignUpCard() {
+
   return (
+
     <div className="relative w-full max-w-lg">
+
       {/* Decorative glow behind card */}
+
       <div className="absolute -inset-1.5 bg-gradient-to-r from-rose-200/50 via-pink-100/50 to-indigo-100/50 rounded-[32px] blur-xl opacity-70 transform -rotate-1 pointer-events-none" />
 
       {/* Frosted glass card */}
@@ -12,20 +19,11 @@ export default function SignUpCard() {
         {/* Header */}
         <div className="flex flex-col items-center text-center">
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-b from-rose-50 to-rose-100/80 border border-rose-200/70 text-rose-600 shadow-sm mb-3 flex items-center justify-center transform transition hover:scale-105 duration-200">
-            <svg
+            <img
+              src="/eventify-logo.svg"
+              alt="Icon"
               className="w-7 h-7"
-              fill="none"
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-            >
-              <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z" />
-              <path d="M13 5v2" />
-              <path d="M13 17v2" />
-              <path d="M13 11v2" />
-            </svg>
+            />
           </div>
           <h1 className="text-2xl sm:text-[26px] font-bold text-slate-900 tracking-tight">
             Create Your Account
