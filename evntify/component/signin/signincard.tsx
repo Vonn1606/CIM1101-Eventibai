@@ -1,5 +1,5 @@
 import SignInForm from "./signinform";
-import SsoButtons from "../layout/SsoButtons";
+import SsoButtons from "../layout-login/SsoButtons";
 import Image from "next/image";
 import Link from "next/link";
 

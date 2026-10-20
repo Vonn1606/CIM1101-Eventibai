@@ -1,7 +1,12 @@
+'use client';
 import Link from "next/link";
-
+import { usePathname } from 'next/navigation';
+import Image from "next/image"
 
 export default function Header() {
+  const pathname = usePathname();
+  const isSignIn = pathname === '/signin';
+
   return (
     <header className="w-full px-6 py-5 max-w-7xl mx-auto flex items-center justify-between relative z-10">
       {/* Brand */}
@@ -9,21 +14,11 @@ export default function Header() {
         href="/"
         className="flex items-center gap-2.5 group focus:outline-none"
       >
-        <div className="w-9 h-9 rounded-xl bg-white/90 border border-white/80 shadow-sm flex items-center justify-center text-rose-600 transition transform group-hover:scale-105">
-          <img
-            src="/eventify-logo.svg"
-            alt="Icon"
-            className="w-5 h-5 object-contain"
-          />
-        </div>
-        <div className="flex flex-col">
-          <span className="text-sm font-bold tracking-tight text-slate-800">
-            EVENTIFY
-          </span>
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-            Events Directory
-          </span>
-        </div>
+        <img
+          src="/eventifytxt-cropped.svg"
+          alt="Eventify"
+          className="h-9  w-auto object-contain transition transform group-hover:scale-105"
+        />
       </Link>
 
       {/* Utility nav */}
@@ -61,12 +56,12 @@ export default function Header() {
           Campus Safety
         </a>
         <div className="hidden sm:block h-3.5 w-px bg-slate-300" />
-        <a
+        <Link
           className="hidden sm:inline-flex items-center justify-center px-3.5 py-1.5 rounded-full bg-white/70 hover:bg-white text-slate-700 border border-slate-200/80 shadow-xs transition"
-          href="#signin"
+          href={isSignIn ? '/signup' : '/signin'}
         >
-          Sign In
-        </a>
+          {isSignIn ? 'Sign Up' : 'Sign In'}
+        </Link>
       </nav>
     </header>
   );

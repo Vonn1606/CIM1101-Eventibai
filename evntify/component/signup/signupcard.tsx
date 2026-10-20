@@ -1,6 +1,6 @@
 import SignUpForm from "./signupform";
 
-import SsoButtons from "../layout/SsoButtons";
+import SsoButtons from "../layout-login/SsoButtons";
 
 
 
