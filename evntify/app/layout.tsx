@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import { Plus_Jakarta_Sans, DM_Sans, Newsreader } from "next/font/google";
+
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -8,6 +9,22 @@ const jakarta = Plus_Jakarta_Sans({
   variable: "--font-jakarta",
   display: "swap",
 });
+
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  weight: ["400", "600"],
+  variable: "--font-dm-sans",
+  display: "swap",
+});
+
+const newsreader = Newsreader({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  style: ["normal", "italic"],
+  variable: "--font-newsreader",
+  display: "swap",
+});
+
 
 export const metadata: Metadata = {
   title: "Eventify!",
@@ -21,9 +38,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${jakarta.variable} ${dmSans.variable} ${newsreader.variable}`} >
       <body
-        className={`${jakarta.variable} ethereal-bg min-h-screen font-sans text-slate-800 antialiased relative overflow-x-hidden flex flex-col justify-between selection:bg-rose-200 selection:text-rose-900`}
+        className={`${jakarta.variable} ${dmSans.variable} ${newsreader.variable} ethereal-bg min-h-screen font-sans text-slate-800 antialiased relative overflow-x-hidden flex flex-col justify-between selection:bg-rose-200 selection:text-rose-900`}
       >
         {children}
       </body>

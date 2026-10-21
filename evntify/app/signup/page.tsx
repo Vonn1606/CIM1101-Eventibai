@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import Header from "@/component/layout-login/header";
-import Footer from "@/component/layout-login/footer";
-import AmbientBackdrop from "@/component/layout-login/AmbientBackdrop";
-import SignUpCard from "@/component/signup/signupcard";
+import Header from "@/component/login/layout-login/header";
+import Footer from "@/component/login/layout-login/footer";
+import AmbientBackdrop from "@/component/login/layout-login/AmbientBackdrop";
+import SignUpCard from "@/component/login/signup/signupcard";
 
 export const metadata: Metadata = {
   title: "Eventify - Sign Up",
