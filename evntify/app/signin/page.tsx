@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Header from "@/component/login/layout-login/header";
 import Footer from "@/component/login/layout-login/footer";
 import AmbientBackdrop from "@/component/login/layout-login/AmbientBackdrop";
-import SignInCard from "@/component/signin/signincard";
+import SignInCard from "@/component/login/signin/signincard";
 
 
 export const metadata: Metadata = {

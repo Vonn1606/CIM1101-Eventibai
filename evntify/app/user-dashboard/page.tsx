@@ -3,9 +3,9 @@ import TopNavbar from "@/component/dashboard/layout-dashboard/topnavbar";
 import FeaturedCarousel from "@/component/dashboard/featuredeventhero";
 import EventSection from "@/component/dashboard/eventsection";
 import Footer from "@/component/dashboard/layout-dashboard/footer";
-import { featuredEvents, tanYanKeeEvents, tanYanKeeSection } from "@/app/lib/events";
+import { featuredEvents, tanYanKeeEvents, tanYanKeeSection } from "@/lib/events";
 
-export const metadata: Metadata = { title: "Dashboard · Eventify" };
+export const metadata: Metadata = { title: "Eventify - Dashboard" };
 
 export default function DashboardPage() {
     return (

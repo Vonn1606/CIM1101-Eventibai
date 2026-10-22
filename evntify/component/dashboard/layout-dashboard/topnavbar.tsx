@@ -53,8 +53,7 @@ export default function TopNavbar() {
             type="button"
             className="hidden h-6 items-center gap-1 rounded-lg bg-neutral-100/80 px-2.5 text-xs font-semibold text-neutral-700 sm:flex"
           >
-            <UsersIcon className="h-3 w-3.5 text-brand" />
-            Organizations
+            Departments
             <ChevronDownIcon className="h-2 w-2 text-neutral-400" />
           </button>
           <button type="button" className={iconBtn} aria-label="View monthly calendar">

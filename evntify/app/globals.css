@@ -64,11 +64,7 @@
   --max: 1320px;
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+
 
 html {
   background: var(--bg);
@@ -263,6 +259,7 @@ h3 {
 .hero-title em {
   font-family: var(--font-lp-serif);
   font-style: italic;
+  color: #8C4B56;
 }
 
 .hero-sub {
@@ -307,7 +304,7 @@ h3 {
   gap: 4px;
   padding: 14px 24px;
   border-radius: 9999px;
-  background: #fff;
+  background: #fed7e2;
   box-shadow: var(--shadow-sm);
   color: var(--text);
   font-weight: 600;

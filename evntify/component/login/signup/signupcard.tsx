@@ -1,17 +1,12 @@
 import SignUpForm from "./signupform";
-
 import SsoButtons from "../layout-login/SsoButtons";
-
-
+import Image from "next/image";
+import Link from "next/link";
 
 export default function SignUpCard() {
-
   return (
-
     <div className="relative w-full max-w-lg">
-
       {/* Decorative glow behind card */}
-
       <div className="absolute -inset-1.5 bg-gradient-to-r from-rose-200/50 via-pink-100/50 to-indigo-100/50 rounded-[32px] blur-xl opacity-70 transform -rotate-1 pointer-events-none" />
 
       {/* Frosted glass card */}
@@ -19,9 +14,11 @@ export default function SignUpCard() {
         {/* Header */}
         <div className="flex flex-col items-center text-center">
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-b from-rose-50 to-rose-100/80 border border-rose-200/70 text-rose-600 shadow-sm mb-3 flex items-center justify-center transform transition hover:scale-105 duration-200">
-            <img
+            <Image
               src="/eventify-logo.svg"
-              alt="Icon"
+              alt="Eventify Logo"
+              width={28}
+              height={28}
               className="w-7 h-7"
             />
           </div>
@@ -55,12 +52,12 @@ export default function SignUpCard() {
 
         <p className="mt-6 text-center text-xs text-slate-500">
           Already registered for events?
-          <a
+          <Link
             className="font-bold text-slate-800 hover:text-rose-600 transition ml-1 underline underline-offset-4 decoration-rose-300"
-            href="#signin"
+            href="/signin"
           >
             Sign In here
-          </a>
+          </Link>
         </p>
       </div>
     </div>

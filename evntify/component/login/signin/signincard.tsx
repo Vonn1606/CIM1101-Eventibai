@@ -57,7 +57,7 @@ export default function SignInCard() {
                     New to the campus community?
                     <Link
                         className="font-bold text-slate-800 hover:text-rose-600 transition ml-1 underline underline-offset-4 decoration-rose-300"
-                        href="#signup"
+                        href="/signup"
                     >
                         Create an account
                     </Link>

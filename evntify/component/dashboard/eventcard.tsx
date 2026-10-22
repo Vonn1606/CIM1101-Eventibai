@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { CampusEvent } from "@/types/events";
-import { seatTone } from "@/app/lib/events";
+import { seatTone } from "@/lib/events";
 import { PinIcon, UsersIcon } from "./layout-dashboard/icons";
 
 export default function EventCard({ event }: { event: CampusEvent }) {
