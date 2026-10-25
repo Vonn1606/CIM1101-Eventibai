@@ -1,0 +1,743 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
+import {
+  Calendar,
+  Clock,
+  ShieldCheck,
+  Monitor,
+  Award,
+  Share2,
+  Mail,
+  Phone,
+  Search,
+  Bell,
+  User,
+  ChevronDown,
+  ExternalLink,
+  QrCode,
+  Home,
+  Check,
+  X,
+  AlertCircle,
+  Download,
+  CheckCircle2,
+} from "lucide-react";
+import type { EventDetail } from "@/types/events";
+import "./event-details.css";
+
+interface EventDetailsClientProps {
+  initialEvent: EventDetail;
+}
+
+export default function EventDetailsClient({ initialEvent }: EventDetailsClientProps) {
+  const [event, setEvent] = useState<EventDetail>(initialEvent);
+  const [isCopied, setIsCopied] = useState(false);
+  const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
+  const [isFastPassModalOpen, setIsFastPassModalOpen] = useState(false);
+
+  // Registration Form State
+  const [formData, setFormData] = useState({
+    fullName: "",
+    studentNumber: "",
+    email: "",
+    college: "College of Engineering",
+  });
+  const [ticketCode, setTicketCode] = useState<string>("LITS-PASS-8821");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Live countdown timer state (DAYS, HOURS, MINS matching the Figma design)
+  const [timeLeft, setTimeLeft] = useState({
+    days: "02",
+    hours: "14",
+    minutes: "22",
+  });
+
+  useEffect(() => {
+    // Check local storage for registered tickets
+    const saved = localStorage.getItem(`registered_event_${event.id}`);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.ticketCode) setTicketCode(parsed.ticketCode);
+      } catch {
+        // ignore
+      }
+    }
+  }, [event.id]);
+
+  useEffect(() => {
+    const target = new Date(event.registrationDeadline || "2027-01-13T08:30:00").getTime();
+
+    const updateTimer = () => {
+      const now = new Date().getTime();
+      const diff = Math.max(0, target - now);
+
+      const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const h = Math.floor((diff / (1000 * 60 * 60)) % 24);
+      const m = Math.floor((diff / 1000 / 60) % 60);
+
+      setTimeLeft({
+        days: String(d).padStart(2, "0"),
+        hours: String(h).padStart(2, "0"),
+        minutes: String(m).padStart(2, "0"),
+      });
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 60000);
+    return () => clearInterval(interval);
+  }, [event.registrationDeadline]);
+
+  // Handle Share / Copy Link
+  const handleCopyLink = () => {
+    if (typeof window !== "undefined") {
+      navigator.clipboard.writeText(window.location.href);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2500);
+    }
+  };
+
+  // Google Calendar Link
+  const handleAddToCalendar = () => {
+    const title = encodeURIComponent(event.title);
+    const details = encodeURIComponent(
+      `${event.summary}\n\nVenue: ${event.venue}\nOrganizer: ${event.org}`
+    );
+    const location = encodeURIComponent(`${event.venue}, ${event.venueDetails}`);
+    const gcalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&location=${location}`;
+    window.open(gcalUrl, "_blank", "noopener,noreferrer");
+  };
+
+  // Submit registration form
+  const handleRegisterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    setTimeout(() => {
+      const generatedCode = `LITS-FIGMA-${Math.floor(1000 + Math.random() * 9000)}`;
+      setTicketCode(generatedCode);
+
+      setEvent((prev) => ({
+        ...prev,
+        registeredCount: Math.min(prev.totalCapacity, prev.registeredCount + 1),
+        seatsLeft: Math.max(0, prev.seatsLeft - 1),
+      }));
+
+      localStorage.setItem(
+        `registered_event_${event.id}`,
+        JSON.stringify({
+          ticketCode: generatedCode,
+          ...formData,
+          eventTitle: event.title,
+          registeredAt: new Date().toISOString(),
+        })
+      );
+
+      setIsSubmitting(false);
+      setIsRegisterModalOpen(false);
+      setIsFastPassModalOpen(true);
+    }, 600);
+  };
+
+  const percentageFilled = Math.min(
+    100,
+    Math.round((event.registeredCount / event.totalCapacity) * 100)
+  );
+
+  return (
+    <div className="event-details-root">
+      {/* ---------- Header ---------- */}
+      <header className="header" role="banner">
+        <div className="header__inner">
+          {/* Logo */}
+          <Link
+            href="/user-dashboard"
+            className="footer__brand"
+            style={{ fontSize: "24px", color: "var(--maroon)", letterSpacing: "-0.5px" }}
+          >
+            eventify.
+          </Link>
+
+          {/* Search bar */}
+          <form role="search" action="/events" method="GET" className="search">
+            <div className="search__field">
+              <Search className="search__icon" size={14} />
+              <input
+                type="search"
+                name="q"
+                placeholder="Search campus events, venues, clubs..."
+                className="search__input"
+                aria-label="Search campus events"
+              />
+              <button type="submit" className="search__submit">
+                GO
+              </button>
+            </div>
+          </form>
+
+          {/* Header Actions */}
+          <div className="header__actions">
+            <button type="button" className="nav__btn">
+              <span>Departments</span>
+              <ChevronDown size={14} className="text-neutral-500" />
+            </button>
+
+            <button type="button" className="icon-btn" aria-label="Notifications">
+              <Bell size={18} />
+              <span className="icon-btn__dot" />
+            </button>
+
+            <div className="profile-btn">
+              <div className="profile-btn__avatar">
+                <User size={16} />
+              </div>
+              <ChevronDown size={13} className="text-neutral-400" />
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* ---------- Main ---------- */}
+      <main className="main">
+        {/* Crumb Bar */}
+        <section className="crumbbar" aria-label="Breadcrumb bar">
+          <div className="crumbbar__inner">
+            <nav className="crumbs" aria-label="Breadcrumb">
+              <ol className="crumbs__list">
+                <li className="crumbs__item">
+                  <Link href="/user-dashboard" className="crumbs__link">
+                    <Home size={13} style={{ marginRight: "2px" }} />
+                    Home
+                  </Link>
+                </li>
+                <li className="crumbs__sep" aria-hidden="true">
+                  /
+                </li>
+                <li className="crumbs__item">
+                  <Link href="/events" className="crumbs__link">
+                    {event.breadcrumbDept || "College of Engineering (CoE)"}
+                  </Link>
+                </li>
+                <li className="crumbs__sep" aria-hidden="true">
+                  /
+                </li>
+                <li className="crumbs__item">
+                  <span className="crumbs__current" aria-current="page">
+                    {event.title}
+                  </span>
+                </li>
+              </ol>
+            </nav>
+
+            <div className="pill">
+              <span className="pill__dot" />
+              <span>{event.statusBadge || "VERIFIED ACADEMIC COMPETITION"}</span>
+            </div>
+          </div>
+        </section>
+
+        {/* Content Container */}
+        <div className="container">
+          {/* Hero Banner: Title firmly on the leftmost */}
+          <section className="hero">
+            <div className="hero__strip" />
+            <div className="hero__dots" />
+            <div className="hero__body">
+              <h1 className="hero__title">{event.title}</h1>
+              <div className="hero__oval" />
+            </div>
+          </section>
+
+          {/* Grid: Left Main + Right Sidebar */}
+          <div className="grid">
+            {/* Left Column (Main Content) */}
+            <div className="col-main">
+              {/* Card 1: Organizer Card */}
+              <article className="card organizer">
+                <div className="organizer__who">
+                  <div className="organizer__badge">
+                    <span className="organizer__badge-text">{event.orgInitials || "CoE"}</span>
+                    <span className="organizer__badge-caption">{event.orgEst || "EST. '64"}</span>
+                  </div>
+                  <div>
+                    <h2 className="organizer__name">{event.org}</h2>
+                    <p className="organizer__dept">{event.orgDept}</p>
+                  </div>
+                </div>
+              </article>
+
+              {/* Card 2: Date & Campus Location Card (Aligned on the exact same level) */}
+              <article className="card schedule">
+                <div className="schedule__col">
+                  <div className="schedule__toprow">
+                    <span className="eyebrow">DATE & TIME</span>
+                    <button
+                      type="button"
+                      onClick={handleAddToCalendar}
+                      className="chip-btn"
+                      title="Add to Google Calendar"
+                    >
+                      <Calendar size={13} className="chip-btn__icon" />
+                      <span>Add to Calendar</span>
+                    </button>
+                  </div>
+                  <p className="schedule__value">{event.date}</p>
+                  <p className="schedule__note">{event.time}</p>
+                </div>
+
+                <div className="schedule__col">
+                  <div className="schedule__toprow">
+                    <span className="eyebrow">CAMPUS LOCATION</span>
+                  </div>
+                  <p className="schedule__value">{event.venue}</p>
+                  <p className="schedule__note">{event.venueDetails}</p>
+                </div>
+              </article>
+
+              {/* Card 3: Briefing & Overview Card (Wider & closer to Capacity Status) */}
+              <article className="card overview">
+                <div className="overview__head">
+                  <span className="overview__eyebrow">
+                    {event.briefingEyebrow || "BRIEFING • OBJECTIVES"}
+                  </span>
+                  <h2 className="overview__title">
+                    {event.overviewTitle || "Event Overview & Challenge Scope"}
+                  </h2>
+                </div>
+
+                <div className="overview__copy">
+                  {event.description && event.description.length > 0 ? (
+                    event.description.map((paragraph, idx) => (
+                      <p key={idx}>{paragraph}</p>
+                    ))
+                  ) : (
+                    <>
+                      <p>
+                        The LITS Arena: Figma Showdown 2026 gathers aspiring campus product designers, UX researchers, and software craftsmen in a fast-paced interactive design hackathon. The mission of this year&apos;s arena is solving tactile campus pain-points: from digital queue management at student registrar offices to collaborative student study-hub booking.
+                      </p>
+                      <p>
+                        Participants will receive a design brief revealed at exactly 1:15 PM and must produce an end-to-end interactive component-driven Figma prototype accompanied by a 3-minute lightning walkthrough deck.
+                      </p>
+                    </>
+                  )}
+                </div>
+
+                {/* 3 Feature Boxes */}
+                <div className="features">
+                  {/* Feature 1 */}
+                  <div className="feature">
+                    <ShieldCheck size={20} className="feature__icon--maroon" />
+                    <h3 className="feature__title">
+                      {event.features?.[0]?.title || "Prerequisites"}
+                    </h3>
+                    <p className="feature__body">
+                      {event.features?.[0]?.body ||
+                        "Active Figma for Education account, basic understanding of auto-layout, design variables, and components."}
+                    </p>
+                  </div>
+
+                  {/* Feature 2 */}
+                  <div className="feature">
+                    <Monitor size={20} className="feature__icon--green" />
+                    <h3 className="feature__title">
+                      {event.features?.[1]?.title || "Hardware / BYOD"}
+                    </h3>
+                    <p className="feature__body">
+                      {event.features?.[1]?.body ||
+                        'Lab stations provided with 27" 4K displays. Participants may bring their own laptops and graphic tablets.'}
+                    </p>
+                  </div>
+
+                  {/* Feature 3 */}
+                  <div className="feature">
+                    <Award size={20} className="feature__icon--amber" />
+                    <h3 className="feature__title">
+                      {event.features?.[2]?.title || "Prizes & Credential"}
+                    </h3>
+                    <p className="feature__body">
+                      {event.features?.[2]?.body ||
+                        "₱15,000 top cash pool, official CoE design trophies, and Figma Community badge accreditation."}
+                    </p>
+                  </div>
+                </div>
+              </article>
+            </div>
+
+            {/* Right Column (Sidebar) */}
+            <aside className="col-side">
+              {/* Card 1: Registration Card */}
+              <article className="card reg">
+                <div className="reg__capacity">
+                  <div className="reg__row">
+                    <span className="eyebrow">CAPACITY STATUS</span>
+                    <span className="reg__tag">
+                      ● {event.seatsLeft} slots remaining
+                    </span>
+                  </div>
+
+                  <div className="reg__row">
+                    <div className="reg__count">
+                      <span className="reg__big">{event.registeredCount}</span>
+                      <span className="reg__of"> /{event.totalCapacity}</span>
+                    </div>
+                    <span className="reg__pct">{percentageFilled}% Filled</span>
+                  </div>
+
+                  <div
+                    className="progress"
+                    role="progressbar"
+                    aria-valuenow={percentageFilled}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                  >
+                    <div
+                      className="progress__bar"
+                      style={{ width: `${percentageFilled}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Countdown Timer */}
+                <div className="countdown">
+                  <div className="countdown__head">
+                    <Clock size={14} className="countdown__icon" />
+                    <span className="eyebrow eyebrow--dark">REGISTRATION CLOSES IN</span>
+                  </div>
+                  <div className="countdown__cells">
+                    <div className="countdown__cell">
+                      <span className="countdown__num">{timeLeft.days}</span>
+                      <span className="countdown__label">DAYS</span>
+                    </div>
+                    <div className="countdown__cell">
+                      <span className="countdown__num">{timeLeft.hours}</span>
+                      <span className="countdown__label">HOURS</span>
+                    </div>
+                    <div className="countdown__cell">
+                      <span className="countdown__num">{timeLeft.minutes}</span>
+                      <span className="countdown__label">MINS</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* CTA Button */}
+                <button
+                  type="button"
+                  onClick={() => setIsRegisterModalOpen(true)}
+                  className="cta"
+                >
+                  <span>REGISTER</span>
+                  <ExternalLink size={14} style={{ marginLeft: "4px" }} />
+                </button>
+
+                {/* Campus Fast-Pass box */}
+                <div className="rsvp">
+                  <div className="rsvp__head">
+                    <span className="rsvp__title">Campus Fast-Pass</span>
+                    <QrCode size={18} className="rsvp__icon" />
+                  </div>
+                  <p className="rsvp__body">
+                    Already registered via academic department? Claim your quick digital ticket badge for speed-gate entry.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setIsFastPassModalOpen(true)}
+                    className="rsvp__btn"
+                  >
+                    View Digital Pass Preview
+                  </button>
+                </div>
+              </article>
+
+              {/* Card 2: Need Assistance / Coordinator Card */}
+              <article className="card contact">
+                <span className="eyebrow">NEED ASSISTANCE?</span>
+                <h3 className="contact__title">Event Coordinators</h3>
+
+                <div className="contact__person">
+                  <div className="contact__avatar">{event.coordinator.initials || "MR"}</div>
+                  <div>
+                    <p className="contact__name">{event.coordinator.name}</p>
+                    <p className="contact__role">{event.coordinator.role}</p>
+                  </div>
+                </div>
+
+                <div className="contact__links">
+                  <a href={`mailto:${event.coordinator.email}`}>
+                    <Mail size={13} />
+                    <span>{event.coordinator.email}</span>
+                  </a>
+                  <a href={`tel:${event.coordinator.phone}`}>
+                    <Phone size={13} />
+                    <span>{event.coordinator.phone}</span>
+                  </a>
+                </div>
+              </article>
+
+              {/* Share & Meta Row */}
+              <div className="sharebar">
+                <span className="sharebar__text">Event ID: #{event.code}</span>
+                <button
+                  type="button"
+                  onClick={handleCopyLink}
+                  className="sharebar__btn"
+                  title="Share event link"
+                >
+                  {isCopied ? <Check size={13} /> : <Share2 size={13} />}
+                  <span>{isCopied ? "Link Copied!" : "Share"}</span>
+                </button>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </main>
+
+      {/* ---------- Registration Modal ---------- */}
+      {isRegisterModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+            <button
+              type="button"
+              onClick={() => setIsRegisterModalOpen(false)}
+              className="absolute right-4 top-4 p-1.5 rounded-full text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition"
+              aria-label="Close modal"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="mb-4">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#6c0c28]">
+                Official Academic Registration
+              </span>
+              <h2 className="text-xl font-bold text-neutral-900 mt-1">
+                {event.title}
+              </h2>
+              <p className="text-xs text-neutral-500 mt-0.5">
+                Register to secure your lab seat and generate your Campus Fast-Pass.
+              </p>
+            </div>
+
+            <form onSubmit={handleRegisterSubmit} className="flex flex-col gap-3.5">
+              <div>
+                <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Marcus Rivera"
+                  value={formData.fullName}
+                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                  className="w-full px-3.5 py-2 text-sm rounded-lg border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-[#6c0c28]/30"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                    Student ID Number
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="2023-1101-MN"
+                    value={formData.studentNumber}
+                    onChange={(e) => setFormData({ ...formData, studentNumber: e.target.value })}
+                    className="w-full px-3.5 py-2 text-sm rounded-lg border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-[#6c0c28]/30"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                    Campus Email
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="name@campus.edu"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="w-full px-3.5 py-2 text-sm rounded-lg border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-[#6c0c28]/30"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                  Department / College
+                </label>
+                <select
+                  value={formData.college}
+                  onChange={(e) => setFormData({ ...formData, college: e.target.value })}
+                  className="w-full px-3.5 py-2 text-sm rounded-lg border border-neutral-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#6c0c28]/30"
+                >
+                  <option value="College of Engineering">College of Engineering</option>
+                  <option value="Lucio Tan College of Computer Studies">Lucio Tan College of Computer Studies</option>
+                  <option value="Tan Yan Kee Business & Accountancy">Tan Yan Kee Business & Accountancy</option>
+                  <option value="College of Arts and Sciences">College of Arts and Sciences</option>
+                </select>
+              </div>
+
+              <div className="rounded-lg bg-neutral-50 p-3 border border-neutral-100 flex items-start gap-2.5 text-xs text-neutral-600">
+                <AlertCircle size={16} className="text-[#6c0c28] flex-shrink-0 mt-0.5" />
+                <span>
+                  By registering, you confirm attendance for <strong>{event.venue}</strong>. Your QR ticket
+                  is non-transferable and verified at entrance doors.
+                </span>
+              </div>
+
+              <div className="mt-2 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setIsRegisterModalOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold text-neutral-600 hover:bg-neutral-100 rounded-lg transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-5 py-2 text-xs font-bold text-white bg-[#6c0c28] hover:bg-[#8b263e] rounded-lg shadow-sm transition flex items-center gap-2"
+                >
+                  {isSubmitting ? "Generating Fast-Pass..." : "Confirm & Claim Fast-Pass"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ---------- Digital Fast-Pass Preview Modal ---------- */}
+      {isFastPassModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="relative w-full max-w-md rounded-2xl bg-white overflow-hidden shadow-2xl border border-neutral-100">
+            {/* Header banner */}
+            <div className="bg-[#6c0c28] p-5 text-white text-center relative">
+              <button
+                type="button"
+                onClick={() => setIsFastPassModalOpen(false)}
+                className="absolute right-3.5 top-3.5 p-1 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition"
+                aria-label="Close modal"
+              >
+                <X size={18} />
+              </button>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 text-[10px] font-bold tracking-wider uppercase mb-1.5">
+                <CheckCircle2 size={12} className="text-emerald-400" /> Campus Fast-Pass
+              </span>
+              <h2 className="text-lg font-extrabold leading-snug">
+                {event.title}
+              </h2>
+              <p className="text-xs text-white/80 mt-1">
+                {event.date} · {event.time}
+              </p>
+            </div>
+
+            {/* QR Code Pass Body */}
+            <div className="p-6 flex flex-col items-center text-center">
+              <div className="p-4 rounded-xl bg-white border-2 border-dashed border-neutral-200 shadow-sm mb-4">
+                <svg
+                  className="w-44 h-44"
+                  viewBox="0 0 100 100"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <rect width="100" height="100" fill="white" />
+                  <rect x="6" y="6" width="28" height="28" rx="4" fill="#1a1c1e" />
+                  <rect x="10" y="10" width="20" height="20" rx="2" fill="white" />
+                  <rect x="14" y="14" width="12" height="12" rx="1" fill="#6c0c28" />
+
+                  <rect x="66" y="6" width="28" height="28" rx="4" fill="#1a1c1e" />
+                  <rect x="70" y="10" width="20" height="20" rx="2" fill="white" />
+                  <rect x="74" y="14" width="12" height="12" rx="1" fill="#6c0c28" />
+
+                  <rect x="6" y="66" width="28" height="28" rx="4" fill="#1a1c1e" />
+                  <rect x="10" y="70" width="20" height="20" rx="2" fill="white" />
+                  <rect x="14" y="74" width="12" height="12" rx="1" fill="#6c0c28" />
+
+                  <rect x="38" y="10" width="6" height="6" fill="#1a1c1e" />
+                  <rect x="48" y="14" width="8" height="6" fill="#1a1c1e" />
+                  <rect x="40" y="24" width="12" height="6" fill="#1a1c1e" />
+                  <rect x="10" y="40" width="8" height="6" fill="#1a1c1e" />
+                  <rect x="22" y="44" width="6" height="12" fill="#1a1c1e" />
+                  <rect x="38" y="38" width="24" height="24" rx="4" fill="#006d43" />
+                  <circle cx="50" cy="50" r="6" fill="white" />
+                  <rect x="70" y="40" width="18" height="8" fill="#1a1c1e" />
+                  <rect x="66" y="52" width="8" height="8" fill="#1a1c1e" />
+                  <rect x="42" y="70" width="16" height="8" fill="#1a1c1e" />
+                  <rect x="64" y="70" width="12" height="6" fill="#1a1c1e" />
+                  <rect x="46" y="82" width="24" height="6" fill="#1a1c1e" />
+                  <rect x="78" y="82" width="12" height="8" fill="#1a1c1e" />
+                </svg>
+              </div>
+
+              <div className="w-full rounded-lg bg-neutral-50 p-3 mb-4 text-left border border-neutral-100 flex flex-col gap-1.5">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-neutral-500 font-medium">Badge Pass ID:</span>
+                  <span className="font-mono font-bold text-[#6c0c28] tracking-wider text-sm">
+                    {ticketCode}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-neutral-500 font-medium">Venue Gate:</span>
+                  <span className="font-semibold text-neutral-800">{event.venue}</span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-neutral-500 font-medium">Status:</span>
+                  <span className="font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full text-[10px]">
+                    VERIFIED SPEED-GATE PASS
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex gap-2 w-full">
+                <button
+                  type="button"
+                  onClick={() => {
+                    alert("Fast-Pass ticket saved! Ready for speed-gate entry.");
+                  }}
+                  className="flex-1 py-2.5 px-3 rounded-lg bg-[#6c0c28] text-white font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-[#8b263e] transition"
+                >
+                  <Download size={14} />
+                  Download Badge
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsFastPassModalOpen(false)}
+                  className="py-2.5 px-4 rounded-lg bg-neutral-100 text-neutral-700 font-bold text-xs hover:bg-neutral-200 transition"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------- Footer ---------- */}
+      <footer className="footer" role="contentinfo">
+        <div className="footer__inner">
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            <p className="footer__brand">eventify.</p>
+            <p className="footer__tag">
+              © 2025 Eventify Campus Inc. All rights reserved. Connecting university life & student culture.
+            </p>
+          </div>
+          <nav className="footer__links" aria-label="Footer Navigation">
+            <Link href="#">Privacy Policy</Link>
+            <Link href="#">Terms of Service</Link>
+            <Link href="/events">Event Directory</Link>
+            <Link href="#">Academic Colleges</Link>
+          </nav>
+        </div>
+      </footer>
+    </div>
+  );
+}

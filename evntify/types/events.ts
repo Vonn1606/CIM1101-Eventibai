@@ -21,3 +21,47 @@ export type CampusEvent = {
     bannerColor: string; // any CSS colour; swap for an <img> later
     href: string;
 };
+
+export type EventFeature = {
+    title: string;
+    body: string;
+    iconType: "maroon" | "green" | "amber";
+};
+
+export type EventDetail = {
+    id: string;
+    code: string;
+    title: string;
+    org: string;
+    orgDept: string;
+    orgInitials: string;
+    orgEst?: string;
+    statusBadge?: string;
+    breadcrumbDept?: string;
+    briefingEyebrow?: string;
+    overviewTitle?: string;
+    category: string;
+    date: string;
+    time: string;
+    doorsOpen: string;
+    venue: string;
+    venueDetails: string;
+    summary: string;
+    description: string[];
+    features: EventFeature[];
+    totalCapacity: number;
+    registeredCount: number;
+    seatsLeft: number;
+    registrationDeadline: string;
+    bannerColor: string;
+    status: "OPEN" | "LIMITED" | "CLOSING SOON" | "FULL" | "COMPLETED";
+    coordinator: {
+        name: string;
+        role: string;
+        email: string;
+        phone: string;
+        initials: string;
+    };
+    href: string;
+};
+
