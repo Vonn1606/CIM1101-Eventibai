@@ -23,13 +23,15 @@ export default function EventsNavbar({
             <span className="hidden sm:inline">Back to Dashboard</span>
           </Link>
           <span className="h-4 w-px bg-neutral-200" />
-          <Link href="/user-dashboard" className="flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#6c0c28] text-white font-extrabold text-sm">
-              E
-            </span>
-            <span className="font-extrabold text-sm tracking-tight text-[#1a1c1e]">
-              Eventify
-            </span>
+          <Link
+            href="/user-dashboard"
+            className="flex items-center gap-2.5 group focus:outline-none"
+          >
+            <img
+              src="/eventifytxt-cropped.svg"
+              alt="Eventify"
+              className="h-9 w-auto object-contain transition transform group-hover:scale-105"
+            />
           </Link>
         </div>
 

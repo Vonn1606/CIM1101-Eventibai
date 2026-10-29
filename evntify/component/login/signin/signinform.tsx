@@ -2,8 +2,10 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function SignInForm() {
+    const router = useRouter();
     const [showPassword, setShowPassword] = useState(false);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -12,6 +14,11 @@ export default function SignInForm() {
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         console.log({ email, password, rememberMe });
+        if (email.toLowerCase().includes("admin")) {
+            router.push("/admin");
+        } else {
+            router.push("/user-dashboard");
+        }
     };
 
     return (
