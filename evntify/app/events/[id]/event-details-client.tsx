@@ -154,10 +154,13 @@ export default function EventDetailsClient({ initialEvent }: EventDetailsClientP
           {/* Logo */}
           <Link
             href="/user-dashboard"
-            className="footer__brand"
-            style={{ fontSize: "24px", color: "var(--maroon)", letterSpacing: "-0.5px" }}
+            className="flex items-center gap-2.5 group focus:outline-none"
           >
-            eventify.
+            <img
+              src="/eventifytxt-cropped.svg"
+              alt="Eventify"
+              className="h-9 w-auto object-contain transition transform group-hover:scale-105"
+            />
           </Link>
 
           {/* Search bar */}

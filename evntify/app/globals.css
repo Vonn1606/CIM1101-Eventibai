@@ -114,8 +114,9 @@ h3 {
   flex: none;
 }
 
-/* Header */
-.header {
+/* Header - landing page only (direct child of body) */
+body > .header,
+body > header.header {
   position: fixed;
   inset: 0 0 auto 0;
   height: 80px;
@@ -186,8 +187,9 @@ h3 {
   cursor: pointer;
 }
 
-/* Layout */
-.main {
+/* Layout - landing page main offset for fixed header */
+body > .main,
+body > main.main {
   padding-top: 80px;
 }
 

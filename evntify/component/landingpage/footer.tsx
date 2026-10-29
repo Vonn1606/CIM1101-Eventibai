@@ -6,7 +6,7 @@ export default function Footer() {
         <footer className="footer">
             <div className="footer-inner">
                 <div className="footer-brand">
-                    <Image src="/eventifytext.svg" alt="Eventify" width={71} height={71} />
+                    <Image src="/eventifytxt-cropped.svg" alt="Eventify" width={71} height={71} />
                     <p className="footer-copy">© 2026 Eventify Campus Inc. All rights reserved.</p>
                 </div>
                 <nav className="footer-links">

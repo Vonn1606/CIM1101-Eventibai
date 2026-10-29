@@ -13,7 +13,10 @@ export default function SignInForm() {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (
+        console.log({ email, password, rememberMe });
+        if (email.toLowerCase().includes("admin")) {
+            router.push("/admin");
+        } else if (
             email.toLowerCase().includes("org") ||
             email.toLowerCase().includes("lits") ||
             email.toLowerCase().includes("council")
