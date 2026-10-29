@@ -62,6 +62,15 @@ export default function SignInCard() {
                         Create an account
                     </Link>
                 </p>
+                <p className="mt-3 text-center text-xs text-slate-500">
+                    Student leader or event host?
+                    <Link
+                        className="font-bold text-rose-800 hover:text-rose-950 transition ml-1 underline underline-offset-4 decoration-rose-400"
+                        href="/organizer-dashboard"
+                    >
+                        Go to Organizer Portal
+                    </Link>
+                </p>
             </div>
         </div>
     );

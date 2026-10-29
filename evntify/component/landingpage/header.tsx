@@ -19,6 +19,9 @@ export default function Header() {
                     <Link href="/events" className="nav-link">
                         Events
                     </Link>
+                    <Link href="/organizer-dashboard" className="nav-link">
+                        Organizer
+                    </Link>
                     <Link href="/signin" className="nav-cta">
                         Sign In
                     </Link>

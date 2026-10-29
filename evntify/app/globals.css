@@ -2,8 +2,25 @@
 
 @theme {
   --color-brand: #8B1E3F;
-  --color-canvas: #FAF8F6;
-  --font-display: var(--font-jakarta), sans-serif;
+  --color-canvas: #f9f9fc;
+  --font-display: var(--font-newsreader), serif;
+  --font-sans: var(--font-dm-sans), sans-serif;
+
+  /* Organizer Dashboard theme tokens */
+  --color-maroon: #4d0011;
+  --color-maroon-600: #6b1724;
+  --color-rose: #8c4b56;
+  --color-rose-300: #fdabb7;
+  --color-blush: #ffd9dd;
+  --color-cream: #faf2ee;
+  --color-sand: #f4ece8;
+  --color-stone: #eee7e3;
+  --color-stone-600: #e9e1dd;
+  --color-ink: #1e1b19;
+  --color-body: #554243;
+  --color-muted: #887272;
+  --color-mint: #baeed9;
+  --color-mint-900: #083f31;
 
   /* landing page fonts */
   --font-lp-body: var(--font-dm-sans), "DM Sans", sans-serif;

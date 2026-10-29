@@ -49,6 +49,13 @@ export default function TopNavbar() {
 
         {/* Action controls */}
         <div className="flex items-center gap-2">
+          <Link
+            href="/organizer-dashboard"
+            className="hidden items-center gap-1.5 rounded-full bg-[#ffd9dd] px-3 py-1 text-xs font-semibold text-[#70343f] transition hover:bg-[#fdabb7] sm:flex"
+          >
+            <span className="size-1.5 rounded-full bg-[#4d0011]" />
+            Organizer Mode
+          </Link>
           <button
             type="button"
             className="hidden h-6 items-center gap-1 rounded-lg bg-neutral-100/80 px-2.5 text-xs font-semibold text-neutral-700 sm:flex"
