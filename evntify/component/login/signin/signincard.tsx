@@ -1,77 +1,37 @@
 import SignInForm from "./signinform";
-import SsoButtons from "../layout-login/SsoButtons";
-import Image from "next/image";
-import Link from "next/link";
 
 export default function SignInCard() {
-    return (
-        <div className="relative w-full max-w-lg">
-            {/* Decorative glow behind card */}
-            <div className="absolute -inset-1.5 bg-gradient-to-r from-rose-200/50 via-pink-100/50 to-indigo-100/50 rounded-[32px] blur-xl opacity-70 transform -rotate-1 pointer-events-none" />
-
-            {/* Frosted glass card */}
-            <div className="relative backdrop-blur-xl bg-white/85 border border-white/90 shadow-glass rounded-3xl p-7 sm:p-9 w-full">
-                {/* Header */}
-                <div className="flex flex-col items-center text-center">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-b from-rose-50 to-rose-100/80 border border-rose-200/70 text-rose-600 shadow-sm mb-3 flex items-center justify-center transform transition hover:scale-105 duration-200">
-                        <Image
-                            src="/eventify-logo.svg"
-                            alt="Eventify Logo"
-                            width={28}
-                            height={28}
-                            className="w-7 h-7"
-                        />
-                    </div>
-                    <h1 className="text-2xl sm:text-[26px] font-bold text-slate-900 tracking-tight">
-                        Welcome Back, Warrior!
-                    </h1>
-                    <p className="mt-1.5 text-xs sm:text-[13px] text-slate-500 leading-relaxed max-w-xs">
-                        Enter your campus credentials to access event bookings,
-                        announcements, and manage live registrations.
-                    </p>
-                </div>
-
-                {/* Sign In Form */}
-                <SignInForm />
-
-                {/* SSO Divider */}
-                <div className="mt-6 relative">
-                    <div
-                        aria-hidden="true"
-                        className="absolute inset-0 flex items-center"
-                    >
-                        <div className="w-full border-t border-slate-200/80" />
-                    </div>
-                    <div className="relative flex justify-center text-[11px] text-slate-500 uppercase tracking-wider">
-                        <span className="bg-white/95 px-3 rounded-full text-slate-400 font-medium">
-                            Or sign in with campus SSO
-                        </span>
-                    </div>
-                </div>
-
-                {/* SSO Buttons */}
-                <SsoButtons />
-
-                {/* Footer Redirect Link */}
-                <p className="mt-6 text-center text-xs text-slate-500">
-                    New to the campus community?
-                    <Link
-                        className="font-bold text-slate-800 hover:text-rose-600 transition ml-1 underline underline-offset-4 decoration-rose-300"
-                        href="/signup"
-                    >
-                        Create an account
-                    </Link>
-                </p>
-                <p className="mt-3 text-center text-xs text-slate-500">
-                    Student leader or event host?
-                    <Link
-                        className="font-bold text-rose-800 hover:text-rose-950 transition ml-1 underline underline-offset-4 decoration-rose-400"
-                        href="/organizer-dashboard"
-                    >
-                        Go to Organizer Portal
-                    </Link>
-                </p>
-            </div>
+  return (
+    <div className="w-full max-w-[440px] bg-white rounded-3xl border border-neutral-100 shadow-[0_4px_24px_rgba(0,0,0,0.04)] px-7 py-9 sm:px-9 sm:py-11">
+      {/* Star Icon Badge */}
+      <div className="flex flex-col items-center text-center">
+        <div className="text-[#8B1E3F] mb-3 flex items-center justify-center">
+          <svg
+            className="w-7 h-7 fill-[#8B1E3F]"
+            viewBox="0 0 24 24"
+          >
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+          </svg>
         </div>
-    );
+
+        {/* Small uppercase eyebrow */}
+        <span className="text-[10px] font-bold tracking-[0.14em] uppercase text-neutral-500 mb-2">
+          EVENTIFY
+        </span>
+
+        {/* Heading */}
+        <h1 className="text-2xl sm:text-[26px] font-serif italic text-neutral-900 leading-snug">
+          Welcome back, Warrior!
+        </h1>
+
+        {/* Subtitle */}
+        <p className="mt-2 text-xs text-neutral-500 leading-relaxed max-w-[320px]">
+          Enter your campus credentials to access event bookings, announcements, and manage live registrations.
+        </p>
+      </div>
+
+      {/* Sign In Form */}
+      <SignInForm />
+    </div>
+  );
 }

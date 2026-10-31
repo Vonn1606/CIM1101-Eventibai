@@ -1,20 +1,33 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 const inputClass =
-  "block w-full h-11 pl-10 text-sm bg-white/70 border border-slate-200/90 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/30 focus:border-rose-500 focus:bg-white transition duration-150 py-2.5";
-const labelClass = "block text-xs font-semibold text-slate-700 mb-1.5";
+  "block w-full h-11 pl-10 text-xs sm:text-sm bg-white border border-neutral-200 rounded-xl text-neutral-800 placeholder-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400 focus:border-neutral-400 transition py-2.5";
+const labelClass = "block text-xs font-semibold text-neutral-800 mb-1.5";
 const leftIconWrap =
-  "absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400";
+  "absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-400";
+
+const COLLEGES = [
+  "Lucio Tan College of Computer Studies",
+  "College of Engineering",
+  "College of Business Administration",
+  "College of Arts and Sciences",
+  "College of Education",
+  "College of Dentistry",
+];
 
 const DEPARTMENTS = [
-  { value: "eng", label: "College of Engineering & Architecture" },
-  { value: "cs", label: "Lucio Tan College of Computer Studies" },
-  { value: "biz", label: "Tan Yan Kee Business & Accountancy" },
-  { value: "arts", label: "College of Arts and Sciences" },
-  { value: "med", label: "Institute of Health Sciences & Medicine" },
-  { value: "law", label: "College of Law & Public Administration" },
+  "Computer Science",
+  "Information Technology",
+  "Civil Engineering",
+  "Mechanical Engineering",
+  "Accountancy",
+  "Marketing",
+  "Psychology",
+  "Communication",
 ];
 
 function getStrength(password: string) {
@@ -31,35 +44,36 @@ function getStrength(password: string) {
 }
 
 export default function SignUpForm() {
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [schoolEmail, setSchoolEmail] = useState("");
+  const [college, setCollege] = useState("");
+  const [department, setDepartment] = useState("");
+  const [agree, setAgree] = useState(false);
+
   const strength = useMemo(() => getStrength(password), [password]);
 
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const data = Object.fromEntries(new FormData(e.currentTarget));
-    // TODO: send `data` to your API route / auth provider
-    console.log("Sign up submitted:", { ...data, password: "[hidden]" });
+    router.push("/user-dashboard");
   }
 
   return (
-    <form
-      className="mt-6 space-y-4"
-      data-purpose="student-signup-form"
-      onSubmit={handleSubmit}
-    >
+    <form className="mt-6 space-y-4 w-full" onSubmit={handleSubmit}>
       {/* Full Name */}
       <div>
         <label className={labelClass} htmlFor="fullName">
           Full Name
         </label>
-        <div className="relative rounded-xl shadow-xs">
+        <div className="relative rounded-xl">
           <div className={leftIconWrap}>
             <svg
               className="h-4 w-4"
               fill="none"
               stroke="currentColor"
-              strokeWidth="2"
+              strokeWidth="1.6"
               viewBox="0 0 24 24"
             >
               <path
@@ -76,6 +90,8 @@ export default function SignUpForm() {
             placeholder="e.g., Alex Dela Cruz"
             required
             type="text"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
           />
         </div>
       </div>
@@ -83,23 +99,20 @@ export default function SignUpForm() {
       {/* School Email */}
       <div>
         <div className="flex items-center justify-between mb-1.5">
-          <label
-            className="block text-xs font-semibold text-slate-700"
-            htmlFor="schoolEmail"
-          >
+          <label className="block text-xs font-semibold text-neutral-800" htmlFor="schoolEmail">
             School Email
           </label>
           <span className="text-[10px] font-medium text-rose-600 bg-rose-50 border border-rose-200/60 px-2 py-0.5 rounded-full">
             Verification Required
           </span>
         </div>
-        <div className="relative rounded-xl shadow-xs">
+        <div className="relative rounded-xl">
           <div className={leftIconWrap}>
             <svg
               className="h-4 w-4"
               fill="none"
               stroke="currentColor"
-              strokeWidth="2"
+              strokeWidth="1.6"
               viewBox="0 0 24 24"
             >
               <path
@@ -116,74 +129,119 @@ export default function SignUpForm() {
             placeholder="student@university.edu.ph"
             required
             type="email"
+            value={schoolEmail}
+            onChange={(e) => setSchoolEmail(e.target.value)}
           />
         </div>
-        <p className="mt-1 text-[11px] text-slate-500 flex items-center gap-1">
+        <p className="mt-1 text-[11px] text-neutral-400 flex items-center gap-1">
           <svg
-            className="w-3 h-3 text-slate-400 flex-shrink-0"
-            fill="currentColor"
-            viewBox="0 0 20 20"
+            className="w-3.5 h-3.5 text-neutral-400 flex-shrink-0"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            viewBox="0 0 24 24"
           >
-            <path
-              clipRule="evenodd"
-              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-              fillRule="evenodd"
-            />
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="16" x2="12" y2="12" />
+            <line x1="12" y1="8" x2="12.01" y2="8" />
           </svg>
-          Official campus domain required for student verification
+          Official campus email is needed for student verification
         </p>
       </div>
 
-      {/* College / Department */}
+      {/* College */}
       <div>
-        <label className={labelClass} htmlFor="campusDepartment">
-          College/Department
+        <label className={labelClass} htmlFor="college">
+          College
         </label>
-        <div className="relative rounded-xl shadow-xs">
+        <div className="relative rounded-xl">
           <div className={leftIconWrap}>
             <svg
               className="h-4 w-4"
               fill="none"
               stroke="currentColor"
-              strokeWidth="2"
+              strokeWidth="1.6"
               viewBox="0 0 24 24"
             >
-              <path
-                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
+              <rect x="4" y="3" width="16" height="18" rx="2" />
+              <path d="M9 9h1m4 0h1m-6 4h1m4 0h1m-6 4h1m4 0h1" />
             </svg>
           </div>
           <select
-            className={`${inputClass} pr-9 appearance-none cursor-pointer`}
-            id="campusDepartment"
-            name="campusDepartment"
+            className={`${inputClass} pr-9 appearance-none cursor-pointer bg-white text-neutral-600`}
+            id="college"
+            name="college"
             required
-            defaultValue=""
+            value={college}
+            onChange={(e) => setCollege(e.target.value)}
           >
             <option disabled value="">
-              Select your college or faculty...
+              Select your college...
             </option>
-            {DEPARTMENTS.map((d) => (
-              <option key={d.value} value={d.value}>
-                {d.label}
+            {COLLEGES.map((c) => (
+              <option key={c} value={c}>
+                {c}
               </option>
             ))}
           </select>
-          <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-slate-400">
+          <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-neutral-400">
             <svg
               className="h-4 w-4"
               fill="none"
               stroke="currentColor"
-              strokeWidth="2"
+              strokeWidth="1.8"
               viewBox="0 0 24 24"
             >
-              <path
-                d="M19 9l-7 7-7-7"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
+              <path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      {/* Department */}
+      <div>
+        <label className={labelClass} htmlFor="department">
+          Department
+        </label>
+        <div className="relative rounded-xl">
+          <div className={leftIconWrap}>
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              viewBox="0 0 24 24"
+            >
+              <rect x="4" y="3" width="16" height="18" rx="2" />
+              <path d="M9 9h1m4 0h1m-6 4h1m4 0h1m-6 4h1m4 0h1" />
+            </svg>
+          </div>
+          <select
+            className={`${inputClass} pr-9 appearance-none cursor-pointer bg-white text-neutral-600`}
+            id="department"
+            name="department"
+            required
+            value={department}
+            onChange={(e) => setDepartment(e.target.value)}
+          >
+            <option disabled value="">
+              Select your department...
+            </option>
+            {DEPARTMENTS.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </select>
+          <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-neutral-400">
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              viewBox="0 0 24 24"
+            >
+              <path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
         </div>
@@ -194,20 +252,17 @@ export default function SignUpForm() {
         <label className={labelClass} htmlFor="password">
           Password
         </label>
-        <div className="relative rounded-xl shadow-xs">
+        <div className="relative rounded-xl">
           <div className={leftIconWrap}>
             <svg
               className="h-4 w-4"
               fill="none"
               stroke="currentColor"
-              strokeWidth="2"
+              strokeWidth="1.6"
               viewBox="0 0 24 24"
             >
-              <path
-                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
+              <rect x="5" y="11" width="14" height="10" rx="2" />
+              <path d="M8 11V7a4 4 0 0 1 8 0v4" />
             </svg>
           </div>
           <input
@@ -223,132 +278,126 @@ export default function SignUpForm() {
           />
           <button
             aria-label="Toggle password visibility"
-            aria-pressed={showPassword}
-            className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
+            className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-neutral-400 hover:text-neutral-600 focus:outline-none"
             onClick={() => setShowPassword((v) => !v)}
             type="button"
           >
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-            >
-              {showPassword ? (
+            {showPassword ? (
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                viewBox="0 0 24 24"
+              >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"
+                  d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.52 10.52 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88"
                 />
-              ) : (
-                <>
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                  />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                  />
-                </>
-              )}
-            </svg>
+              </svg>
+            ) : (
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+                />
+              </svg>
+            )}
           </button>
         </div>
 
-        {/* Strength indicator (live) */}
-        <div className="mt-2 flex items-center gap-1.5">
-          <div className="h-1 flex-1 bg-slate-200 rounded-full overflow-hidden">
+        {/* Live Password Strength detector */}
+        <div className="mt-2 flex items-center justify-between gap-3">
+          <div className="h-1 flex-1 bg-neutral-200 rounded-full overflow-hidden">
             <div
-              className="h-full bg-rose-500 rounded-full transition-all duration-300"
+              className="h-full bg-[#E53935] rounded-full transition-all duration-300"
               style={{ width: `${strength.percent}%` }}
             />
           </div>
-          <span className="text-[10px] font-semibold text-rose-600 min-w-[2.5rem] text-right">
+          <span className="text-[10px] font-semibold text-[#E53935] min-w-[2.5rem] text-right">
             {strength.label}
           </span>
         </div>
       </div>
 
-      {/* Verification badge */}
-      <div className="p-2.5 rounded-xl bg-rose-50/70 border border-rose-100 flex items-center gap-2.5">
-        <div className="w-5 h-5 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center flex-shrink-0">
-          <svg
-            className="w-3 h-3"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            viewBox="0 0 24 24"
-          >
-            <path
-              d="M5 13l4 4L19 7"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </div>
-        <span className="text-[11px] font-medium text-slate-600">
-          Instant verification &amp; registered into the university event
-          directory.
+      {/* Verification pink pill */}
+      <div className="p-3 rounded-xl bg-[#FDF2F4] border border-[#FADBE1] flex items-center gap-2.5">
+        <svg
+          className="w-4 h-4 text-rose-500 flex-shrink-0"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          viewBox="0 0 24 24"
+        >
+          <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <span className="text-[11px] text-neutral-600">
+          Instant verification &amp; registered into the university event directory.
         </span>
       </div>
 
-      {/* Terms */}
-      <div className="flex items-start gap-2.5 pt-1">
-        <div className="flex items-center h-5">
-          <input
-            className="h-4 w-4 text-rose-600 border-slate-300 rounded focus:ring-rose-500 cursor-pointer"
-            id="terms"
-            name="terms"
-            required
-            type="checkbox"
-          />
-        </div>
-        <label
-          className="text-xs text-slate-600 leading-tight cursor-pointer"
-          htmlFor="terms"
-        >
+      {/* Terms checkbox */}
+      <div className="flex items-center gap-2 pt-1">
+        <input
+          className="h-4 w-4 text-neutral-800 border-neutral-300 rounded focus:ring-0 cursor-pointer"
+          id="terms"
+          name="terms"
+          required
+          type="checkbox"
+          checked={agree}
+          onChange={(e) => setAgree(e.target.checked)}
+        />
+        <label className="text-xs text-neutral-600 select-none cursor-pointer" htmlFor="terms">
           I agree to the{" "}
-          <a
-            className="font-semibold text-rose-600 hover:text-rose-700 underline underline-offset-2"
-            href="#"
+          <Link
+            className="text-neutral-800 underline underline-offset-2 hover:text-black font-medium"
+            href="/guidelines"
           >
-            Campus Event Guidelines
-          </a>{" "}
+            Eventify Guidelines
+          </Link>{" "}
           &amp;{" "}
-          <a
-            className="font-semibold text-rose-600 hover:text-rose-700 underline underline-offset-2"
-            href="#"
+          <Link
+            className="text-neutral-800 underline underline-offset-2 hover:text-black font-medium"
+            href="/policies"
           >
-            Ticket Policies
-          </a>
+            Eventify Policies
+          </Link>
           .
         </label>
       </div>
 
-      {/* CTA */}
+      {/* Submit button */}
       <button
-        className="w-full mt-2 py-3 px-4 rounded-xl font-semibold text-sm text-white bg-slate-900 hover:bg-black active:scale-[0.99] transition duration-150 shadow-md hover:shadow-lg flex items-center justify-center gap-2 group"
+        className="w-full mt-3 py-3 px-4 rounded-xl font-semibold text-xs sm:text-sm text-white bg-[#10141D] hover:bg-[#1C2230] active:scale-[0.99] transition duration-150 flex items-center justify-center gap-2"
         type="submit"
       >
         <span>Create Account &amp; Register</span>
-        <svg
-          className="w-4 h-4 transform group-hover:translate-x-0.5 transition"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          viewBox="0 0 24 24"
-        >
-          <path
-            d="M14 5l7 7m0 0l-7 7m7-7H3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
+        <span className="text-xs">→</span>
       </button>
+
+      {/* Footer link */}
+      <div className="pt-3 text-center text-xs text-neutral-500 flex items-center justify-center gap-1.5">
+        <span>Already registered for events?</span>
+        <Link
+          href="/signin"
+          className="font-semibold text-neutral-900 hover:underline transition"
+        >
+          Sign in here
+        </Link>
+      </div>
     </form>
   );
 }

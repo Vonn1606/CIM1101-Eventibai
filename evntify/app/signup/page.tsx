@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Header from "@/component/login/layout-login/header";
 import Footer from "@/component/login/layout-login/footer";
-import AmbientBackdrop from "@/component/login/layout-login/AmbientBackdrop";
 import SignUpCard from "@/component/login/signup/signupcard";
 
 export const metadata: Metadata = {
@@ -12,13 +11,12 @@ export const metadata: Metadata = {
 
 export default function SignUpPage() {
   return (
-    <>
-      <AmbientBackdrop />
+    <div className="min-h-screen bg-[#FDFCFB] flex flex-col justify-between">
       <Header />
-      <main className="flex-1 flex items-center justify-center px-4 py-8 sm:py-12 relative z-10">
+      <main className="flex-1 flex items-center justify-center px-4 py-10 sm:py-16">
         <SignUpCard />
       </main>
       <Footer />
-    </>
+    </div>
   );
 }
