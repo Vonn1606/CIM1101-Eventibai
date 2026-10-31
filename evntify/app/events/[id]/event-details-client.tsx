@@ -153,14 +153,11 @@ export default function EventDetailsClient({ initialEvent }: EventDetailsClientP
         <div className="header__inner">
           {/* Logo */}
           <Link
-            href="/user-dashboard"
-            className="flex items-center gap-2.5 group focus:outline-none"
+            href="/events"
+            className="footer__brand"
+            style={{ fontSize: "24px", color: "var(--maroon)", letterSpacing: "-0.5px" }}
           >
-            <img
-              src="/eventifytxt-cropped.svg"
-              alt="Eventify"
-              className="h-9 w-auto object-contain transition transform group-hover:scale-105"
-            />
+            eventify.
           </Link>
 
           {/* Search bar */}
@@ -210,7 +207,7 @@ export default function EventDetailsClient({ initialEvent }: EventDetailsClientP
             <nav className="crumbs" aria-label="Breadcrumb">
               <ol className="crumbs__list">
                 <li className="crumbs__item">
-                  <Link href="/user-dashboard" className="crumbs__link">
+                  <Link href="/events" className="crumbs__link">
                     <Home size={13} style={{ marginRight: "2px" }} />
                     Home
                   </Link>

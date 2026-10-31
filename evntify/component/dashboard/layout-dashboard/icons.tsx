@@ -37,3 +37,16 @@ export const PinIcon = (p: SVGProps<SVGSVGElement>) => (
 export const TicketIcon = (p: SVGProps<SVGSVGElement>) => (
     <svg {...base} {...p}><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z" /><path d="M13 5v2M13 17v2M13 11v2" /></svg>
 );
+
+export const StarIcon = (p: SVGProps<SVGSVGElement>) => (
+    <svg {...base} fill="currentColor" {...p}><path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z" /></svg>
+);
+export const ArrowRightIcon = (p: SVGProps<SVGSVGElement>) => (
+    <svg {...base} {...p}><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+);
+export const GraduationCapIcon = (p: SVGProps<SVGSVGElement>) => (
+    <svg {...base} {...p}><path d="M22 10 12 5 2 10l10 5z" /><path d="M6 12v5c3 3 9 3 12 0v-5" /><path d="M22 10v6" /></svg>
+);
+export const SparkIcon = (p: SVGProps<SVGSVGElement>) => (
+    <svg {...base} {...p}><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8" /></svg>
+);

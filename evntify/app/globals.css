@@ -121,8 +121,8 @@ body > header.header {
   inset: 0 0 auto 0;
   height: 80px;
   z-index: 50;
-  background: rgba(255, 248, 245, 0.8);
-  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04);
+  background: #fff8f5cc;
+  box-shadow: 0 1px 8px #0000000a;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
@@ -337,7 +337,7 @@ body > main.main {
   flex-direction: column;
   gap: 24px;
   padding: 40px 0;
-  background: rgba(250, 242, 238, 0.4);
+  background: #faf2ee66;
   isolation: isolate;
 }
 

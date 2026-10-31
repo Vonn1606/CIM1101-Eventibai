@@ -312,6 +312,11 @@ export const tanYanKeeEvents: CampusEvent[] = [
         seatsLeft: 18,
         bannerColor: "#1e2022",
         href: "/events/lits-arena-figma-showdown-2026",
+        department: "cs",
+        tag: "Competition",
+        startsAt: "2026-01-13T09:00:00Z",
+        createdAt: "2026-01-01T08:00:00Z",
+        status: "open",
     },
     {
         id: "lits-general-assembly",
@@ -323,6 +328,11 @@ export const tanYanKeeEvents: CampusEvent[] = [
         seatsLeft: 45,
         bannerColor: "#059669",
         href: "/events/lits-general-assembly",
+        department: "biz",
+        tag: "Assembly",
+        startsAt: "2026-11-12T13:00:00Z",
+        createdAt: "2026-10-01T08:00:00Z",
+        status: "open",
     },
     {
         id: "mr-and-ms-ue",
@@ -334,6 +344,11 @@ export const tanYanKeeEvents: CampusEvent[] = [
         seatsLeft: 18,
         bannerColor: "#4F46E5",
         href: "/events/mr-and-ms-ue",
+        department: "biz",
+        tag: "Pageant",
+        startsAt: "2026-11-20T18:00:00Z",
+        createdAt: "2026-10-05T08:00:00Z",
+        status: "open",
     },
 ];
 
@@ -342,4 +357,14 @@ export function seatTone(seatsLeft: number) {
     if (seatsLeft > 40) return { dot: "#10B981", text: "#047857" };
     if (seatsLeft > 10) return { dot: "#F59E0B", text: "#B45309" };
     return { dot: "#F43F5E", text: "#BE123C" };
+}
+
+export function formatEventDate(isoDate: string): string {
+    const d = new Date(isoDate);
+    if (isNaN(d.getTime())) return isoDate;
+    return d.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+    });
 }

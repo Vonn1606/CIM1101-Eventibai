@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { Search, ChevronLeft, Bell } from "lucide-react";
+import { Search, ChevronLeft } from "lucide-react";
 
 export default function EventsNavbar({
   searchQuery,
@@ -16,22 +16,20 @@ export default function EventsNavbar({
       <div className="mx-auto flex h-[44px] max-w-[1280px] items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Link
-            href="/user-dashboard"
+            href="/"
             className="flex items-center gap-1.5 text-xs font-bold text-neutral-600 hover:text-neutral-900 transition"
           >
             <ChevronLeft size={16} />
-            <span className="hidden sm:inline">Back to Dashboard</span>
+            <span className="hidden sm:inline">Home</span>
           </Link>
           <span className="h-4 w-px bg-neutral-200" />
-          <Link
-            href="/user-dashboard"
-            className="flex items-center gap-2.5 group focus:outline-none"
-          >
-            <img
-              src="/eventifytxt-cropped.svg"
-              alt="Eventify"
-              className="h-9 w-auto object-contain transition transform group-hover:scale-105"
-            />
+          <Link href="/events" className="flex items-center gap-2">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#6c0c28] text-white font-extrabold text-sm">
+              E
+            </span>
+            <span className="font-extrabold text-sm tracking-tight text-[#1a1c1e]">
+              Eventify
+            </span>
           </Link>
         </div>
 
@@ -49,7 +47,7 @@ export default function EventsNavbar({
 
         <div className="flex items-center gap-2">
           <Link
-            href="/user-dashboard"
+            href="/events"
             className="hidden sm:inline-flex h-8 items-center px-3 rounded-lg text-xs font-bold text-neutral-700 hover:bg-neutral-100 transition"
           >
             My Registrations

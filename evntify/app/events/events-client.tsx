@@ -3,18 +3,20 @@
 import React, { useState, useMemo } from "react";
 import EventsNavbar from "@/component/dashboard/events/eventsnavbar";
 import DepartmentPills from "@/component/dashboard/events/departmentpills";
-import DepartmentSpotlight from "@/component/dashboard/events/departmentspotlight";
+import FeaturedCarousel from "@/component/dashboard/featuredeventhero";
 import EventGridCard from "@/component/dashboard/events/eventgridcard";
 import SortSelect, { type SortOption } from "@/component/dashboard/events/sortselect";
-import type { EventDetail } from "@/types/events";
+import type { EventDetail, FeaturedEvent } from "@/types/events";
 import type { DepartmentId } from "@/lib/department";
-import Footer from "@/component/dashboard/layout-dashboard/footer";
+import { featuredEvents as defaultFeaturedEvents } from "@/lib/events";
+import Footer from "@/component/footer";
 
 interface EventsClientProps {
   initialEvents: EventDetail[];
+  featuredEvents?: FeaturedEvent[];
 }
 
-export default function EventsClient({ initialEvents }: EventsClientProps) {
+export default function EventsClient({ initialEvents, featuredEvents = defaultFeaturedEvents }: EventsClientProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeDept, setActiveDept] = useState<DepartmentId | "all">("all");
   const [sortOption, setSortOption] = useState<SortOption>("date");
@@ -70,16 +72,14 @@ export default function EventsClient({ initialEvents }: EventsClientProps) {
     return list;
   }, [initialEvents, searchQuery, activeDept, sortOption]);
 
-  const spotlightEvent = initialEvents[0];
-
   return (
     <div className="min-h-screen bg-[#F9F9FC] flex flex-col justify-between">
       <div>
         <EventsNavbar searchQuery={searchQuery} onSearchChange={setSearchQuery} />
 
         <main className="mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-4 sm:px-6 pt-5 pb-16">
-          {/* Spotlight banner */}
-          <DepartmentSpotlight event={spotlightEvent} />
+          {/* Featured Carousel Hero */}
+          <FeaturedCarousel events={featuredEvents} />
 
           {/* Filter Pills */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-200/60 pb-4">

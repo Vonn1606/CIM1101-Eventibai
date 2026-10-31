@@ -1,3 +1,5 @@
+import type { DepartmentId } from "@/lib/department";
+
 export type FeaturedEvent = {
     id: string;
     org: string;
@@ -15,11 +17,16 @@ export type CampusEvent = {
     code: string; // big faded label on the banner, e.g. "TYK•11"
     org: string;
     title: string;
-    date: string;
     venue: string;
     seatsLeft: number;
     bannerColor: string; // any CSS colour; swap for an <img> later
     href: string;
+    department?: DepartmentId;   // which college it belongs to
+    tag?: string;                // small pill on the card, e.g. "Hackathon"
+    startsAt?: string;           // ISO date-time, replaces `date`
+    createdAt?: string;          // for the "Recently Added" sort
+    status?: "open" | "concluded";
+    date: string;
 };
 
 export type EventFeature = {

@@ -1,6 +1,6 @@
 /** Single source of truth for colleges/departments (sign-up dropdown, filter pills, event data). */
 export const DEPARTMENTS = [
-    { value: "eng", label: "College of Engineering & Architecture", short: "Engineering" },
+    { value: "eng", label: "College of Engineering", short: "Engineering" },
     { value: "cs", label: "Lucio Tan College of Computer Studies", short: "Computer Studies" },
     { value: "biz", label: "Tan Yan Kee Business & Accountancy", short: "Business" },
     { value: "arts", label: "College of Arts and Sciences", short: "Arts & Sciences" },
