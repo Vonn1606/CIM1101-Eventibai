@@ -33,17 +33,6 @@
   flex-direction: column;
 }
 
-:root {
-  --maroon: #6c0c28;
-  --maroon-2: #8b263e;
-  --green: #006d43;
-  --green-tint: rgba(117, 248, 179, 0.4);
-  --amber: #753d00;
-  --rose-tint: #ffd9dd;
-  --rose-ink: #400013;
-  --dark: #1e2022;
-}
-
 .event-details-root *,
 .event-details-root *::before,
 .event-details-root *::after {

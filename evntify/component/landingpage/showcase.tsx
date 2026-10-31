@@ -22,7 +22,7 @@ export default function Showcase() {
     <section className="showcase">
       <div className="showcase-head">
         <div className="showcase-head-text">
-          <span className="dot" />
+          <span className="lp-dot" />
           <h2 className="showcase-title">Moments from around campus</h2>
           <p className="showcase-sub">
             A glimpse of the events that bring the university community together.

@@ -7,7 +7,7 @@ export default function Hero() {
                 <div className="hero-glow" />
 
                 <div className="badge">
-                    <span className="dot" />
+                    <span className="lp-dot" />
                     <span className="badge-text">University of the East · Campus Events</span>
                 </div>
 

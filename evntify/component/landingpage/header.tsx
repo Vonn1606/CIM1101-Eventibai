@@ -16,10 +16,10 @@ export default function Header() {
                     />
                 </Link>
                 <nav className="header-nav">
-                    <Link href="/events" className="nav-link">
+                    <Link href="/events" className="lp-nav-link">
                         Events
                     </Link>
-                    <Link href="/organizer-dashboard" className="nav-link">
+                    <Link href="/organizer-dashboard" className="lp-nav-link">
                         Organizer
                     </Link>
                     <Link href="/signin" className="nav-cta">

@@ -104,7 +104,7 @@
   }
 }
 
-.dot {
+.lp-dot {
   width: 8px;
   height: 8px;
   border-radius: 9999px;
@@ -154,7 +154,7 @@ body>header.header {
   gap: 16px;
 }
 
-.nav-link {
+.lp-nav-link {
   padding: 8px 16px;
   border-radius: 8px;
   font-weight: 600;
@@ -569,7 +569,7 @@ body>main.main {
     width: 56px;
   }
 
-  .nav-link {
+  .lp-nav-link {
     display: none;
   }
 }
