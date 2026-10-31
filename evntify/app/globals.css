@@ -64,6 +64,7 @@
 
 
 /* Landing Page CSS */
+/* THIS THING IS REDUNDANT */
 :root {
   --font-body: var(--font-dm-sans), "DM Sans", sans-serif;
   --font-lp-body: var(--font-dm-sans), "DM Sans", sans-serif;
@@ -115,8 +116,8 @@ h3 {
 }
 
 /* Header - landing page only (direct child of body) */
-body > .header,
-body > header.header {
+body>.header,
+body>header.header {
   position: fixed;
   inset: 0 0 auto 0;
   height: 80px;
@@ -188,8 +189,8 @@ body > header.header {
 }
 
 /* Layout - landing page main offset for fixed header */
-body > .main,
-body > main.main {
+body>.main,
+body>main.main {
   padding-top: 80px;
 }
 
