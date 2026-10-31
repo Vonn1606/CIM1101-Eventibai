@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 const links = [
-    { label: "Help Center", href: "#help" }, // PLACEHOLDER labels
+    { label: "Help Center", href: "#help" },
     { label: "Privacy Policy", href: "#privacy" },
     { label: "Campus Safety", href: "#safety" },
     { label: "Event Guidelines", href: "#guidelines" },
@@ -14,12 +14,12 @@ export default function AppFooter() {
                 <div className="flex flex-col gap-1">
                     <span className="font-display text-xl font-extrabold italic text-wine">eventify</span>
                     <p className="text-[11px] text-muted">
-                        © 2026 Eventify. The official campus events directory. {/* PLACEHOLDER */}
+                        © 2026 Eventify. The official campus events directory.
                     </p>
                 </div>
-                <nav className="flex flex-wrap gap-x-5 gap-y-2 text-[11px] text-muted, footer-links ">
+                <nav className="flex flex-wrap gap-x-5 gap-y-2 text-[11px] text-muted">
                     {links.map((l) => (
-                        <Link key={l.label} href={l.href} className="hover:text-wine">
+                        <Link key={l.label} href={l.href} className="hover:text-wine transition-colors">
                             {l.label}
                         </Link>
                     ))}

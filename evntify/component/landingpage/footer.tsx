@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export default function Footer() {
     return (
-        <footer className="footer">
+        <footer className="lp-footer">
             <div className="footer-inner">
                 <div className="footer-brand">
                     <Image src="/eventifytxt-cropped.svg" alt="Eventify" width={71} height={71} />

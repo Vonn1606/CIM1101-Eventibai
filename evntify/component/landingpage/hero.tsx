@@ -3,7 +3,7 @@ import Link from "next/link";
 export default function Hero() {
     return (
         <section className="hero-wrap">
-            <div className="hero">
+            <div className="lp-hero">
                 <div className="hero-glow" />
 
                 <div className="badge">
@@ -12,7 +12,7 @@ export default function Hero() {
                 </div>
 
                 <h1 className="hero-title">
-                    "Where team plans,
+                    &quot;Where team plans,
                     <br />
                     <em>Eventify happens.</em>
                 </h1>
@@ -33,7 +33,7 @@ export default function Hero() {
                         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#4D0011" strokeWidth="2" aria-hidden="true">
                             <path d="M7 2v10M2 7h10" />
                         </svg>
-                        <span>Explore Events & Venues</span>
+                        <span>Explore Events &amp; Venues</span>
                     </Link>
                 </div>
             </div>

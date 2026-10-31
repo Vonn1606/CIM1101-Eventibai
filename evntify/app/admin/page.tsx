@@ -13,25 +13,26 @@ export const metadata = {
 
 export default function AdminPage() {
   return (
-    <div className="shell">
-      <Sidebar />
-      <div className="content">
-        <Header />
-        <main className="main">
-          <div className="container">
-            <KpiCards />
-            <FeaturedBanner />
-            <section className="grid">
-              <Calendar />
-              <UpcomingEvents />
-            </section>
-          </div>
-        </main>
+    <div className="admin-root">
+      <div className="shell">
+        <Sidebar />
+        <div className="content">
+          <Header />
+          <main className="main">
+            <div className="container">
+              <KpiCards />
+              <FeaturedBanner />
+              <section className="grid">
+                <Calendar />
+                <UpcomingEvents />
+              </section>
+            </div>
+          </main>
+        </div>
+        <button className="fab">
+          <Plus size={14} /> Add Event
+        </button>
       </div>
-      <button className="fab">
-        <Plus size={14} /> Add Event
-      </button>
     </div>
   );
 }
-

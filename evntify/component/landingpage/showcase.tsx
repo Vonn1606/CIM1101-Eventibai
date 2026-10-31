@@ -2,7 +2,7 @@ import { marqueeRows, type EventCard } from "@/app/data/events";
 
 function Card({ title }: EventCard) {
   return (
-    <article className="card">
+    <article className="lp-card">
       <div className="card-media">
         <svg width="27" height="30" viewBox="0 0 27 30" fill="rgba(77,0,17,0.4)" aria-hidden="true">
           <rect x="1" y="4" width="25" height="25" rx="3" />
