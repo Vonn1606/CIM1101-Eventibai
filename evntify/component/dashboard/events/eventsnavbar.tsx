@@ -37,13 +37,15 @@ export default function EventsNavbar({
             <span className="hidden sm:inline">Home</span>
           </Link>
           <span className="h-4 w-px bg-neutral-200" />
-          <Link href="/events" className="flex items-center gap-2">
+          <Link href="/events" className="flex items-center gap-2.5 group focus:outline-none">
             <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#6c0c28] text-white font-extrabold text-sm">
               E
             </span>
-            <span className="font-extrabold text-sm tracking-tight text-[#1a1c1e]">
-              Eventify
-            </span>
+            <img
+              src="/eventifytxt4.svg"
+              alt="Eventify"
+              className="h-9  w-auto object-contain transition transform group-hover:scale-105"
+            />
           </Link>
         </div>
 
