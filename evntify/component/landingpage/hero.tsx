@@ -23,13 +23,13 @@ export default function Hero() {
                 </p>
 
                 <div className="hero-actions">
-                    <Link href="/events" className="btn-primary">
+                    <Link href="/signup" className="btn-primary">
                         <span>Get Started</span>
                         <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="#fff" strokeWidth="2" aria-hidden="true">
                             <path d="M2 6.5h9M7 2.5l4 4-4 4" />
                         </svg>
                     </Link>
-                    <Link href="/create" className="btn-secondary">
+                    <Link href="/events" className="btn-secondary">
                         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#4D0011" strokeWidth="2" aria-hidden="true">
                             <path d="M7 2v10M2 7h10" />
                         </svg>

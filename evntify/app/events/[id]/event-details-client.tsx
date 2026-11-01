@@ -1,5 +1,7 @@
 "use client";
 
+import SignInPrompt from "@/component/dashboard/events/signinprompt";
+import { useAuth } from "@/lib/use-auth";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
@@ -145,6 +147,14 @@ export default function EventDetailsClient({ initialEvent }: EventDetailsClientP
     100,
     Math.round((event.registeredCount / event.totalCapacity) * 100)
   );
+
+  const { user } = useAuth();
+  const [isAuthPromptOpen, setIsAuthPromptOpen] = useState(false);
+
+  const handleRegisterClick = () => {
+    if (!user) return setIsAuthPromptOpen(true);
+    setIsRegisterModalOpen(true);
+  };
 
   return (
     <div className="event-details-root">
@@ -424,7 +434,7 @@ export default function EventDetailsClient({ initialEvent }: EventDetailsClientP
                 {/* CTA Button */}
                 <button
                   type="button"
-                  onClick={() => setIsRegisterModalOpen(true)}
+                  onClick={handleRegisterClick}
                   className="cta"
                 >
                   <span>REGISTER</span>
@@ -442,7 +452,7 @@ export default function EventDetailsClient({ initialEvent }: EventDetailsClientP
                   </p>
                   <button
                     type="button"
-                    onClick={() => setIsFastPassModalOpen(true)}
+                    onClick={() => (user ? setIsFastPassModalOpen(true) : setIsAuthPromptOpen(true))}
                     className="rsvp__btn"
                   >
                     View Digital Pass Preview
@@ -491,235 +501,244 @@ export default function EventDetailsClient({ initialEvent }: EventDetailsClientP
             </aside>
           </div>
         </div>
-      </main>
+      </main >
 
       {/* ---------- Registration Modal ---------- */}
-      {isRegisterModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-          role="dialog"
-          aria-modal="true"
-        >
-          <div className="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
-            <button
-              type="button"
-              onClick={() => setIsRegisterModalOpen(false)}
-              className="absolute right-4 top-4 p-1.5 rounded-full text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition"
-              aria-label="Close modal"
-            >
-              <X size={18} />
-            </button>
-
-            <div className="mb-4">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#6c0c28]">
-                Official Academic Registration
-              </span>
-              <h2 className="text-xl font-bold text-neutral-900 mt-1">
-                {event.title}
-              </h2>
-              <p className="text-xs text-neutral-500 mt-0.5">
-                Register to secure your lab seat and generate your Campus Fast-Pass.
-              </p>
-            </div>
-
-            <form onSubmit={handleRegisterSubmit} className="flex flex-col gap-3.5">
-              <div>
-                <label className="block text-xs font-semibold text-neutral-700 mb-1">
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Marcus Rivera"
-                  value={formData.fullName}
-                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                  className="w-full px-3.5 py-2 text-sm rounded-lg border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-[#6c0c28]/30"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-neutral-700 mb-1">
-                    Student ID Number
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="2023-1101-MN"
-                    value={formData.studentNumber}
-                    onChange={(e) => setFormData({ ...formData, studentNumber: e.target.value })}
-                    className="w-full px-3.5 py-2 text-sm rounded-lg border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-[#6c0c28]/30"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-neutral-700 mb-1">
-                    Campus Email
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="name@campus.edu"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-3.5 py-2 text-sm rounded-lg border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-[#6c0c28]/30"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-neutral-700 mb-1">
-                  Department / College
-                </label>
-                <select
-                  value={formData.college}
-                  onChange={(e) => setFormData({ ...formData, college: e.target.value })}
-                  className="w-full px-3.5 py-2 text-sm rounded-lg border border-neutral-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#6c0c28]/30"
-                >
-                  <option value="College of Engineering">College of Engineering</option>
-                  <option value="Lucio Tan College of Computer Studies">Lucio Tan College of Computer Studies</option>
-                  <option value="Tan Yan Kee Business & Accountancy">Tan Yan Kee Business & Accountancy</option>
-                  <option value="College of Arts and Sciences">College of Arts and Sciences</option>
-                </select>
-              </div>
-
-              <div className="rounded-lg bg-neutral-50 p-3 border border-neutral-100 flex items-start gap-2.5 text-xs text-neutral-600">
-                <AlertCircle size={16} className="text-[#6c0c28] flex-shrink-0 mt-0.5" />
-                <span>
-                  By registering, you confirm attendance for <strong>{event.venue}</strong>. Your QR ticket
-                  is non-transferable and verified at entrance doors.
-                </span>
-              </div>
-
-              <div className="mt-2 flex items-center justify-end gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setIsRegisterModalOpen(false)}
-                  className="px-4 py-2 text-xs font-semibold text-neutral-600 hover:bg-neutral-100 rounded-lg transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-5 py-2 text-xs font-bold text-white bg-[#6c0c28] hover:bg-[#8b263e] rounded-lg shadow-sm transition flex items-center gap-2"
-                >
-                  {isSubmitting ? "Generating Fast-Pass..." : "Confirm & Claim Fast-Pass"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ---------- Digital Fast-Pass Preview Modal ---------- */}
-      {isFastPassModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-          role="dialog"
-          aria-modal="true"
-        >
-          <div className="relative w-full max-w-md rounded-2xl bg-white overflow-hidden shadow-2xl border border-neutral-100">
-            {/* Header banner */}
-            <div className="bg-[#6c0c28] p-5 text-white text-center relative">
+      {
+        isRegisterModalOpen && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
               <button
                 type="button"
-                onClick={() => setIsFastPassModalOpen(false)}
-                className="absolute right-3.5 top-3.5 p-1 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition"
+                onClick={() => setIsRegisterModalOpen(false)}
+                className="absolute right-4 top-4 p-1.5 rounded-full text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition"
                 aria-label="Close modal"
               >
                 <X size={18} />
               </button>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 text-[10px] font-bold tracking-wider uppercase mb-1.5">
-                <CheckCircle2 size={12} className="text-emerald-400" /> Campus Fast-Pass
-              </span>
-              <h2 className="text-lg font-extrabold leading-snug">
-                {event.title}
-              </h2>
-              <p className="text-xs text-white/80 mt-1">
-                {event.date} · {event.time}
-              </p>
+
+              <div className="mb-4">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#6c0c28]">
+                  Official Academic Registration
+                </span>
+                <h2 className="text-xl font-bold text-neutral-900 mt-1">
+                  {event.title}
+                </h2>
+                <p className="text-xs text-neutral-500 mt-0.5">
+                  Register to secure your lab seat and generate your Campus Fast-Pass.
+                </p>
+              </div>
+
+              <form onSubmit={handleRegisterSubmit} className="flex flex-col gap-3.5">
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Marcus Rivera"
+                    value={formData.fullName}
+                    onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                    className="w-full px-3.5 py-2 text-sm rounded-lg border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-[#6c0c28]/30"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                      Student ID Number
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="2023-1101-MN"
+                      value={formData.studentNumber}
+                      onChange={(e) => setFormData({ ...formData, studentNumber: e.target.value })}
+                      className="w-full px-3.5 py-2 text-sm rounded-lg border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-[#6c0c28]/30"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                      Campus Email
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="name@campus.edu"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className="w-full px-3.5 py-2 text-sm rounded-lg border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-[#6c0c28]/30"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                    Department / College
+                  </label>
+                  <select
+                    value={formData.college}
+                    onChange={(e) => setFormData({ ...formData, college: e.target.value })}
+                    className="w-full px-3.5 py-2 text-sm rounded-lg border border-neutral-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#6c0c28]/30"
+                  >
+                    <option value="College of Engineering">College of Engineering</option>
+                    <option value="Lucio Tan College of Computer Studies">Lucio Tan College of Computer Studies</option>
+                    <option value="Tan Yan Kee Business & Accountancy">Tan Yan Kee Business & Accountancy</option>
+                    <option value="College of Arts and Sciences">College of Arts and Sciences</option>
+                  </select>
+                </div>
+
+                <div className="rounded-lg bg-neutral-50 p-3 border border-neutral-100 flex items-start gap-2.5 text-xs text-neutral-600">
+                  <AlertCircle size={16} className="text-[#6c0c28] flex-shrink-0 mt-0.5" />
+                  <span>
+                    By registering, you confirm attendance for <strong>{event.venue}</strong>. Your QR ticket
+                    is non-transferable and verified at entrance doors.
+                  </span>
+                </div>
+
+                <div className="mt-2 flex items-center justify-end gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setIsRegisterModalOpen(false)}
+                    className="px-4 py-2 text-xs font-semibold text-neutral-600 hover:bg-neutral-100 rounded-lg transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="px-5 py-2 text-xs font-bold text-white bg-[#6c0c28] hover:bg-[#8b263e] rounded-lg shadow-sm transition flex items-center gap-2"
+                  >
+                    {isSubmitting ? "Generating Fast-Pass..." : "Confirm & Claim Fast-Pass"}
+                  </button>
+                </div>
+              </form>
             </div>
+          </div>
+        )
+      }
+      <SignInPrompt
+        open={isAuthPromptOpen}
+        onClose={() => setIsAuthPromptOpen(false)}
+        nextPath={`/events/${event.id}`}
+      />
 
-            {/* QR Code Pass Body */}
-            <div className="p-6 flex flex-col items-center text-center">
-              <div className="p-4 rounded-xl bg-white border-2 border-dashed border-neutral-200 shadow-sm mb-4">
-                <svg
-                  className="w-44 h-44"
-                  viewBox="0 0 100 100"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <rect width="100" height="100" fill="white" />
-                  <rect x="6" y="6" width="28" height="28" rx="4" fill="#1a1c1e" />
-                  <rect x="10" y="10" width="20" height="20" rx="2" fill="white" />
-                  <rect x="14" y="14" width="12" height="12" rx="1" fill="#6c0c28" />
-
-                  <rect x="66" y="6" width="28" height="28" rx="4" fill="#1a1c1e" />
-                  <rect x="70" y="10" width="20" height="20" rx="2" fill="white" />
-                  <rect x="74" y="14" width="12" height="12" rx="1" fill="#6c0c28" />
-
-                  <rect x="6" y="66" width="28" height="28" rx="4" fill="#1a1c1e" />
-                  <rect x="10" y="70" width="20" height="20" rx="2" fill="white" />
-                  <rect x="14" y="74" width="12" height="12" rx="1" fill="#6c0c28" />
-
-                  <rect x="38" y="10" width="6" height="6" fill="#1a1c1e" />
-                  <rect x="48" y="14" width="8" height="6" fill="#1a1c1e" />
-                  <rect x="40" y="24" width="12" height="6" fill="#1a1c1e" />
-                  <rect x="10" y="40" width="8" height="6" fill="#1a1c1e" />
-                  <rect x="22" y="44" width="6" height="12" fill="#1a1c1e" />
-                  <rect x="38" y="38" width="24" height="24" rx="4" fill="#006d43" />
-                  <circle cx="50" cy="50" r="6" fill="white" />
-                  <rect x="70" y="40" width="18" height="8" fill="#1a1c1e" />
-                  <rect x="66" y="52" width="8" height="8" fill="#1a1c1e" />
-                  <rect x="42" y="70" width="16" height="8" fill="#1a1c1e" />
-                  <rect x="64" y="70" width="12" height="6" fill="#1a1c1e" />
-                  <rect x="46" y="82" width="24" height="6" fill="#1a1c1e" />
-                  <rect x="78" y="82" width="12" height="8" fill="#1a1c1e" />
-                </svg>
-              </div>
-
-              <div className="w-full rounded-lg bg-neutral-50 p-3 mb-4 text-left border border-neutral-100 flex flex-col gap-1.5">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-neutral-500 font-medium">Badge Pass ID:</span>
-                  <span className="font-mono font-bold text-[#6c0c28] tracking-wider text-sm">
-                    {ticketCode}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-neutral-500 font-medium">Venue Gate:</span>
-                  <span className="font-semibold text-neutral-800">{event.venue}</span>
-                </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-neutral-500 font-medium">Status:</span>
-                  <span className="font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full text-[10px]">
-                    VERIFIED SPEED-GATE PASS
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex gap-2 w-full">
-                <button
-                  type="button"
-                  onClick={() => {
-                    alert("Fast-Pass ticket saved! Ready for speed-gate entry.");
-                  }}
-                  className="flex-1 py-2.5 px-3 rounded-lg bg-[#6c0c28] text-white font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-[#8b263e] transition"
-                >
-                  <Download size={14} />
-                  Download Badge
-                </button>
+      {/* ---------- Digital Fast-Pass Preview Modal ---------- */}
+      {
+        isFastPassModalOpen && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="relative w-full max-w-md rounded-2xl bg-white overflow-hidden shadow-2xl border border-neutral-100">
+              {/* Header banner */}
+              <div className="bg-[#6c0c28] p-5 text-white text-center relative">
                 <button
                   type="button"
                   onClick={() => setIsFastPassModalOpen(false)}
-                  className="py-2.5 px-4 rounded-lg bg-neutral-100 text-neutral-700 font-bold text-xs hover:bg-neutral-200 transition"
+                  className="absolute right-3.5 top-3.5 p-1 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition"
+                  aria-label="Close modal"
                 >
-                  Close
+                  <X size={18} />
                 </button>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 text-[10px] font-bold tracking-wider uppercase mb-1.5">
+                  <CheckCircle2 size={12} className="text-emerald-400" /> Campus Fast-Pass
+                </span>
+                <h2 className="text-lg font-extrabold leading-snug">
+                  {event.title}
+                </h2>
+                <p className="text-xs text-white/80 mt-1">
+                  {event.date} · {event.time}
+                </p>
+              </div>
+
+              {/* QR Code Pass Body */}
+              <div className="p-6 flex flex-col items-center text-center">
+                <div className="p-4 rounded-xl bg-white border-2 border-dashed border-neutral-200 shadow-sm mb-4">
+                  <svg
+                    className="w-44 h-44"
+                    viewBox="0 0 100 100"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <rect width="100" height="100" fill="white" />
+                    <rect x="6" y="6" width="28" height="28" rx="4" fill="#1a1c1e" />
+                    <rect x="10" y="10" width="20" height="20" rx="2" fill="white" />
+                    <rect x="14" y="14" width="12" height="12" rx="1" fill="#6c0c28" />
+
+                    <rect x="66" y="6" width="28" height="28" rx="4" fill="#1a1c1e" />
+                    <rect x="70" y="10" width="20" height="20" rx="2" fill="white" />
+                    <rect x="74" y="14" width="12" height="12" rx="1" fill="#6c0c28" />
+
+                    <rect x="6" y="66" width="28" height="28" rx="4" fill="#1a1c1e" />
+                    <rect x="10" y="70" width="20" height="20" rx="2" fill="white" />
+                    <rect x="14" y="74" width="12" height="12" rx="1" fill="#6c0c28" />
+
+                    <rect x="38" y="10" width="6" height="6" fill="#1a1c1e" />
+                    <rect x="48" y="14" width="8" height="6" fill="#1a1c1e" />
+                    <rect x="40" y="24" width="12" height="6" fill="#1a1c1e" />
+                    <rect x="10" y="40" width="8" height="6" fill="#1a1c1e" />
+                    <rect x="22" y="44" width="6" height="12" fill="#1a1c1e" />
+                    <rect x="38" y="38" width="24" height="24" rx="4" fill="#006d43" />
+                    <circle cx="50" cy="50" r="6" fill="white" />
+                    <rect x="70" y="40" width="18" height="8" fill="#1a1c1e" />
+                    <rect x="66" y="52" width="8" height="8" fill="#1a1c1e" />
+                    <rect x="42" y="70" width="16" height="8" fill="#1a1c1e" />
+                    <rect x="64" y="70" width="12" height="6" fill="#1a1c1e" />
+                    <rect x="46" y="82" width="24" height="6" fill="#1a1c1e" />
+                    <rect x="78" y="82" width="12" height="8" fill="#1a1c1e" />
+                  </svg>
+                </div>
+
+                <div className="w-full rounded-lg bg-neutral-50 p-3 mb-4 text-left border border-neutral-100 flex flex-col gap-1.5">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-neutral-500 font-medium">Badge Pass ID:</span>
+                    <span className="font-mono font-bold text-[#6c0c28] tracking-wider text-sm">
+                      {ticketCode}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-neutral-500 font-medium">Venue Gate:</span>
+                    <span className="font-semibold text-neutral-800">{event.venue}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-neutral-500 font-medium">Status:</span>
+                    <span className="font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full text-[10px]">
+                      VERIFIED SPEED-GATE PASS
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 w-full">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      alert("Fast-Pass ticket saved! Ready for speed-gate entry.");
+                    }}
+                    className="flex-1 py-2.5 px-3 rounded-lg bg-[#6c0c28] text-white font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-[#8b263e] transition"
+                  >
+                    <Download size={14} />
+                    Download Badge
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsFastPassModalOpen(false)}
+                    className="py-2.5 px-4 rounded-lg bg-neutral-100 text-neutral-700 font-bold text-xs hover:bg-neutral-200 transition"
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* ---------- Footer ---------- */}
       <footer className="footer" role="contentinfo">
@@ -738,6 +757,6 @@ export default function EventDetailsClient({ initialEvent }: EventDetailsClientP
           </nav>
         </div>
       </footer>
-    </div>
+    </div >
   );
 }

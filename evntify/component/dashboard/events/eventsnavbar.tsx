@@ -1,8 +1,17 @@
 "use client";
-
+import { useAuth } from "@/lib/use-auth";
 import React from "react";
 import Link from "next/link";
 import { Search, ChevronLeft } from "lucide-react";
+
+
+/* will move this somewhere else */
+function getInitials(name?: string, email?: string) {
+  const source = name?.trim() || email?.split("@")[0] || "";
+  const parts = source.split(/[\s._-]+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return source.slice(0, 2).toUpperCase();
+}
 
 export default function EventsNavbar({
   searchQuery,
@@ -11,6 +20,11 @@ export default function EventsNavbar({
   searchQuery: string;
   onSearchChange: (q: string) => void;
 }) {
+  const { user, loading } = useAuth();
+  const initials = getInitials(
+    user?.user_metadata?.full_name as string | undefined,
+    user?.email
+  )
   return (
     <header className="sticky top-0 z-30 w-full border-b border-[#EAE4E1] bg-white/95 px-4 py-2.5 backdrop-blur-[6px]">
       <div className="mx-auto flex h-[44px] max-w-[1280px] items-center justify-between gap-4">
@@ -45,16 +59,27 @@ export default function EventsNavbar({
           />
         </div>
 
+
         <div className="flex items-center gap-2">
-          <Link
-            href="/events"
-            className="hidden sm:inline-flex h-8 items-center px-3 rounded-lg text-xs font-bold text-neutral-700 hover:bg-neutral-100 transition"
-          >
-            My Registrations
-          </Link>
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#6c0c28] text-white text-xs font-bold">
-            SC
-          </div>
+          {loading ? (
+            <div className="h-8 w-16 rounded-lg bg-neutral-100 animate-pulse" />
+          ) : user ? (
+            <>
+              <Link href="/events" className="hidden sm:inline-flex h-8 items-center px-3 rounded-lg text-xs font-bold text-neutral-700 hover:bg-neutral-100 transition">
+                My Registrations
+              </Link>
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#6c0c28] text-white text-xs font-bold">
+                {initials}
+              </div>
+            </>
+          ) : (
+            <Link
+              href="/signin?next=/events"
+              className="inline-flex h-8 items-center rounded-lg bg-[#6c0c28] px-4 text-xs font-bold text-white transition hover:bg-[#8b263e]"
+            >
+              Sign In
+            </Link>
+          )}
         </div>
       </div>
     </header>

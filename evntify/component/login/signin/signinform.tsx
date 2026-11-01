@@ -1,5 +1,5 @@
 "use client";
-
+import { supabase } from "@/lib/supabase";
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -10,20 +10,24 @@ export default function SignInForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email.toLowerCase().includes("admin")) {
-      router.push("/admin");
-    } else if (
-      email.toLowerCase().includes("org") ||
-      email.toLowerCase().includes("lits") ||
-      email.toLowerCase().includes("council")
-    ) {
-      router.push("/organizer-dashboard");
-    } else {
-      router.push("/user-dashboard");
+    setError(null);
+
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return setError(error.message);
+
+    const next = new URLSearchParams(window.location.search).get("next");
+    if (next && next.startsWith("/") && !next.startsWith("//")) {
+      return router.push(next);
     }
+
+    const lower = email.toLowerCase();
+    if (lower.includes("admin")) router.push("/admin");
+    else if (["org", "lits", "council"].some((k) => lower.includes(k))) router.push("/organizer-dashboard");
+    else router.push("/events");
   };
 
   return (
@@ -141,6 +145,7 @@ export default function SignInForm() {
         type="submit"
         className="mt-2 w-full h-11 bg-[#F5F4F2] hover:bg-[#EBE9E6] text-neutral-800 font-semibold text-xs sm:text-sm rounded-xl transition active:scale-[0.99] flex items-center justify-center gap-2 border border-neutral-200/80"
       >
+        {error && <p className="text-xs text-rose-600">{error}</p>}
         <span>Sign In to EVENTIFY</span>
         <span className="text-xs">→</span>
       </button>
