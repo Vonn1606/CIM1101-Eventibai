@@ -63,7 +63,7 @@
 .admin-root .shell { position: relative; min-height: 100vh; }
 .admin-root .content { margin-left: 288px; }
 .admin-root .main { padding-top: 64px; min-height: 800px; }
-.admin-root .container { max-width: 1440px; padding: 32px; display: flex; flex-direction: column; gap: 36px; }
+.admin-root .container { max-width: 1440px; padding: 32px; display: flex; flex-direction: column; gap: 20px; }
 .admin-root .card { background: var(--surface); box-shadow: var(--shadow); border-radius: 12px; }
 
 /* sidebar */
@@ -91,19 +91,19 @@
 .admin-root .avatar { width: 32px; height: 32px; border-radius: 9999px; background: #D5E3FD; display: grid; place-items: center; }
 
 /* KPI */
-.admin-root .kpis { display: flex; gap: 24px; align-items: flex-start; }
-.admin-root .kpi { position: relative; overflow: hidden; flex: 1; min-width: 0; min-height: 204px; padding: 24px; display: flex; flex-direction: column; justify-content: space-between; }
-.admin-root .kpi-tall { min-height: 248px; justify-content: flex-start; gap: 8px; }
+.admin-root .kpis { display: flex; gap: 20px; align-items: stretch; }
+.admin-root .kpi { position: relative; overflow: hidden; flex: 1; min-width: 0; padding: 20px 24px; display: flex; flex-direction: column; justify-content: flex-start; gap: 14px; }
+.admin-root .kpi-tall { min-height: unset; justify-content: flex-start; gap: 14px; }
 .admin-root .kpi-top { display: flex; justify-content: space-between; align-items: flex-start; }
-.admin-root .kpi-value { margin-top: 4px; font-size: 36px; line-height: 44px; font-weight: 700; letter-spacing: -.9px; }
+.admin-root .kpi-value { margin-top: 4px; font-size: 32px; line-height: 38px; font-weight: 700; letter-spacing: -.9px; }
 .admin-root .kpi-icon { width: 44px; height: 48px; border-radius: 12px; display: grid; place-items: center; }
-.admin-root .kpi-foot { display: flex; align-items: center; gap: 4px; padding-top: 16px; position: relative; z-index: 1; }
+.admin-root .kpi-foot { display: flex; align-items: center; gap: 6px; padding-top: 0; position: relative; z-index: 1; min-height: 22px; }
 .admin-root .trend { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; letter-spacing: .24px; }
 .admin-root .pill { margin-left: auto; padding: 2px 8px; border-radius: 9999px; background: var(--soft-3); color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .44px; line-height: 14px; }
 .admin-root .pill.red { color: var(--red); padding: 4px 10px; font-weight: 600; }
 .admin-root .live-dot { width: 8px; height: 8px; border-radius: 9999px; background: var(--rose); }
 .admin-root .blob { position: absolute; right: -16px; bottom: -16px; width: 80px; height: 80px; border-radius: 9999px; filter: blur(40px); pointer-events: none; }
-.admin-root .density { padding-top: 16px; display: flex; flex-direction: column; gap: 6px; }
+.admin-root .density { padding-top: 0; display: flex; flex-direction: column; gap: 6px; min-height: 22px; justify-content: center; }
 .admin-root .cap-row { display: flex; justify-content: space-between; }
 .admin-root .bar { height: 6px; border-radius: 9999px; background: var(--soft-3); overflow: hidden; }
 .admin-root .bar > span { display: block; height: 100%; border-radius: 9999px; }

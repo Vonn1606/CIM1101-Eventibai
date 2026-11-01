@@ -49,7 +49,7 @@ export default function KpiCards() {
         </div>
       </div>
 
-      <div className="card kpi kpi-tall">
+      <div className="card kpi">
         <div className="kpi-top">
           <div>
             <div className="label">Venue Booking Density</div>

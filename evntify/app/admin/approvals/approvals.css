@@ -175,7 +175,7 @@
 .ap-root .link-btn:hover { text-decoration: underline; }
 
 /* ---- inspector ---- */
-.ap-root .inspector { position: sticky; top: 88px; display: flex; flex-direction: column; gap: 24px; padding: 24px; background: #fff; border-top: 4px solid var(--rose); border-radius: 12px; box-shadow: var(--shadow-lg); max-height: calc(100vh - 112px); overflow-y: auto; }
+.ap-root .inspector { position: static; display: flex; flex-direction: column; gap: 24px; padding: 24px; background: #fff; border-top: 4px solid var(--rose); border-radius: 12px; box-shadow: var(--shadow-lg); }
 .ap-root .inspector.empty-ins { align-items: center; text-align: center; gap: 8px; color: var(--muted); padding: 40px 24px; }
 .ap-root .ins-head { display: flex; justify-content: space-between; gap: 4px; }
 .ap-root .ins-head h3 { font-size: 16px; line-height: 24px; letter-spacing: -.16px; }
