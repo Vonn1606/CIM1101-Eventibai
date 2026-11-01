@@ -10,7 +10,7 @@ import {
 const nav = [
   { label: "Admin Dashboard", icon: LayoutDashboard, href: "/admin" },
   { label: "Events Directory", icon: CalendarDays, href: "/admin/events-directory", active: true },
-  { label: "Approval of Events", icon: ClipboardCheck, href: "#", badge: 3 },
+  { label: "Approval of Events", icon: ClipboardCheck, href: "/admin/approvals", badge: 3 },
   { label: "Event & Organizers", icon: Users, href: "#" },
 ];
 
@@ -33,7 +33,7 @@ export default function EdSidebar() {
         <div className="ed-nav-group-label label brand-sub">Operations Portal</div>
         <nav className="nav">
           {nav.map(({ label, icon: Icon, active, badge, href }) => (
-            <a
+            <Link
               key={label}
               href={href}
               className={`nav-link ${active ? "active" : ""}`}
@@ -41,7 +41,7 @@ export default function EdSidebar() {
               <Icon size={16} />
               <span>{label}</span>
               {badge && <span className="nav-badge">{badge}</span>}
-            </a>
+            </Link>
           ))}
         </nav>
       </div>

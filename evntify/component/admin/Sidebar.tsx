@@ -1,11 +1,17 @@
 import Link from "next/link";
-import { LayoutDashboard, CalendarDays, Building2, Users, HelpCircle } from "lucide-react";
+import {
+  LayoutDashboard,
+  CalendarDays,
+  ClipboardCheck,
+  Users,
+  HelpCircle,
+} from "lucide-react";
 
 const nav = [
-  { label: "Dashboard", icon: LayoutDashboard, active: true },
-  { label: "Events", icon: CalendarDays, badge: 3 },
-  { label: "Venues", icon: Building2 },
-  { label: "Students", icon: Users },
+  { label: "Admin Dashboard", icon: LayoutDashboard, href: "/admin", active: true },
+  { label: "Events Directory", icon: CalendarDays, href: "/admin/events-directory" },
+  { label: "Approval of Events", icon: ClipboardCheck, href: "/admin/approvals", badge: 3 },
+  { label: "Event & Organizers", icon: Users, href: "#" },
 ];
 
 export default function Sidebar() {
@@ -22,13 +28,14 @@ export default function Sidebar() {
           </Link>
           <span className="label brand-sub" style={{ marginLeft: "6px" }}>Admin</span>
         </div>
+        <div className="label brand-sub" style={{ padding: "8px 24px 0" }}>Operations Portal</div>
         <nav className="nav">
-          {nav.map(({ label, icon: Icon, active, badge }) => (
-            <a key={label} href="#" className={`nav-link ${active ? "active" : ""}`}>
+          {nav.map(({ label, icon: Icon, active, badge, href }) => (
+            <Link key={label} href={href} className={`nav-link ${active ? "active" : ""}`}>
               <Icon size={16} />
               <span>{label}</span>
               {badge && <span className="nav-badge">{badge}</span>}
-            </a>
+            </Link>
           ))}
         </nav>
       </div>
