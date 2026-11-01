@@ -1,7 +1,7 @@
-import ApSidebar from "@/component/admin/Sidebar";
+import Sidebar from "@/component/admin/Sidebar";
 import Header from "@/component/admin/Header";
 import ApApprovalsView from "@/component/admin/ApApprovalsView";
-import "./approvals.css";
+import "../admin.css";
 
 export const metadata = {
   title: "Eventify - Event Approvals",
@@ -9,14 +9,11 @@ export const metadata = {
 
 export default function ApprovalsPage() {
   return (
-    <div className="ap-root">
+    <div className="admin-root ap-root">
       <div className="shell">
-        <ApSidebar />
+        <Sidebar />
         <div className="content">
-          <Header
-            title="Approvals"
-            profile={{ name: "Admin Office", role: "Student Affairs" }}
-          />
+          <Header />
           <main className="main">
             <ApApprovalsView />
           </main>
@@ -25,4 +22,3 @@ export default function ApprovalsPage() {
     </div>
   );
 }
-

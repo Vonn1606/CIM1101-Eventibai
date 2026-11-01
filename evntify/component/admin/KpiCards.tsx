@@ -49,22 +49,22 @@ export default function KpiCards() {
         </div>
       </div>
 
-      <div className="card kpi">
-        <div className="kpi-top">
-          <div>
-            <div className="label">Venue Booking Density</div>
-            <div className="kpi-value">88.5%</div>
+        <div className="card kpi">
+          <div className="kpi-top">
+            <div>
+              <div className="label">Venue Booking Density</div>
+              <div className="kpi-value">88.5%</div>
+            </div>
+            <div className="kpi-icon" style={{ background: "#EFF4FF", color: "#2F6AF2" }}><LayoutGrid size={18} /></div>
           </div>
-          <div className="kpi-icon" style={{ background: "#EFF4FF", color: "#2F6AF2" }}><LayoutGrid size={18} /></div>
-        </div>
-        <div className="density">
-          <div className="cap-row">
-            <span className="label-sm">Utilization</span>
-            <span className="label-sm dark">88.5%</span>
+          <div className="density">
+            <div className="cap-row">
+              <span className="label-sm">Utilization</span>
+              <span className="label-sm dark">88.5%</span>
+            </div>
+            <div className="bar"><span style={{ width: "88.5%", background: "#8B263E" }} /></div>
           </div>
-          <div className="bar"><span style={{ width: "88.5%", background: "#8B263E" }} /></div>
         </div>
-      </div>
     </section>
   );
 }

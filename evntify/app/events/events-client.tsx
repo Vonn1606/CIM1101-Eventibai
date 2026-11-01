@@ -77,6 +77,7 @@ export default function EventsClient({ initialEvents, featuredEvents = defaultFe
       <div>
         <EventsNavbar searchQuery={searchQuery} onSearchChange={setSearchQuery} />
 
+
         <main className="mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-4 sm:px-6 pt-5 pb-16">
           {/* Featured Carousel Hero */}
           <FeaturedCarousel events={featuredEvents} />
@@ -90,11 +91,10 @@ export default function EventsClient({ initialEvents, featuredEvents = defaultFe
               <button
                 type="button"
                 onClick={() => setActiveDept("all")}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold transition ${
-                  activeDept === "all"
-                    ? "bg-[#6c0c28] text-white shadow-sm"
-                    : "bg-white text-neutral-600 hover:bg-neutral-100 border border-neutral-200/60"
-                }`}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold transition ${activeDept === "all"
+                  ? "bg-[#6c0c28] text-white shadow-sm"
+                  : "bg-white text-neutral-600 hover:bg-neutral-100 border border-neutral-200/60"
+                  }`}
               >
                 All Colleges
               </button>
@@ -112,11 +112,10 @@ export default function EventsClient({ initialEvents, featuredEvents = defaultFe
                   key={d.id}
                   type="button"
                   onClick={() => setActiveDept(d.id)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-bold transition ${
-                    activeDept === d.id
-                      ? "bg-[#6c0c28] text-white shadow-sm"
-                      : "bg-white text-neutral-600 hover:bg-neutral-100 border border-neutral-200/60"
-                  }`}
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold transition ${activeDept === d.id
+                    ? "bg-[#6c0c28] text-white shadow-sm"
+                    : "bg-white text-neutral-600 hover:bg-neutral-100 border border-neutral-200/60"
+                    }`}
                 >
                   {d.label}
                 </button>
