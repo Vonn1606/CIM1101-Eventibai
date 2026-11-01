@@ -1,4 +1,4 @@
-import EdSidebar from "@/component/admin/EdSidebar";
+import Sidebar from "@/component/admin/Sidebar";
 import Header from "@/component/admin/Header";
 import EdEventsView from "@/component/admin/EdEventsView";
 import { Plus } from "lucide-react";
@@ -12,7 +12,7 @@ export default function EventsDirectoryPage() {
   return (
     <div className="ed-root">
       <div className="shell">
-        <EdSidebar />
+        <Sidebar />
         <div className="content">
           <Header />
           <main className="main">

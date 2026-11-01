@@ -1,4 +1,4 @@
-import ApSidebar from "@/component/admin/ApSidebar";
+import ApSidebar from "@/component/admin/Sidebar";
 import Header from "@/component/admin/Header";
 import ApApprovalsView from "@/component/admin/ApApprovalsView";
 import "./approvals.css";

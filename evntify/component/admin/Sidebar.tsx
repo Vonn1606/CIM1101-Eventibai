@@ -1,3 +1,4 @@
+"use client";
 import Link from "next/link";
 import {
   LayoutDashboard,
@@ -6,15 +7,17 @@ import {
   Users,
   HelpCircle,
 } from "lucide-react";
+import { usePathname } from "next/navigation";
 
 const nav = [
   { label: "Admin Dashboard", icon: LayoutDashboard, href: "/admin", active: true },
   { label: "Events Directory", icon: CalendarDays, href: "/admin/events-directory" },
   { label: "Approval of Events", icon: ClipboardCheck, href: "/admin/approvals", badge: 3 },
-  { label: "Event & Organizers", icon: Users, href: "#" },
+  { label: "Event & Organizers", icon: Users, href: "/admin/user-and-organizer" },
 ];
 
 export default function Sidebar() {
+  const pathname = usePathname();
   return (
     <aside className="aside">
       <div>
