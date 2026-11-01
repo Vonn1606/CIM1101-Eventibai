@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import OrganizerDashboardClient from "./organizer-dashboard-client";
+import RoleGuard from "@/component/auth/role-guard";
 
 export const metadata: Metadata = {
   title: "Eventify | Organizer Dashboard",
@@ -8,5 +9,9 @@ export const metadata: Metadata = {
 };
 
 export default function OrganizerDashboardPage() {
-  return <OrganizerDashboardClient />;
+  return (
+    <RoleGuard allowedRole="organizer">
+      <OrganizerDashboardClient />
+    </RoleGuard>
+  );
 }

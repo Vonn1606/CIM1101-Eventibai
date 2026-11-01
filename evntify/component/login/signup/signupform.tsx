@@ -57,7 +57,7 @@ export default function SignUpForm() {
 
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    router.push("/user-dashboard");
+    router.push("/my-events");
   }
 
   return (

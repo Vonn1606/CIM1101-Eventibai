@@ -23,6 +23,21 @@
   --color-mint: #baeed9;
   --color-mint-900: #083f31;
 
+  /* My Events / Student Portal tokens */
+  --font-serif-display: var(--font-playfair), serif;
+  --color-maroon-light: #8b263e;
+  --color-maroon-tint: #ffd9dd;
+  --color-maroon-ink: #400013;
+  --color-green: #006d43;
+  --color-mint-soft: #75f8b3;
+  --color-danger: #ba1a1a;
+  --color-surface: #f9f9fc;
+  --color-surface-low: #f3f3f6;
+  --color-surface-mid: #eeeef0;
+  --color-surface-high: #e8e8ea;
+  --color-surface-highest: #e2e2e5;
+  --color-charcoal: #2f3133;
+
   /* landing page fonts */
   --font-lp-body: var(--font-dm-sans), "DM Sans", sans-serif;
   --font-lp-serif: var(--font-newsreader), "Newsreader", Georgia, serif;

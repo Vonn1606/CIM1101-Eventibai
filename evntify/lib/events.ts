@@ -368,3 +368,116 @@ export function formatEventDate(isoDate: string): string {
         year: "numeric",
     });
 }
+
+
+/* ============================================================================
+   My Events Page Types & Mock Data
+   ============================================================================ */
+export type UpcomingEvent = {
+  id: string;
+  headerLabel: string;
+  headerColor: string;
+  featured?: boolean;
+  date: string;
+  title: string;
+  description: string;
+  qrCode: string;
+  venue: string;
+  meta: string;
+};
+
+export const upcoming: UpcomingEvent[] = [
+  {
+    id: "anniv",
+    headerLabel: "Featured event",
+    headerColor: "bg-charcoal",
+    featured: true,
+    date: "Oct 17, 2026",
+    title: "The 40th Anniversary Concert: FINALE",
+    description:
+      "Experience the pinnacle musical celebration of the decade with premier university chorales, guest alumni soloists, and the full 75-piece Symphonic Orchestra.",
+    qrCode: "EVT-4001",
+    venue: "University Auditorium (placeholder)",
+    meta: "6:00 PM (placeholder)",
+  },
+  {
+    id: "assembly",
+    headerLabel: "General assembly",
+    headerColor: "bg-green",
+    date: "Oct 26, 2026",
+    title: "You've Got A Friend In Me: General Assembly",
+    description:
+      "Annual freshman and senior networking convention, featuring keynote speaker sessions on emerging tech stacks and department project showcases.",
+    qrCode: "EVT-4002",
+    venue: "Main Hall (placeholder)",
+    meta: "1:00 PM (placeholder)",
+  },
+  {
+    id: "figma",
+    headerLabel: "Competition",
+    headerColor: "bg-maroon-light",
+    date: "Oct 30, 2026",
+    title: "LITS Arena: Figma Showdown 2026",
+    description:
+      "Speed UI/UX prototyping challenge. Participants solve real-world accessibility and micro-mobility campus design prompts live on stage.",
+    qrCode: "EVT-4003",
+    venue: "Innovation Lab (placeholder)",
+    meta: "9:00 AM (placeholder)",
+  },
+];
+
+export type PastEvent = {
+  id: string;
+  date: string;
+  title: string;
+  description: string;
+  venue: string;
+  meta: string;
+  status: "attended" | "missed" | "closed";
+  footer: string;
+};
+
+export const past: PastEvent[] = [
+  {
+    id: "expo",
+    date: "Sep 2026 (placeholder)",
+    title: "Global Tech Career Expo & Alumni Mixer 2026",
+    description:
+      "Met with over 45 corporate partners and tech recruiters. Resume submission confirmed for Cloud Infrastructure tracks.",
+    venue: "Convention Hall (placeholder)",
+    meta: "Verified attendance",
+    status: "attended",
+    footer: "Checked in by Proctor @ 09:14 AM",
+  },
+  {
+    id: "robotics",
+    date: "Sep 2026 (placeholder)",
+    title: "Autonomous Robotics & AI Colloquium",
+    description:
+      "Symposium showcasing undergraduate capstone engineering projects and industrial automation exhibits.",
+    venue: "Engineering Hall (placeholder)",
+    meta: "Concluded",
+    status: "closed",
+    footer: "Certificate unavailable (placeholder)",
+  },
+  {
+    id: "convo",
+    date: "Aug 2026 (placeholder)",
+    title: "University General Convocation & Welcome Walk",
+    description:
+      "Official ceremonial welcome for academic year 2026-2027 and president's annual campus address.",
+    venue: "University Grounds (placeholder)",
+    meta: "Concluded",
+    status: "closed",
+    footer: "Certificate unavailable (placeholder)",
+  },
+];
+
+// October 2026 starts on a Thursday.
+export const calendar = {
+  monthLabel: "October 2026",
+  prevTail: [27, 28, 29, 30],
+  days: 31,
+  featured: 17,
+  registered: [26, 30],
+};

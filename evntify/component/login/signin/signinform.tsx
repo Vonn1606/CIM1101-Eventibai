@@ -26,8 +26,8 @@ export default function SignInForm() {
 
     const lower = email.toLowerCase();
     if (lower.includes("admin")) router.push("/admin");
-    else if (["org", "lits", "council"].some((k) => lower.includes(k))) router.push("/organizer-dashboard");
-    else router.push("/events");
+    else if (["org", "lits", "council", "organizer"].some((k) => lower.includes(k))) router.push("/organizer-dashboard");
+    else router.push("/my-events");
   };
 
   return (

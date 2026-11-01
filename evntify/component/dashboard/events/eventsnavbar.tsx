@@ -20,7 +20,7 @@ export default function EventsNavbar({
   searchQuery: string;
   onSearchChange: (q: string) => void;
 }) {
-  const { user, loading } = useAuth();
+  const { user, loading, isOrganizer } = useAuth();
   const initials = getInitials(
     user?.user_metadata?.full_name as string | undefined,
     user?.email
@@ -65,8 +65,8 @@ export default function EventsNavbar({
             <div className="h-8 w-16 rounded-lg bg-neutral-100 animate-pulse" />
           ) : user ? (
             <>
-              <Link href="/events" className="hidden sm:inline-flex h-8 items-center px-3 rounded-lg text-xs font-bold text-neutral-700 hover:bg-neutral-100 transition">
-                My Registrations
+              <Link href={isOrganizer ? "/organizer-dashboard" : "/my-events"} className="hidden sm:inline-flex h-8 items-center px-3 rounded-lg text-xs font-bold text-neutral-700 hover:bg-neutral-100 transition">
+                {isOrganizer ? "Organizer Dashboard" : "My Events"}
               </Link>
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#6c0c28] text-white text-xs font-bold">
                 {initials}
