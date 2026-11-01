@@ -74,7 +74,7 @@ export default function ApApprovalsView() {
         </div>
         <div className="ap-kpis">
           <div className="card ap-kpi">
-            <div className="ring">
+            <div className="ap-ring">
               <svg viewBox="0 0 48 48" width="48" height="48" aria-hidden>
                 <circle
                   cx="24"

@@ -10,7 +10,7 @@ import {
 import { usePathname } from "next/navigation";
 
 const nav = [
-  { label: "Admin Dashboard", icon: LayoutDashboard, href: "/admin", active: true },
+  { label: "Admin Dashboard", icon: LayoutDashboard, href: "/admin" },
   { label: "Events Directory", icon: CalendarDays, href: "/admin/events-directory" },
   { label: "Approval of Events", icon: ClipboardCheck, href: "/admin/approvals", badge: 3 },
   { label: "Event & Organizers", icon: Users, href: "/admin/user-and-organizer" },
@@ -33,13 +33,25 @@ export default function Sidebar() {
         </div>
         <div className="label brand-sub" style={{ padding: "8px 24px 0" }}>Operations Portal</div>
         <nav className="nav">
-          {nav.map(({ label, icon: Icon, active, badge, href }) => (
-            <Link key={label} href={href} className={`nav-link ${active ? "active" : ""}`}>
-              <Icon size={16} />
-              <span>{label}</span>
-              {badge && <span className="nav-badge">{badge}</span>}
-            </Link>
-          ))}
+          {nav.map(({ label, icon: Icon, badge, href }) => {
+            const isActive =
+              href === "/admin"
+                ? pathname === "/admin"
+                : pathname
+                ? pathname.startsWith(href)
+                : false;
+            return (
+              <Link
+                key={label}
+                href={href}
+                className={`nav-link ${isActive ? "active" : ""}`}
+              >
+                <Icon size={16} />
+                <span>{label}</span>
+                {badge && <span className="nav-badge">{badge}</span>}
+              </Link>
+            );
+          })}
         </nav>
       </div>
       <div className="help">

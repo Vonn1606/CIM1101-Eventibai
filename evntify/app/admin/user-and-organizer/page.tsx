@@ -1,27 +1,24 @@
-import OrSidebar from "@/component/admin/Sidebar";
+import Sidebar from "@/component/admin/Sidebar";
 import Header from "@/component/admin/Header";
 import OrOrganizersView from "@/component/admin/OrOrganizerView";
-import "./organizer.css";
+import "../admin.css";
 
 export const metadata = {
-    title: "Eventify - Event & Organizers",
+  title: "Eventify - Event & Organizers",
 };
 
 export default function OrganizersPage() {
-    return (
-        <div className="or-root">
-            <div className="shell">
-                <OrSidebar />
-                <div className="content">
-                    <Header
-                        title="Organizers"
-                        profile={{ name: "Admin Office", role: "Student Affairs" }}
-                    />
-                    <main className="main">
-                        <OrOrganizersView />
-                    </main>
-                </div>
-            </div>
+  return (
+    <div className="admin-root or-root">
+      <div className="shell">
+        <Sidebar />
+        <div className="content">
+          <Header />
+          <main className="main">
+            <OrOrganizersView />
+          </main>
         </div>
-    );
+      </div>
+    </div>
+  );
 }
