@@ -1,6 +1,7 @@
 import Header from "@/component/landingpage/header";
 import Hero from "@/component/landingpage/hero";
 import Showcase from "@/component/landingpage/showcase";
+import About from "@/component/landingpage/about";
 import Footer from "@/component/footer";
 
 export default function Home() {
@@ -14,10 +15,10 @@ export default function Home() {
           </div>
           <Hero />
           <Showcase />
+          <About />
         </div>
       </main>
       <Footer />
     </>
   );
-
 }
