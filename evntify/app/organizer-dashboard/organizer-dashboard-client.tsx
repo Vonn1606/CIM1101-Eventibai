@@ -2,19 +2,17 @@
 
 import React, { useState, useMemo, useRef } from "react";
 import Link from "next/link";
+import { submitEvent, toggleCheckIn } from "@/app/actions/events";
+import type { OrgEvent, OrgRosterStudent } from "@/lib/db/organizer";
 import {
   Bell,
-  Calendar,
   CalendarDays,
-  Check,
   CheckCircle2,
   ChevronDown,
   Clock,
   Edit3,
   ExternalLink,
-  Eye,
   FileText,
-  Info,
   LayoutGrid,
   MapPin,
   Megaphone,
@@ -22,15 +20,12 @@ import {
   Plus,
   QrCode,
   Radio,
-  RotateCcw,
   Search,
-  Send,
   Settings,
   Sparkles,
   Terminal,
   UserCheck,
   Users,
-  Wifi,
   X,
   ArrowRight,
   ArrowLeft,
@@ -44,141 +39,19 @@ import {
    Data Types & Initial State (matching Figma Mockup)
    ========================================================================== */
 
-type EventStatus = "live" | "soldout" | "pending" | "archived";
+// Types are imported from @/lib/db/organizer
+type EventStatus = OrgEvent["status"];
 
-interface EventItem {
-  id: number;
-  month: string;
-  day: string;
-  title: string;
-  venue: string;
-  time: string;
-  status: EventStatus;
-  badgeLabel: string;
-  registered: number;
-  cap: number;
-  capType: "RSVPs" | "Seats";
-  org?: string;
-  tier?: string;
-  waitlistCount?: number;
-}
+// Local alias for the imported type
+type EventItem = OrgEvent;
 
-interface RosterStudent {
-  id: string;
-  initials: string;
-  name: string;
-  yearProgram: string;
-  studentId: string;
-  eventTrack: string;
-  registeredAt: string;
-  checkedIn: boolean;
-  checkedInTime?: string;
-}
 
-const INITIAL_EVENTS: EventItem[] = [
-  {
-    id: 1,
-    month: "OCT",
-    day: "24",
-    title: "LITS General Assembly",
-    venue: "Tan Yan Kee Conf Hall • 11th Flr",
-    time: "1:00 PM – 5:00 PM PST",
-    status: "live",
-    badgeLabel: "Live • Approved",
-    registered: 400,
-    cap: 500,
-    capType: "RSVPs",
-    org: "League of Information Tech Students",
-    tier: "Free RSVP",
-    waitlistCount: 450,
-  },
-  {
-    id: 2,
-    month: "NOV",
-    day: "28",
-    title: "LITS Figma Sprint",
-    venue: "Computer Laboratory 2nd Floor",
-    time: "9:00 AM – 1:30 PM PST",
-    status: "soldout",
-    badgeLabel: "Sold Out • Full",
-    registered: 50,
-    cap: 50,
-    capType: "Seats",
-    org: "League of Information Tech Students",
-    tier: "Tiled RSVP",
-    waitlistCount: 14,
-  },
-  {
-    id: 3,
-    month: "NOV",
-    day: "05",
-    title: "Mr & Ms University Pageant",
-    venue: "Tan Yan Kee Hall A • 11th Flr",
-    time: "6:00 PM – 10:00 PM PST",
-    status: "pending",
-    badgeLabel: "Pending SAO Clearance",
-    registered: 320,
-    cap: 400,
-    capType: "RSVPs",
-    org: "Student Council",
-    tier: "Ticketed",
-  },
-];
 
-const INITIAL_ROSTER: RosterStudent[] = [
-  {
-    id: "1",
-    initials: "CA",
-    name: "Celine Althea Romea",
-    yearProgram: "BSIT • 3rd Year",
-    studentId: "2022-84928-MN",
-    eventTrack: "LITS Figma Competition",
-    registeredAt: "Oct 21, 3:14 PM",
-    checkedIn: true,
-    checkedInTime: "08:42 AM",
-  },
-  {
-    id: "2",
-    initials: "HG",
-    name: "Hanna Grace P. Solloso",
-    yearProgram: "BSCS • 2nd Year",
-    studentId: "2023-11294-MN",
-    eventTrack: "LITS Figma Competition",
-    registeredAt: "Oct 22, 10:01 AM",
-    checkedIn: false,
-  },
-  {
-    id: "3",
-    initials: "AT",
-    name: "Alyssa Nicole Tan",
-    yearProgram: "BSIT • 4th Year",
-    studentId: "2021-36132-MN",
-    eventTrack: "LITS General Assembly",
-    registeredAt: "Oct 20, 6:02 PM",
-    checkedIn: true,
-    checkedInTime: "09:05 AM",
-  },
-  {
-    id: "4",
-    initials: "KD",
-    name: "Karl David Ocampo",
-    yearProgram: "BSECE • 2nd Year",
-    studentId: "2023-99412-MN",
-    eventTrack: "LITS General Assembly",
-    registeredAt: "Oct 23, 8:20 AM",
-    checkedIn: false,
-  },
-  {
-    id: "5",
-    initials: "MS",
-    name: "Maria Santos",
-    yearProgram: "BSBA • 1st Year",
-    studentId: "2024-10291-MN",
-    eventTrack: "LITS General Assembly",
-    registeredAt: "Oct 23, 11:45 AM",
-    checkedIn: false,
-  },
-];
+export type RosterStudent = OrgRosterStudent;
+
+// INITIAL_EVENTS replaced by props (see page.tsx)
+
+// INITIAL_ROSTER replaced by props (see page.tsx)
 
 const QUICK_PRESETS = [
   {
@@ -202,15 +75,27 @@ const QUICK_PRESETS = [
    Main Component
    ========================================================================== */
 
-export default function OrganizerDashboardClient() {
+interface OrganizerDashboardClientProps {
+  initialEvents?: OrgEvent[];
+  initialRoster?: OrgRosterStudent[];
+  organizerName?: string;
+  orgName?: string;
+}
+
+export default function OrganizerDashboardClient({
+  initialEvents = [],
+  initialRoster = [],
+  organizerName = "Organizer",
+  orgName = "My Organisation",
+}: OrganizerDashboardClientProps) {
   // Navigation & View state
   const [activeTab, setActiveTab] = useState<string>("overview");
   const [registryFilter, setRegistryFilter] = useState<string>("all");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // App Data
-  const [events, setEvents] = useState<EventItem[]>(INITIAL_EVENTS);
-  const [roster, setRoster] = useState<RosterStudent[]>(INITIAL_ROSTER);
+  const [events, setEvents] = useState<OrgEvent[]>(initialEvents);
+  const [roster, setRoster] = useState<OrgRosterStudent[]>(initialRoster);
   const [broadcastMessage, setBroadcastMessage] = useState(
     "Doors open in 15 mins! Have your student QR codes ready for fast gate tap at Tan Yan Kee 11th Flr."
   );
@@ -241,7 +126,7 @@ export default function OrganizerDashboardClient() {
 
   // Modal State
   const [quickCheckinOpen, setQuickCheckinOpen] = useState(false);
-  const [qrModalEvent, setQrModalEvent] = useState<EventItem | null>(null);
+  // const [qrModalEvent, setQrModalEvent] = useState<EventItem | null>(null);
   const [editModalEvent, setEditModalEvent] = useState<EventItem | null>(null);
   const [logsModalOpen, setLogsModalOpen] = useState(false);
 
@@ -265,23 +150,36 @@ export default function OrganizerDashboardClient() {
   };
 
   // Handler: Toggle Gate Check-in for Student
-  const handleToggleCheckin = (studentId: string) => {
+  const handleToggleCheckin = async (studentId: string) => {
+    const target = roster.find((s) => s.studentId === studentId);
+    if (!target) return;
+    const nextStatus = !target.checkedIn;
+
+    // Optimistic update
     setRoster((prev) =>
       prev.map((student) => {
         if (student.studentId === studentId) {
-          const newStatus = !student.checkedIn;
-          const timeStr = newStatus
+          const timeStr = nextStatus
             ? new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
             : undefined;
           return {
             ...student,
-            checkedIn: newStatus,
+            checkedIn: nextStatus,
             checkedInTime: timeStr,
           };
         }
         return student;
       })
     );
+
+    const res = await toggleCheckIn(target.id, target.checkedIn);
+    if (res.error) {
+      showToast(`Check-in update failed: ${res.error}`);
+      // Revert optimistic update
+      setRoster((prev) =>
+        prev.map((s) => (s.studentId === studentId ? target : s))
+      );
+    }
   };
 
   // Handler: Simulate NFC Tap / Scan
@@ -301,7 +199,7 @@ export default function OrganizerDashboardClient() {
   };
 
   // Handler: Submit Event for SAO Approval
-  const handleSubmitSAO = (e: React.FormEvent) => {
+  const handleSubmitSAO = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formTitle.trim()) {
       showToast("Please enter an event title.");
@@ -313,8 +211,22 @@ export default function OrganizerDashboardClient() {
     const month = months[parsedDate.getMonth()] || "NOV";
     const day = String(parsedDate.getDate() || 15).padStart(2, "0");
 
+    const res = await submitEvent({
+      title: formTitle.trim(),
+      venue: formVenue,
+      date: formDate,
+      capacity: Number(formCapLimit) || 200,
+      tier: formTier,
+      memo: formMemo,
+    });
+
+    if (res.error) {
+      showToast(`Submission failed: ${res.error}`);
+      return;
+    }
+
     const newEvent: EventItem = {
-      id: Date.now(),
+      id: res.eventId ?? String(Date.now()),
       month,
       day,
       title: formTitle.trim(),
@@ -327,6 +239,7 @@ export default function OrganizerDashboardClient() {
       capType: "RSVPs",
       org: formHostOrg,
       tier: formTier,
+      waitlistCount: 0,
     };
 
     setEvents((prev) => [newEvent, ...prev]);
@@ -342,7 +255,7 @@ export default function OrganizerDashboardClient() {
       return;
     }
     const channelNames = Object.entries(activeChannels)
-      .filter(([_, active]) => active)
+      .filter(([, active]) => active)
       .map(([name]) => (name === "push" ? "Push" : name === "sms" ? "SMS" : "Discord"))
       .join(", ");
 
@@ -446,7 +359,7 @@ export default function OrganizerDashboardClient() {
               </div>
               <div className="flex flex-col text-left leading-tight">
                 <span className="flex items-center gap-1.5 text-xs font-bold text-[#1E1B19]">
-                  LITS Org Lead
+                  {orgName}
                   <span className="size-1 rounded-full bg-[#1E1B19]" />
                 </span>
                 <span className="text-[11px] font-medium text-[#7E6E6A]">
@@ -610,7 +523,7 @@ export default function OrganizerDashboardClient() {
         {/* Page Main Content Area */}
         <main className="mx-auto max-w-[1100px] px-4 py-8 sm:px-8 space-y-8">
           {/* ================================================================
-              PAGE HEADER: "Hey User !" Greeting & Action Buttons
+              PAGE HEADER: "{organizerName ? `Hey ${organizerName} !` : "Hey User !"}" Greeting & Action Buttons
               ================================================================ */}
           <section className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-1">
@@ -621,7 +534,7 @@ export default function OrganizerDashboardClient() {
                     fontFamily: "var(--font-playfair), var(--font-newsreader), Georgia, serif",
                   }}
                 >
-                  Hey User !
+                  {organizerName ? `Hey ${organizerName} !` : "Hey User !"}
                 </h1>
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-[#FAD6DC] bg-[#FDF0F2] px-3 py-1 text-xs font-semibold text-[#8C233C]">
                   <span className="size-1.5 rounded-full bg-[#107E59] animate-pulse" />
@@ -677,20 +590,20 @@ export default function OrganizerDashboardClient() {
                     fontFamily: "var(--font-playfair), var(--font-newsreader), Georgia, serif",
                   }}
                 >
-                  {(1428 + checkedInCount).toLocaleString()}
+                  {checkedInCount.toLocaleString()}
                 </span>
                 <div className="text-[10px] leading-tight text-[#8A7B78] flex flex-col font-medium">
-                  <span>/ 1,800</span>
+                  <span>total</span>
                   <span>cap</span>
                 </div>
               </div>
               <div>
                 <div className="mb-1 flex justify-between text-[11px] font-medium text-[#7A6B68]">
                   <span>Campus Hall Utilization</span>
-                  <span className="font-bold text-[#1E1B19]">79.3%</span>
+                  <span className="font-bold text-[#1E1B19]">—</span>
                 </div>
                 <div className="h-1.5 w-full rounded-full bg-[#F2ECE8] overflow-hidden">
-                  <div className="h-full w-[79.3%] rounded-full bg-[#651C32]" />
+                  <div className="h-full w-0 rounded-full bg-[#651C32]" />
                 </div>
               </div>
             </div>
@@ -768,7 +681,7 @@ export default function OrganizerDashboardClient() {
                     fontFamily: "var(--font-playfair), var(--font-newsreader), Georgia, serif",
                   }}
                 >
-                  2,940
+                  —
                 </span>
                 <span className="text-xs font-medium text-[#7A6B68] leading-tight">
                   students
@@ -777,7 +690,7 @@ export default function OrganizerDashboardClient() {
               <div className="flex items-center justify-between text-[11px]">
                 <span className="flex items-center gap-1 font-semibold text-[#0E6245]">
                   <span className="size-1.5 rounded-full bg-[#0E6245]" />
-                  98.6% SMS / Bot
+                  — SMS / Bot
                 </span>
                 <button
                   type="button"
@@ -958,25 +871,25 @@ export default function OrganizerDashboardClient() {
                       </button>
 
                       {/* Button 2: Roster or Waitlist or Print */}
-                      {evt.id === 1 && (
+                      {evt.status === "live" && (
                         <a
                           href="#participant-checkin"
                           className="flex items-center gap-1 rounded-lg border border-[#E8DFD8] bg-[#FAF5F2] px-2.5 py-1.5 text-xs font-semibold text-[#2C181C] transition hover:bg-[#F2ECE8]"
                         >
                           <Users size={11} />
-                          <span>Roster ({evt.waitlistCount || 450})</span>
+                          <span>Roster ({evt.registered || evt.waitlistCount || 0})</span>
                         </a>
                       )}
-                      {evt.id === 2 && (
+                      {evt.status === "soldout" && (
                         <button
-                          onClick={() => showToast("📋 Waitlist for LITS Figma Sprint: 14 students queued.")}
+                          onClick={() => showToast(`📋 Waitlist for ${evt.title}: ${evt.waitlistCount || 14} students queued.`)}
                           className="flex items-center gap-1 rounded-lg border border-[#E8DFD8] bg-[#FAF5F2] px-2.5 py-1.5 text-xs font-semibold text-[#2C181C] transition hover:bg-[#F2ECE8] cursor-pointer"
                         >
                           <Users size={11} />
                           <span>Waitlist ({evt.waitlistCount || 14})</span>
                         </button>
                       )}
-                      {evt.id === 3 && (
+                      {evt.status === "pending" && (
                         <button
                           onClick={() => showToast("🖨️ PDF endorsement memo downloaded for Student Affairs clearance.")}
                           className="flex items-center gap-1 rounded-lg border border-[#E8DFD8] bg-[#FAF5F2] px-2 py-1.5 text-xs font-semibold text-[#2C181C] transition hover:bg-[#F2ECE8] cursor-pointer"
@@ -987,7 +900,7 @@ export default function OrganizerDashboardClient() {
                       )}
 
                       {/* Button 3: Broadcast or Inspect */}
-                      {evt.id === 3 ? (
+                      {evt.status === "pending" ? (
                         <button
                           onClick={() => showToast("🔎 SAO Routing Inspector: Status 'Under Dean Review' at Administration Hall Rm 302.")}
                           className="flex items-center gap-1 rounded-lg border border-[#E8DFD8] bg-[#FAF5F2] px-2.5 py-1.5 text-xs font-semibold text-[#2C181C] transition hover:bg-[#F2ECE8] cursor-pointer"
@@ -1709,7 +1622,7 @@ export default function OrganizerDashboardClient() {
               <div className="divide-y divide-[#ECE2DC] rounded-xl border border-[#ECE2DC] text-xs">
                 <div className="p-3 bg-[#FAF5F2] flex justify-between items-center font-semibold text-[#1E1B19]">
                   <span>Gate Beacon: Doors open in 15 mins</span>
-                  <span className="text-[#0E6245] font-bold">2,900 / 2,940 Delivered (98.6%)</span>
+                  <span className="text-[#0E6245] font-bold">— Delivery logs not available</span>
                 </div>
                 <div className="p-3 flex justify-between items-center text-[#7A6B68]">
                   <span>Room Update: Computer Lab 204 breakout</span>

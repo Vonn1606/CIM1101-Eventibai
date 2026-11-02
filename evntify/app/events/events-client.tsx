@@ -1,24 +1,31 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useMemo } from "react";
 import EventsNavbar from "@/component/dashboard/events/eventsnavbar";
-import DepartmentPills from "@/component/dashboard/events/departmentpills";
 import FeaturedCarousel from "@/component/dashboard/featuredeventhero";
 import EventGridCard from "@/component/dashboard/events/eventgridcard";
 import SortSelect, { type SortOption } from "@/component/dashboard/events/sortselect";
-import type { EventDetail, FeaturedEvent } from "@/types/events";
-import type { DepartmentId } from "@/lib/department";
-import { featuredEvents as defaultFeaturedEvents } from "@/lib/events";
+import type { EventDetail, FeaturedEvent, CampusEvent } from "@/types/events";
 import Footer from "@/component/footer";
 
+// The 4 colleges from the DB schema
+const COLLEGE_PILLS = [
+  { id: "eng", label: "Engineering" },
+  { id: "sci", label: "Arts & Science" },
+  { id: "biz", label: "Business" },
+  { id: "art", label: "Design" },
+] as const;
+
+type CollegeSlug = "eng" | "sci" | "biz" | "art";
+
 interface EventsClientProps {
-  initialEvents: EventDetail[];
+  initialEvents: (CampusEvent | EventDetail)[];
   featuredEvents?: FeaturedEvent[];
 }
 
-export default function EventsClient({ initialEvents, featuredEvents = defaultFeaturedEvents }: EventsClientProps) {
+export default function EventsClient({ initialEvents, featuredEvents = [] }: EventsClientProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeDept, setActiveDept] = useState<DepartmentId | "all">("all");
+  const [activeCollege, setActiveCollege] = useState<CollegeSlug | "all">("all");
   const [sortOption, setSortOption] = useState<SortOption>("date");
 
   // Filter and sort events
@@ -31,31 +38,18 @@ export default function EventsClient({ initialEvents, featuredEvents = defaultFe
       list = list.filter(
         (e) =>
           e.title.toLowerCase().includes(q) ||
-          e.org.toLowerCase().includes(q) ||
-          e.summary.toLowerCase().includes(q) ||
+          ("org" in e && (e.org as string).toLowerCase().includes(q)) ||
+          (("summary" in e && typeof e.summary === "string") ? e.summary.toLowerCase().includes(q) : false) ||
           e.venue.toLowerCase().includes(q)
       );
     }
 
-    // Filter by department
-    if (activeDept !== "all") {
-      const deptMap: Record<DepartmentId, string> = {
-        eng: "Engineering",
-        cs: "Computer Studies",
-        biz: "Business",
-        arts: "Arts",
-        med: "Health",
-        law: "Law",
-      };
-      const key = deptMap[activeDept]?.toLowerCase();
-      if (key) {
-        list = list.filter(
-          (e) =>
-            e.orgDept.toLowerCase().includes(key) ||
-            e.category.toLowerCase().includes(key) ||
-            e.summary.toLowerCase().includes(key)
-        );
-      }
+    // Filter by college slug (department field on CampusEvent)
+    if (activeCollege !== "all") {
+      list = list.filter((e) => {
+        const dept = (e as CampusEvent).department;
+        return dept === activeCollege;
+      });
     }
 
     // Sort
@@ -63,20 +57,22 @@ export default function EventsClient({ initialEvents, featuredEvents = defaultFe
       list.sort((a, b) => b.seatsLeft - a.seatsLeft);
     } else if (sortOption === "popular") {
       list.sort((a, b) => {
-        const pctA = a.registeredCount / a.totalCapacity;
-        const pctB = b.registeredCount / b.totalCapacity;
-        return pctB - pctA;
+        const capA = ("totalCapacity" in a ? a.totalCapacity : 0) || 1;
+        const capB = ("totalCapacity" in b ? b.totalCapacity : 0) || 1;
+        const regA = ("registeredCount" in a ? a.registeredCount : 0) || 0;
+        const regB = ("registeredCount" in b ? b.registeredCount : 0) || 0;
+        return regB / capB - regA / capA;
       });
     }
+    // default: date — already sorted by server
 
     return list;
-  }, [initialEvents, searchQuery, activeDept, sortOption]);
+  }, [initialEvents, searchQuery, activeCollege, sortOption]);
 
   return (
     <div className="min-h-screen bg-[#F9F9FC] flex flex-col justify-between">
       <div>
         <EventsNavbar searchQuery={searchQuery} onSearchChange={setSearchQuery} />
-
 
         <main className="mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-4 sm:px-6 pt-5 pb-16">
           {/* Featured Carousel Hero */}
@@ -90,32 +86,25 @@ export default function EventsClient({ initialEvents, featuredEvents = defaultFe
               </span>
               <button
                 type="button"
-                onClick={() => setActiveDept("all")}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold transition ${activeDept === "all"
-                  ? "bg-[#6c0c28] text-white shadow-sm"
-                  : "bg-white text-neutral-600 hover:bg-neutral-100 border border-neutral-200/60"
-                  }`}
+                onClick={() => setActiveCollege("all")}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold transition ${
+                  activeCollege === "all"
+                    ? "bg-[#6c0c28] text-white shadow-sm"
+                    : "bg-white text-neutral-600 hover:bg-neutral-100 border border-neutral-200/60"
+                }`}
               >
                 All Colleges
               </button>
-              {(
-                [
-                  { id: "cs", label: "Computer Studies" },
-                  { id: "biz", label: "Business & Accountancy" },
-                  { id: "eng", label: "Engineering" },
-                  { id: "arts", label: "Arts & Sciences" },
-                  { id: "med", label: "Health Sciences" },
-                  { id: "law", label: "Law" },
-                ] as const
-              ).map((d) => (
+              {COLLEGE_PILLS.map((d) => (
                 <button
                   key={d.id}
                   type="button"
-                  onClick={() => setActiveDept(d.id)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-bold transition ${activeDept === d.id
-                    ? "bg-[#6c0c28] text-white shadow-sm"
-                    : "bg-white text-neutral-600 hover:bg-neutral-100 border border-neutral-200/60"
-                    }`}
+                  onClick={() => setActiveCollege(d.id)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold transition ${
+                    activeCollege === d.id
+                      ? "bg-[#6c0c28] text-white shadow-sm"
+                      : "bg-white text-neutral-600 hover:bg-neutral-100 border border-neutral-200/60"
+                  }`}
                 >
                   {d.label}
                 </button>
@@ -139,7 +128,7 @@ export default function EventsClient({ initialEvents, featuredEvents = defaultFe
           {filteredEvents.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredEvents.map((evt) => (
-                <EventGridCard key={evt.id} event={evt} />
+                <EventGridCard key={evt.id} event={evt as EventDetail} />
               ))}
             </div>
           ) : (
@@ -154,7 +143,7 @@ export default function EventsClient({ initialEvents, featuredEvents = defaultFe
                 type="button"
                 onClick={() => {
                   setSearchQuery("");
-                  setActiveDept("all");
+                  setActiveCollege("all");
                 }}
                 className="mt-4 px-4 py-2 rounded-lg bg-[#6c0c28] text-white text-xs font-bold"
               >

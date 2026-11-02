@@ -9,15 +9,30 @@ import {
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 
-const nav = [
-  { label: "Admin Dashboard", icon: LayoutDashboard, href: "/admin" },
-  { label: "Events Directory", icon: CalendarDays, href: "/admin/events-directory" },
-  { label: "Approval of Events", icon: ClipboardCheck, href: "/admin/approvals", badge: 3 },
-  { label: "Event & Organizers", icon: Users, href: "/admin/user-and-organizer" },
-];
+interface SidebarProps {
+  pendingApprovals?: number;
+}
 
-export default function Sidebar() {
+export default function Sidebar({ pendingApprovals }: SidebarProps) {
   const pathname = usePathname();
+
+  const nav = [
+    { label: "Admin Dashboard", icon: LayoutDashboard, href: "/admin" },
+    { label: "Events Directory", icon: CalendarDays, href: "/admin/events-directory" },
+    {
+      label: "Approval of Events",
+      icon: ClipboardCheck,
+      href: "/admin/approvals",
+      badge:
+        pendingApprovals !== undefined
+          ? pendingApprovals > 0
+            ? pendingApprovals
+            : undefined
+          : 3,
+    },
+    { label: "Event & Organizers", icon: Users, href: "/admin/user-and-organizer" },
+  ];
+
   return (
     <aside className="aside">
       <div>
@@ -48,7 +63,7 @@ export default function Sidebar() {
               >
                 <Icon size={16} />
                 <span>{label}</span>
-                {badge && <span className="nav-badge">{badge}</span>}
+                {badge !== undefined && <span className="nav-badge">{badge}</span>}
               </Link>
             );
           })}

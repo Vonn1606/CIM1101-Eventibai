@@ -1,8 +1,8 @@
-"use client";
+﻿"use client";
 
 import React from "react";
 import Link from "next/link";
-import { Calendar, MapPin, Users, Ticket, ArrowRight } from "lucide-react";
+import { Calendar, MapPin, Users, ArrowRight } from "lucide-react";
 import type { EventDetail } from "@/types/events";
 import { seatTone } from "@/lib/events";
 

@@ -1,5 +1,5 @@
 import { BadgeCheck, CalendarDays, CalendarPlus, CircleCheck, Clock, MapPin, QrCode, Ticket } from "lucide-react";
-import type { PastEvent, UpcomingEvent } from "@/lib/events";
+import type { PastEvent, UpcomingEvent } from "@/app/actions/registration";
 
 export function UpcomingCard({ e }: { e: UpcomingEvent }) {
   return (

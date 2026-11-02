@@ -2,49 +2,66 @@
 
 import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 
-export type UserRole = "admin" | "organizer" | "user" | "guest";
+export type UserRole = "admin" | "organizer" | "student" | "guest";
 
-export function getRoleFromUser(user: User | null): UserRole {
-    if (!user) return "guest";
-
-    const metaRole = (user.user_metadata?.role as string | undefined)?.toLowerCase();
-    if (metaRole === "admin") return "admin";
-    if (metaRole === "organizer" || metaRole === "org") return "organizer";
-    if (metaRole === "user" || metaRole === "student") return "user";
-
-    const email = (user.email ?? "").toLowerCase();
-    if (email.includes("admin")) return "admin";
-    if (["org", "lits", "council", "organizer"].some((k) => email.includes(k))) return "organizer";
-
-    return "user";
+async function fetchRole(userId: string): Promise<UserRole> {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", userId)
+    .single();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return ((data as any)?.role as UserRole) ?? "student";
 }
 
 export function useAuth() {
-    const [user, setUser] = useState<User | null>(null);
-    const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(null);
+  const [role, setRole] = useState<UserRole>("guest");
+  const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        supabase.auth.getSession().then(({ data }) => {
-            setUser(data.session?.user ?? null);
-            setLoading(false);
-        });
-        const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-            setUser(session?.user ?? null);
-            setLoading(false);
-        });
-        return () => sub.subscription.unsubscribe();
-    }, []);
+  useEffect(() => {
+    const supabase = createClient();
 
-    const role = getRoleFromUser(user);
+    async function loadSession() {
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
+      setUser(currentUser);
 
-    return {
-        user,
-        loading,
-        role,
-        isOrganizer: role === "organizer" || role === "admin",
-        isAdmin: role === "admin",
-        isUser: role === "user",
-    };
+      if (currentUser) {
+        setRole(await fetchRole(currentUser.id));
+      } else {
+        setRole("guest");
+      }
+      setLoading(false);
+    }
+
+    loadSession();
+
+    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+
+      if (currentUser) {
+        setRole(await fetchRole(currentUser.id));
+      } else {
+        setRole("guest");
+      }
+      setLoading(false);
+    });
+
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  return {
+    user,
+    loading,
+    role,
+    isOrganizer: role === "organizer" || role === "admin",
+    isAdmin: role === "admin",
+    isUser: role === "student",
+  };
 }

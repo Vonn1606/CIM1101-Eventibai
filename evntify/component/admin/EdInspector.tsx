@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { X, ShieldCheck, MapPin, Eye } from "lucide-react";
@@ -11,11 +11,13 @@ export default function EdInspector({
   event: EventItem | null;
   onClose: () => void;
 }) {
+  const [prevEventId, setPrevEventId] = useState(event?.id);
   const [notes, setNotes] = useState("");
 
-  useEffect(() => {
+  if (event?.id !== prevEventId) {
+    setPrevEventId(event?.id);
     setNotes("");
-  }, [event?.id]);
+  }
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();

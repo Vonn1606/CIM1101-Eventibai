@@ -1,20 +1,29 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
-import { getEventDetail, getAllEvents } from "@/lib/events";
+import { notFound } from "next/navigation";
+import { getEventBySlug, getAllEventSlugs } from "@/lib/db/events";
 import EventDetailsClient from "./event-details-client";
 
 interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-export function generateStaticParams() {
-  const events = getAllEvents();
-  return events.map((e) => ({ id: e.id }));
+// Pre-build known slugs; new events are rendered dynamically
+export async function generateStaticParams() {
+  try {
+    const slugs = await getAllEventSlugs();
+    if (slugs.length === 0) {
+      return [{ id: "_" }];
+    }
+    return slugs.map((id) => ({ id }));
+  } catch {
+    return [{ id: "_" }];
+  }
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
-  const event = getEventDetail(id);
+  const event = await getEventBySlug(id);
+  if (!event) return { title: "Event Not Found | Eventify UE" };
 
   return {
     title: `${event.title} | Eventify UE`,
@@ -22,22 +31,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-async function EventDetailsContent({ params }: PageProps) {
+export default async function EventPage({ params }: PageProps) {
   const { id } = await params;
-  const event = getEventDetail(id);
-  return <EventDetailsClient initialEvent={event} />;
-}
+  const event = await getEventBySlug(id);
 
-export default function EventPage({ params }: PageProps) {
-  return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-[#f9f9fc] flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#6c0c28] border-t-transparent" />
-        </div>
-      }
-    >
-      <EventDetailsContent params={params} />
-    </Suspense>
-  );
+  if (!event) notFound();
+
+  return <EventDetailsClient initialEvent={event} />;
 }

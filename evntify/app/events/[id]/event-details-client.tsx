@@ -27,6 +27,8 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import type { EventDetail } from "@/types/events";
+import { registerForEvent } from "@/app/actions/registration";
+import type { RegistrationResult } from "@/app/actions/registration";
 import "./event-details.css";
 
 interface EventDetailsClientProps {
@@ -44,9 +46,12 @@ export default function EventDetailsClient({ initialEvent }: EventDetailsClientP
     fullName: "",
     studentNumber: "",
     email: "",
-    college: "College of Engineering",
+    college: "eng",
   });
-  const [ticketCode, setTicketCode] = useState<string>("LITS-PASS-8821");
+  const [ticketCode, setTicketCode] = useState<string>("");
+  const [isRegistered, setIsRegistered] = useState(false);
+  const [registrationStatus, setRegistrationStatus] = useState<"registered" | "waitlisted" | null>(null);
+  const [regError, setRegError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Live countdown timer state (DAYS, HOURS, MINS matching the Figma design)
@@ -57,20 +62,9 @@ export default function EventDetailsClient({ initialEvent }: EventDetailsClientP
   });
 
   useEffect(() => {
-    // Check local storage for registered tickets
-    const saved = localStorage.getItem(`registered_event_${event.id}`);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (parsed.ticketCode) setTicketCode(parsed.ticketCode);
-      } catch {
-        // ignore
-      }
-    }
-  }, [event.id]);
-
-  useEffect(() => {
-    const target = new Date(event.registrationDeadline || "2027-01-13T08:30:00").getTime();
+    const target = event.registrationDeadline
+      ? new Date(event.registrationDeadline).getTime()
+      : Date.now();
 
     const updateTimer = () => {
       const now = new Date().getTime();
@@ -113,34 +107,34 @@ export default function EventDetailsClient({ initialEvent }: EventDetailsClientP
   };
 
   // Submit registration form
-  const handleRegisterSubmit = (e: React.FormEvent) => {
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setRegError(null);
 
-    setTimeout(() => {
-      const generatedCode = `LITS-FIGMA-${Math.floor(1000 + Math.random() * 9000)}`;
-      setTicketCode(generatedCode);
+    const result: RegistrationResult = await registerForEvent({
+      eventId: event.id,
+      studentNumber: formData.studentNumber,
+      college: formData.college as "eng" | "sci" | "biz" | "art",
+    });
 
-      setEvent((prev) => ({
-        ...prev,
-        registeredCount: Math.min(prev.totalCapacity, prev.registeredCount + 1),
-        seatsLeft: Math.max(0, prev.seatsLeft - 1),
-      }));
-
-      localStorage.setItem(
-        `registered_event_${event.id}`,
-        JSON.stringify({
-          ticketCode: generatedCode,
-          ...formData,
-          eventTitle: event.title,
-          registeredAt: new Date().toISOString(),
-        })
-      );
-
+    if (result.error) {
+      setRegError(result.error);
       setIsSubmitting(false);
-      setIsRegisterModalOpen(false);
-      setIsFastPassModalOpen(true);
-    }, 600);
+      return;
+    }
+
+    setTicketCode(result.ticketCode ?? "");
+    setRegistrationStatus(result.status ?? "registered");
+    setIsRegistered(true);
+    setEvent((prev) => ({
+      ...prev,
+      registeredCount: Math.min(prev.totalCapacity, prev.registeredCount + 1),
+      seatsLeft: Math.max(0, prev.seatsLeft - 1),
+    }));
+    setIsSubmitting(false);
+    setIsRegisterModalOpen(false);
+    setIsFastPassModalOpen(true);
   };
 
   const percentageFilled = Math.min(
@@ -435,14 +429,26 @@ export default function EventDetailsClient({ initialEvent }: EventDetailsClientP
                 </div>
 
                 {/* CTA Button */}
-                <button
-                  type="button"
-                  onClick={handleRegisterClick}
-                  className="cta"
-                >
-                  <span>REGISTER</span>
-                  <ExternalLink size={14} style={{ marginLeft: "4px" }} />
-                </button>
+                {isRegistered ? (
+                  <button
+                    type="button"
+                    onClick={() => setIsFastPassModalOpen(true)}
+                    className="cta"
+                    style={{ background: "#15803d" }}
+                  >
+                    <CheckCircle2 size={14} style={{ marginLeft: "4px" }} />
+                    <span>{registrationStatus === "waitlisted" ? "WAITLISTED" : "REGISTERED"}</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleRegisterClick}
+                    className="cta"
+                  >
+                    <span>REGISTER</span>
+                    <ExternalLink size={14} style={{ marginLeft: "4px" }} />
+                  </button>
+                )}
 
                 {/* Campus Fast-Pass box */}
                 <div className="rsvp">
@@ -589,10 +595,10 @@ export default function EventDetailsClient({ initialEvent }: EventDetailsClientP
                     onChange={(e) => setFormData({ ...formData, college: e.target.value })}
                     className="w-full px-3.5 py-2 text-sm rounded-lg border border-neutral-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#6c0c28]/30"
                   >
-                    <option value="College of Engineering">College of Engineering</option>
-                    <option value="Lucio Tan College of Computer Studies">Lucio Tan College of Computer Studies</option>
-                    <option value="Tan Yan Kee Business & Accountancy">Tan Yan Kee Business & Accountancy</option>
-                    <option value="College of Arts and Sciences">College of Arts and Sciences</option>
+                    <option value="eng">College of Engineering</option>
+                    <option value="sci">Lucio Tan College of Computer Studies</option>
+                    <option value="biz">Tan Yan Kee Business &amp; Accountancy</option>
+                    <option value="art">College of Arts and Sciences</option>
                   </select>
                 </div>
 
@@ -603,6 +609,10 @@ export default function EventDetailsClient({ initialEvent }: EventDetailsClientP
                     is non-transferable and verified at entrance doors.
                   </span>
                 </div>
+
+                {regError && (
+                  <p className="text-xs text-red-600 font-medium">{regError}</p>
+                )}
 
                 <div className="mt-2 flex items-center justify-end gap-2.5">
                   <button
@@ -712,8 +722,8 @@ export default function EventDetailsClient({ initialEvent }: EventDetailsClientP
                   </div>
                   <div className="flex justify-between items-center text-xs">
                     <span className="text-neutral-500 font-medium">Status:</span>
-                    <span className="font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full text-[10px]">
-                      VERIFIED SPEED-GATE PASS
+                    <span className={`font-bold px-2 py-0.5 rounded-full text-[10px] ${registrationStatus === "waitlisted" ? "text-amber-700 bg-amber-100" : "text-emerald-700 bg-emerald-100"}`}>
+                      {registrationStatus === "waitlisted" ? "WAITLISTED" : "VERIFIED SPEED-GATE PASS"}
                     </span>
                   </div>
                 </div>
