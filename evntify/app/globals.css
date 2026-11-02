@@ -43,6 +43,8 @@
   --font-lp-serif: var(--font-newsreader), "Newsreader", Georgia, serif;
   --font-newsreader: var(--font-newsreader), "Newsreader", Georgia, serif;
   --font-serif: var(--font-newsreader), "Newsreader", Georgia, serif;
+  --font-crimson: var(--font-crimson), "Crimson Text", Georgia, serif;
+  --color-landing-body: #554243;
 }
 
 /* background */
@@ -98,12 +100,14 @@
 @layer base {
   html {
     background: var(--bg);
+    scroll-behavior: smooth;
   }
 
   body {
     font-family: var(--font-lp-body);
     color: var(--text);
     background: var(--bg);
+    scroll-behavior: smooth;
     -webkit-font-smoothing: antialiased;
   }
 

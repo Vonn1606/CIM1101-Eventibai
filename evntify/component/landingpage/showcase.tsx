@@ -19,7 +19,7 @@ function Card({ title }: EventCard) {
 
 export default function Showcase() {
   return (
-    <section className="showcase">
+    <section id="events" className="showcase scroll-mt-20">
       <div className="showcase-head">
         <div className="showcase-head-text">
           <span className="lp-dot" />
