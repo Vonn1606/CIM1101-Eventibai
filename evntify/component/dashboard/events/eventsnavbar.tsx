@@ -44,7 +44,7 @@ export default function EventsNavbar({
             <img
               src="/eventifytxt4.svg"
               alt="Eventify"
-              className="h-9  w-auto object-contain transition transform group-hover:scale-105"
+              className="h-20  w-auto object-contain transition transform group-hover:scale-105"
             />
           </Link>
         </div>

@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
-import WelcomeBar from "@/components/WelcomeBar";
-import CalendarCard from "@/components/CalendarCard";
-import SelectedDayPreview from "@/components/SelectedDayPreview";
-import { PastCard, UpcomingCard } from "@/components/EventCards";
+import Header from "@/component/user-profile/Header";
+import Footer from "@/component/user-profile/Footer";
+import WelcomeBar from "@/component/user-profile/WelcomeBar";
+import CalendarCard from "@/component/user-profile/CalendarCard";
+import SelectedDayPreview from "@/component/user-profile/SelectedDayPreview";
+import { PastCard, UpcomingCard } from "@/component/user-profile/EventCards";
 import { past, upcoming } from "@/lib/events";
 import RoleGuard from "@/component/auth/role-guard";
 
