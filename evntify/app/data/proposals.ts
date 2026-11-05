@@ -13,6 +13,7 @@ export interface Proposal {
   when: string;
   date: string;
   venue: string;
+  venueNote: string;
   attendance: string;
   docs: string;
   check: string;
@@ -27,6 +28,11 @@ export interface Proposal {
   updated: string;
   banner: string;
   status: Decision;
+  contact: string;
+  contactEmail: string;
+  clearance: string;
+  clearanceNote: string;
+  documents: { name: string; meta: string }[];
 }
 
 export const PROPOSALS: Proposal[] = [
@@ -42,6 +48,7 @@ export const PROPOSALS: Proposal[] = [
     when: "Nov 28, 2025 · 9 AM – 5 PM",
     date: "Nov 28, 2025 9:00 AM – 5:00 PM",
     venue: "Grand Hall, Level 2",
+    venueNote: "Engineering Building, 2nd Floor",
     attendance: "500 expected attendees",
     docs: "3 documents attached",
     check: "Safety checks passed",
@@ -58,6 +65,15 @@ export const PROPOSALS: Proposal[] = [
     updated: "Updated 2 days ago",
     banner: "linear-gradient(135deg,#233144,#8B263E)",
     status: "pending",
+    contact: "Maria Reyes",
+    contactEmail: "lits.council@campus.edu",
+    clearance: "Pre-surveyed",
+    clearanceNote: "Electrical setup certified",
+    documents: [
+      { name: "Faculty adviser endorsement", meta: "Signed Oct 28 · PDF" },
+      { name: "Electrical safety certificate", meta: "Campus engineering office · PDF" },
+      { name: "Visitor gate credential list", meta: "12 evaluators · XLSX" },
+    ],
   },
   {
     id: "bcc",
@@ -71,6 +87,7 @@ export const PROPOSALS: Proposal[] = [
     when: "Dec 05, 2025 · 8 AM – 6 PM",
     date: "Dec 05, 2025 8:00 AM – 6:00 PM",
     venue: "Lecture Hall B",
+    venueNote: "Business Building, Ground Floor",
     attendance: "320 expected attendees",
     docs: "4 documents attached",
     check: "Budget verified",
@@ -89,6 +106,14 @@ export const PROPOSALS: Proposal[] = [
     updated: "Updated yesterday",
     banner: "linear-gradient(135deg,#0d1c2f,#0050D4)",
     status: "pending",
+    contact: "Jon Santos",
+    contactEmail: "bguild@campus.edu",
+    clearance: "Standard",
+    clearanceNote: "No special equipment",
+    documents: [
+      { name: "Faculty adviser endorsement", meta: "Signed Oct 30 · PDF" },
+      { name: "Finance office budget check", meta: "Verified · PDF" },
+    ],
   },
   {
     id: "sketchwalk",
@@ -102,6 +127,7 @@ export const PROPOSALS: Proposal[] = [
     when: "Dec 09, 2025 · 7 AM – 12 PM",
     date: "Dec 09, 2025 7:00 AM – 12:00 PM",
     venue: "Heritage Quarter (off campus)",
+    venueNote: "Starts at the Main Gate",
     attendance: "90 expected attendees",
     docs: "2 documents attached",
     check: "Fire clearance pending",
@@ -118,6 +144,13 @@ export const PROPOSALS: Proposal[] = [
     updated: "Updated 3 days ago",
     banner: "linear-gradient(135deg,#5c3f40,#F59E0B)",
     status: "pending",
+    contact: "Ana Lim",
+    contactEmail: "archsoc@campus.edu",
+    clearance: "Pending",
+    clearanceNote: "Marshal plan required",
+    documents: [
+      { name: "Faculty adviser endorsement", meta: "Signed Nov 1 · PDF" },
+    ],
   },
   {
     id: "debate",
@@ -131,6 +164,7 @@ export const PROPOSALS: Proposal[] = [
     when: "Dec 12, 2025 · 9 AM – 4 PM",
     date: "Dec 12, 2025 9:00 AM – 4:00 PM",
     venue: "Science Auditorium",
+    venueNote: "Science Building, Level 1",
     attendance: "180 expected attendees",
     docs: "3 documents attached",
     check: "All endorsements received",
@@ -146,6 +180,14 @@ export const PROPOSALS: Proposal[] = [
     updated: "Updated 4 days ago",
     banner: "linear-gradient(135deg,#131B2E,#2F6AF2)",
     status: "pending",
+    contact: "Paolo Cruz",
+    contactEmail: "debate@campus.edu",
+    clearance: "Low risk",
+    clearanceNote: "Standard AV only",
+    documents: [
+      { name: "Faculty adviser endorsement", meta: "Signed Nov 2 · PDF" },
+      { name: "Department head sign-off", meta: "Signed Nov 3 · PDF" },
+    ],
   },
 ];
 
@@ -155,4 +197,3 @@ export const TONES: Record<Tone, { bg: string; fg: string; stripe: string }> = {
   amber: { bg: "#FEF3C7", fg: "#92400E", stripe: "#F59E0B" },
   green: { bg: "#D1FAE5", fg: "#065F46", stripe: "#059669" },
 };
-
