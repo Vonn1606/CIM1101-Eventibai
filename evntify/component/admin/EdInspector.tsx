@@ -12,11 +12,12 @@ export default function EdInspector({
   onClose: () => void;
 }) {
   const [notes, setNotes] = useState("");
+  const [prevId, setPrevId] = useState(event?.id);
 
-  useEffect(() => {
+  if (event?.id !== prevId) {
+    setPrevId(event?.id);
     setNotes("");
-  }, [event?.id]);
-
+  }
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);

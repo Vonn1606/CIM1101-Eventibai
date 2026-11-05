@@ -32,7 +32,18 @@ import "./event-details.css";
 interface EventDetailsClientProps {
   initialEvent: EventDetail;
 }
-
+function getTimeLeft(deadline?: string) {
+  const target = new Date(deadline || "2027-01-13T08:30:00").getTime();
+  const diff = Math.max(0, target - Date.now());
+  const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const h = Math.floor((diff / (1000 * 60 * 60)) % 24);
+  const m = Math.floor((diff / 1000 / 60) % 60);
+  return {
+    days: String(d).padStart(2, "0"),
+    hours: String(h).padStart(2, "0"),
+    minutes: String(m).padStart(2, "0"),
+  };
+}
 export default function EventDetailsClient({ initialEvent }: EventDetailsClientProps) {
   const [event, setEvent] = useState<EventDetail>(initialEvent);
   const [isCopied, setIsCopied] = useState(false);
@@ -46,7 +57,19 @@ export default function EventDetailsClient({ initialEvent }: EventDetailsClientP
     email: "",
     college: "College of Engineering",
   });
-  const [ticketCode, setTicketCode] = useState<string>("LITS-PASS-8821");
+  const [ticketCode, setTicketCode] = useState<string>(() => {
+    if (typeof window === "undefined") return "LITS-PASS-8821";
+    try {
+      const saved = localStorage.getItem(`registered_event_${initialEvent.id}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.ticketCode) return parsed.ticketCode;
+      }
+    } catch {
+      // ignore
+    }
+    return "LITS-PASS-8821";
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Live countdown timer state (DAYS, HOURS, MINS matching the Figma design)
@@ -56,18 +79,6 @@ export default function EventDetailsClient({ initialEvent }: EventDetailsClientP
     minutes: "22",
   });
 
-  useEffect(() => {
-    // Check local storage for registered tickets
-    const saved = localStorage.getItem(`registered_event_${event.id}`);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (parsed.ticketCode) setTicketCode(parsed.ticketCode);
-      } catch {
-        // ignore
-      }
-    }
-  }, [event.id]);
 
   useEffect(() => {
     const target = new Date(event.registrationDeadline || "2027-01-13T08:30:00").getTime();
