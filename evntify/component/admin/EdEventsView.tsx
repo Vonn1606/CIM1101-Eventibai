@@ -16,15 +16,20 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+<<<<<<< Updated upstream
 import type { EventDirectoryItem } from "@/lib/db/stats";
 import type { EventItem } from "@/app/data/events-directory";
 import { pct } from "@/app/data/events-directory";
+=======
+import { DEPARTMENTS, type EventItem, pct } from "@/app/data/events-directory";
+>>>>>>> Stashed changes
 import EdEventCard from "./EdEventCard";
 import EdInspector from "./EdInspector";
 
 type Tab = "active" | "completed";
 type Sort = "soonest" | "booked" | "az";
 
+<<<<<<< Updated upstream
 const COLLEGE_CHIPS = [
   "All Colleges",
   "Engineering",
@@ -69,6 +74,14 @@ export default function EdEventsView({
   initialEvents = [],
   total = 0,
 }: EdEventsViewProps) {
+=======
+interface Props {
+  /** Initial event list — from DB when available, static fallback otherwise */
+  initialEvents: EventItem[];
+}
+
+export default function EdEventsView({ initialEvents }: Props) {
+>>>>>>> Stashed changes
   const [tab, setTab] = useState<Tab>("active");
   const [college, setCollege] = useState(COLLEGE_CHIPS[0] as string);
   const [query, setQuery] = useState("");
@@ -79,8 +92,13 @@ export default function EdEventsView({
   const allMapped = useMemo(() => initialEvents.map(toEventItem), [initialEvents]);
 
   const counts = {
+<<<<<<< Updated upstream
     active: allMapped.filter((e) => e.status !== "completed").length,
     completed: allMapped.filter((e) => e.status === "completed").length,
+=======
+    active: initialEvents.filter((e) => e.status !== "completed").length,
+    completed: initialEvents.filter((e) => e.status === "completed").length,
+>>>>>>> Stashed changes
   };
 
   const liveCount = allMapped.filter((e) => e.status === "ongoing").length;
@@ -88,11 +106,19 @@ export default function EdEventsView({
 
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
+<<<<<<< Updated upstream
     return allMapped
       .filter((e) =>
         tab === "completed" ? e.status === "completed" : e.status !== "completed"
       )
       .filter((e) => college === COLLEGE_CHIPS[0] || e.dept.includes(college))
+=======
+    return initialEvents
+      .filter((e) =>
+        tab === "completed" ? e.status === "completed" : e.status !== "completed"
+      )
+      .filter((e) => dept === DEPARTMENTS[0] || e.dept === dept)
+>>>>>>> Stashed changes
       .filter(
         (e) =>
           !q ||
@@ -107,7 +133,11 @@ export default function EdEventsView({
           ? a.title.localeCompare(b.title)
           : 0
       );
+<<<<<<< Updated upstream
   }, [allMapped, tab, college, query, sort]);
+=======
+  }, [initialEvents, tab, dept, query, sort]);
+>>>>>>> Stashed changes
 
   return (
     <div className="ed-container">
@@ -208,7 +238,11 @@ export default function EdEventsView({
       <div className="ed-count-bar">
         <div>
           <b className="ed-t-12-600">
+<<<<<<< Updated upstream
             Showing {list.length} of {total || allMapped.length} events
+=======
+            Showing {list.length} of {initialEvents.length} events
+>>>>>>> Stashed changes
           </b>
           <i className="ed-dot4" />
           <span className="ed-t-12 ed-muted">
@@ -241,7 +275,11 @@ export default function EdEventsView({
       {/* Pager */}
       <footer className="ed-pager-bar">
         <span className="ed-t-12 ed-muted">
+<<<<<<< Updated upstream
           Showing 1 to {list.length} of {total || allMapped.length} events
+=======
+          Showing 1 to {list.length} of {initialEvents.length} events
+>>>>>>> Stashed changes
         </span>
         <div className="ed-pages">
           <button disabled aria-label="Previous page">

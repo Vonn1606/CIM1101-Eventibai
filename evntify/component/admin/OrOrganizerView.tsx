@@ -14,27 +14,49 @@ import {
     X,
     Layers,
 } from "lucide-react";
+<<<<<<< Updated upstream
 import type { OrganizerItem } from "@/lib/db/stats";
+=======
+import {
+    COLLEGE_TABS,
+    type CollegeFilter,
+    type Organizer,
+} from "@/app/data/organizer";
+>>>>>>> Stashed changes
 import OrOrganizerCard from "./OrOrganizerCard";
 
 type Sort = "name" | "pending" | "events";
 
 const PAGE_SIZE = 6;
 
+<<<<<<< Updated upstream
 interface OrOrganizersViewProps {
   initialOrganizers?: OrganizerItem[];
 }
 
 export default function OrOrganizersView({ initialOrganizers = [] }: OrOrganizersViewProps) {
     const [college, setCollege] = useState("ALL");
+=======
+interface Props {
+  /** Initial organizer list — from DB when available, static fallback otherwise */
+  initialOrganizers: Organizer[];
+}
+
+export default function OrOrganizersView({ initialOrganizers }: Props) {
+    const [college, setCollege] = useState<CollegeFilter>("ALL");
+>>>>>>> Stashed changes
     const [query, setQuery] = useState("");
     const [sort, setSort] = useState<Sort>("name");
     const [page, setPage] = useState(1);
     const [toast, setToast] = useState<string | null>(null);
 
+<<<<<<< Updated upstream
     const ORGANIZERS = initialOrganizers;
 
     const totalPending = ORGANIZERS.reduce((n, o) => n + o.pendingProposals, 0);
+=======
+    const totalPending = initialOrganizers.reduce((n, o) => n + o.pendingProposals, 0);
+>>>>>>> Stashed changes
 
     const collegeTabs = useMemo(() => {
         const unique = Array.from(new Set(ORGANIZERS.map((o) => o.college)));
@@ -42,14 +64,21 @@ export default function OrOrganizersView({ initialOrganizers = [] }: OrOrganizer
     }, [ORGANIZERS]);
 
     const counts = useMemo(() => {
+<<<<<<< Updated upstream
         const c: Record<string, number> = { ALL: ORGANIZERS.length };
         ORGANIZERS.forEach((o) => { c[o.college] = (c[o.college] ?? 0) + 1; });
         return c;
     }, [ORGANIZERS]);
+=======
+        const c: Record<CollegeFilter, number> = { ALL: initialOrganizers.length, CAS: 0, CBA: 0, FAAD: 0, COE: 0 };
+        initialOrganizers.forEach((o) => (c[o.college] += 1));
+        return c;
+    }, [initialOrganizers]);
+>>>>>>> Stashed changes
 
     const list = useMemo(() => {
         const q = query.trim().toLowerCase();
-        return ORGANIZERS.filter((o) => college === "ALL" || o.college === college)
+        return initialOrganizers.filter((o) => college === "ALL" || o.college === college)
             .filter(
                 (o) =>
                     !q ||
@@ -62,7 +91,11 @@ export default function OrOrganizersView({ initialOrganizers = [] }: OrOrganizer
                         ? b.activeEvents - a.activeEvents
                         : a.name.localeCompare(b.name)
             );
+<<<<<<< Updated upstream
     }, [college, query, sort, ORGANIZERS]);
+=======
+    }, [college, query, sort, initialOrganizers]);
+>>>>>>> Stashed changes
 
     const pages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
     const current = Math.min(page, pages);
@@ -102,7 +135,7 @@ export default function OrOrganizersView({ initialOrganizers = [] }: OrOrganizer
                         <div>
                             <div className="label">Total</div>
                             <div className="or-stat-val">
-                                <b>{ORGANIZERS.length}</b>
+                                <b>{initialOrganizers.length}</b>
                                 <span>Organizers</span>
                             </div>
                         </div>
