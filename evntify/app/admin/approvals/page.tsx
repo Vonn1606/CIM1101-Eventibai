@@ -4,9 +4,6 @@ import ApApprovalsView from "@/component/admin/ApApprovalsView";
 import { getApprovals, getAdminProfile } from "@/lib/db/stats";
 import "../admin.css";
 
-// Admin pages render at request time (auth-protected, user-specific data)
-export const instant = false;
-
 export const metadata = {
   title: "Eventify - Event Approvals",
 };

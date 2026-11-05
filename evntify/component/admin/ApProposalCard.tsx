@@ -7,34 +7,30 @@ import {
   ShieldCheck,
   TriangleAlert,
   ChevronRight,
-  FileSearch,
 } from "lucide-react";
 import { Proposal, TONES } from "@/app/data/proposals";
 
 export default function ApProposalCard({
   p,
-  onReview,
+  selected,
+  onSelect,
 }: {
   p: Proposal;
-  onReview: () => void;
+  selected: boolean;
+  onSelect: () => void;
 }) {
   const t = TONES[p.tone];
   const s = TONES[p.stageTone];
   const c = TONES[p.checkTone];
   const CheckIcon = p.checkTone === "amber" ? TriangleAlert : ShieldCheck;
-  const linkColor =
-    p.tone === "green"
-      ? "#047857"
-      : p.tone === "blue"
-      ? "#0050D4"
-      : p.tone === "amber"
-      ? "#0D1C2F"
-      : "#B80035";
 
   return (
-    <article className="rv-card" style={{ ["--stripe" as string]: t.stripe }}>
-      <span className="rv-stripe" />
-      <div className="rv-top">
+    <article
+      className={`pcard ${selected ? "selected" : ""}`}
+      style={{ ["--stripe" as string]: t.stripe }}
+    >
+      <span className="pstripe" />
+      <div className="pcard-top">
         <div className="pchips">
           <span className="chip upper" style={{ background: t.bg, color: t.fg }}>
             {p.dept}
@@ -51,18 +47,13 @@ export default function ApProposalCard({
         </span>
       </div>
 
-      <div className="rv-title-row">
-        <div>
-          <h2 className="ptitle">{p.title}</h2>
-          <p className="psub">
-            <b>{p.org}</b>
-            <span>/</span>
-            {p.when}
-          </p>
-        </div>
-        <button type="button" className="rv-review" onClick={onReview}>
-          <FileSearch size={15} /> Review proposal
-        </button>
+      <div>
+        <h2 className="ptitle">{p.title}</h2>
+        <p className="psub">
+          <b>{p.org}</b>
+          <span>/</span>
+          {p.when}
+        </p>
       </div>
 
       <div className="pfacts">
@@ -109,12 +100,22 @@ export default function ApProposalCard({
         <button
           type="button"
           className="link-btn"
-          style={{ color: linkColor }}
-          onClick={onReview}
+          style={{
+            color:
+              p.tone === "green"
+                ? "#047857"
+                : p.tone === "blue"
+                ? "#0050D4"
+                : p.tone === "amber"
+                ? "#0D1C2F"
+                : "#B80035",
+          }}
+          onClick={onSelect}
         >
-          Open details <ChevronRight size={12} />
+          Review proposal <ChevronRight size={12} />
         </button>
       </div>
     </article>
   );
 }
+

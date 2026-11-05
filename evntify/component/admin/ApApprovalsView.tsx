@@ -15,12 +15,8 @@ import {
 import type { ApprovalItem } from "@/lib/db/stats";
 import type { Proposal, Decision } from "@/app/data/proposals";
 import ApProposalCard from "./ApProposalCard";
-<<<<<<< Updated upstream
 import ApProposalInspector from "./ApProposalInspector";
 import { decideApproval } from "@/app/actions/approvals";
-=======
-import ApReviewModal from "./ApReviewModal";
->>>>>>> Stashed changes
 
 type Tab = "pending" | "returned" | "approved";
 
@@ -104,15 +100,11 @@ export default function ApApprovalsView({
 
   const [tab, setTab] = useState<Tab>("pending");
   const [query, setQuery] = useState("");
-<<<<<<< Updated upstream
   const [selectedId, setSelectedId] = useState<string | null>(
     initialProposals.find((p) => !p.decision || p.decision === "pending")
       ?.id ?? null
   );
   const [isPending, startTransition] = useTransition();
-=======
-  const [openId, setOpenId] = useState<string | null>("lits");
->>>>>>> Stashed changes
 
   const count = (s: Decision) => items.filter((i) => i.status === s).length;
   const list = useMemo(() => {
@@ -128,10 +120,10 @@ export default function ApApprovalsView({
       );
   }, [items, tab, query]);
 
-  const open = items.find((i) => i.id === openId) ?? null;
+  const selected =
+    items.find((i) => i.id === selectedId && i.status !== "declined") ?? null;
 
   function decide(id: string, d: "approved" | "returned" | "declined") {
-<<<<<<< Updated upstream
     const next = items.map((i) => (i.id === id ? { ...i, status: d } : i));
     setItems(next);
     setSelectedId(next.find((i) => i.status === "pending")?.id ?? null);
@@ -146,10 +138,6 @@ export default function ApApprovalsView({
         });
       });
     }
-=======
-    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, status: d } : i)));
-    setOpenId(null);
->>>>>>> Stashed changes
   }
 
   const tabs: { key: Tab; label: string; icon: typeof ClipboardList }[] = [
@@ -170,7 +158,7 @@ export default function ApApprovalsView({
           </div>
           <h1>Event Approvals</h1>
           <p>
-            Open a proposal to inspect its details and documents, then approve,
+            Review submitted proposals against institutional policy, then approve,
             return for edits or decline.
           </p>
         </div>
@@ -212,13 +200,7 @@ export default function ApApprovalsView({
       <section className="policy">
         <i className="policy-blob" />
         <div className="policy-main">
-<<<<<<< Updated upstream
           <span className="policy-icon"><ScrollText size={18} /></span>
-=======
-          <span className="policy-icon rose">
-            <ScrollText size={18} />
-          </span>
->>>>>>> Stashed changes
           <div>
             <div className="policy-title">
               <b>Institutional policy reminder</b>
@@ -272,7 +254,6 @@ export default function ApApprovalsView({
         </div>
       </section>
 
-<<<<<<< Updated upstream
       {isPending && (
         <div className="text-xs text-neutral-500 px-4 pb-2">Saving decision…</div>
       )}
@@ -301,36 +282,9 @@ export default function ApApprovalsView({
         <ApProposalInspector
           p={selected}
           onClose={() => setSelectedId(null)}
-=======
-      <div className="rv-list">
-        {list.length ? (
-          list.map((p) => (
-            <ApProposalCard
-              key={p.id}
-              p={p}
-              onReview={() => setOpenId(p.id)}
-            />
-          ))
-        ) : (
-          <div className="card empty">
-            <CheckCircle2 size={20} />
-            <p>
-              {tab === "pending"
-                ? "Nothing left to review. New submissions will appear here."
-                : "No proposals in this list yet."}
-            </p>
-          </div>
-        )}
-      </div>
-
-      {open && open.status === "pending" && (
-        <ApReviewModal
-          p={open}
-          onClose={() => setOpenId(null)}
->>>>>>> Stashed changes
           onDecide={decide}
         />
-      )}
+      </div>
     </div>
   );
 }
