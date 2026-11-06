@@ -11,13 +11,8 @@ const labelClass = "block text-xs font-semibold text-neutral-800 mb-1.5";
 const leftIconWrap =
   "absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-400";
 
-/** The 4 colleges from the schema */
-const COLLEGES = [
-  { slug: "eng", name: "College of Engineering" },
-  { slug: "sci", name: "College of Art and Science" },
-  { slug: "biz", name: "College of Business Administration" },
-  { slug: "art", name: "College of Fine Arts, Architecture and Design" },
-] as const;
+/** A college row loaded from the `colleges` table by the sign-up page. */
+export type CollegeOption = { slug: string; name: string };
 
 function getStrength(password: string) {
   let score = 0;
@@ -32,7 +27,7 @@ function getStrength(password: string) {
   };
 }
 
-export default function SignUpForm() {
+export default function SignUpForm({ colleges }: { colleges: CollegeOption[] }) {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState("");
@@ -55,7 +50,7 @@ export default function SignUpForm() {
       full_name: fullName,
       email: schoolEmail,
       student_number: studentNumber,
-      college: college as "eng" | "sci" | "biz" | "art",
+      college,
       password,
     });
 
@@ -177,11 +172,14 @@ export default function SignUpForm() {
             id="college"
             name="college"
             required
+            disabled={colleges.length === 0}
             value={college}
             onChange={(e) => setCollege(e.target.value)}
           >
-            <option disabled value="">Select your college...</option>
-            {COLLEGES.map((c) => (
+            <option disabled value="">
+              {colleges.length === 0 ? "Colleges unavailable, try again later" : "Select your college..."}
+            </option>
+            {colleges.map((c) => (
               <option key={c.slug} value={c.slug}>
                 {c.name}
               </option>

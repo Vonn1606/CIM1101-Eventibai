@@ -18,6 +18,16 @@ export async function signUp(input: z.infer<typeof signUpSchema>): Promise<AuthA
   const { email, password, full_name, student_number, college } = parsed.data;
 
   const supabase = await createClient();
+
+  const { data: collegeRow, error: collegeError } = await supabase
+    .from("colleges")
+    .select("slug")
+    .eq("slug", college)
+    .maybeSingle();
+
+  if (collegeError) return { error: "Could not verify your college. Please try again." };
+  if (!collegeRow) return { error: "Please select a valid college" };
+
   const { error } = await supabase.auth.signUp({
     email,
     password,
@@ -25,7 +35,7 @@ export async function signUp(input: z.infer<typeof signUpSchema>): Promise<AuthA
       data: {
         full_name,
         student_number,
-        college, // slug: "eng" | "sci" | "biz" | "art"
+        college, // slug of a row in `colleges`
       },
     },
   });
