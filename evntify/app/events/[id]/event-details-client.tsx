@@ -31,11 +31,17 @@ import { registerForEvent } from "@/app/actions/registration";
 import type { RegistrationResult } from "@/app/actions/registration";
 import "./event-details.css";
 
+export type InitialRegistration = {
+  isRegistered: boolean;
+  ticketCode: string;
+  status: "registered" | "waitlisted" | null;
+};
+
 interface EventDetailsClientProps {
   initialEvent: EventDetail;
+  initialRegistration: InitialRegistration;
 }
-
-export default function EventDetailsClient({ initialEvent }: EventDetailsClientProps) {
+export default function EventDetailsClient({ initialEvent, initialRegistration }: EventDetailsClientProps) {
   const [event, setEvent] = useState<EventDetail>(initialEvent);
   const [isCopied, setIsCopied] = useState(false);
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
@@ -48,9 +54,11 @@ export default function EventDetailsClient({ initialEvent }: EventDetailsClientP
     email: "",
     college: "eng",
   });
-  const [ticketCode, setTicketCode] = useState<string>("");
-  const [isRegistered, setIsRegistered] = useState(false);
-  const [registrationStatus, setRegistrationStatus] = useState<"registered" | "waitlisted" | null>(null);
+  const [ticketCode, setTicketCode] = useState<string>(initialRegistration.ticketCode);
+  const [isRegistered, setIsRegistered] = useState(initialRegistration.isRegistered);
+  const [registrationStatus, setRegistrationStatus] = useState<"registered" | "waitlisted" | null>(
+    initialRegistration.status
+  );
   const [regError, setRegError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 

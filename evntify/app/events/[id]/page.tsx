@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getEventBySlug, getAllEventSlugs } from "@/lib/db/events";
 import EventDetailsClient from "./event-details-client";
-
+import { createClient } from "@/lib/supabase/server";
+import type { InitialRegistration } from "./event-details-client";
 interface PageProps {
   params: Promise<{ id: string }>;
 }
@@ -37,5 +38,40 @@ export default async function EventPage({ params }: PageProps) {
 
   if (!event) notFound();
 
-  return <EventDetailsClient initialEvent={event} />;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let initialRegistration: InitialRegistration = {
+    isRegistered: false,
+    ticketCode: "",
+    status: null,
+  };
+
+  if (user) {
+    const { data } = await supabase
+      .from("registrations")
+      .select("ticket_code, status")
+      .eq("event_id", event.id)
+      .eq("user_id", user.id)
+      .neq("status", "cancelled")
+      .maybeSingle();
+
+    const row = data as unknown as { ticket_code: string; status: string } | null;
+    if (row) {
+      initialRegistration = {
+        isRegistered: true,
+        ticketCode: row.ticket_code,
+        status: row.status === "waitlisted" ? "waitlisted" : "registered",
+      };
+    }
+  }
+
+  return (
+    <EventDetailsClient
+      initialEvent={event}
+      initialRegistration={initialRegistration}
+    />
+  );
 }
