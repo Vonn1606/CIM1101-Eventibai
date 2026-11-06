@@ -15,8 +15,8 @@ export default function Header() {
     };
 
     return (
-        <header className="header">
-            <div className="header-inner">
+        <header className="header fixed inset-x-0 top-0 z-50 h-20 w-full bg-[#fff8f5]/80 backdrop-blur-md shadow-[0_1px_8px_#0000000a]">
+            <div className="header-inner mx-auto flex h-full w-full max-w-[1320px] items-center justify-between px-6 sm:px-12">
                 <Link
                     href="/"
                     className="flex items-center gap-2.5 group focus:outline-none"
@@ -27,7 +27,7 @@ export default function Header() {
                         className="h-9 w-auto object-contain transition transform group-hover:scale-105"
                     />
                 </Link>
-                <nav className="header-nav">
+                <nav className="header-nav flex items-center gap-4">
                     <Link
                         href="/#events"
                         onClick={handleScroll("events")}
