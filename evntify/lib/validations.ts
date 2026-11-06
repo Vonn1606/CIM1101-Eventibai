@@ -11,9 +11,8 @@ export const signUpSchema = z.object({
       message: "Must be a UE school email (@ue.edu.ph)",
     }),
   student_number: z.string().min(1, "Student number is required"),
-  college: z.enum(["eng", "sci", "biz", "art"] as const, {
-    error: "Please select a college",
-  }),
+  // Slug of a row in the `colleges` table; existence is verified in the signUp action.
+  college: z.string().min(1, "Please select a college"),
   password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
