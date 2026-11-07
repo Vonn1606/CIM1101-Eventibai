@@ -58,12 +58,11 @@ export default async function EventPage({ params }: PageProps) {
       .neq("status", "cancelled")
       .maybeSingle();
 
-    const row = data as unknown as { ticket_code: string; status: string } | null;
-    if (row) {
+    if (data) {
       initialRegistration = {
         isRegistered: true,
-        ticketCode: row.ticket_code,
-        status: row.status === "waitlisted" ? "waitlisted" : "registered",
+        ticketCode: data.ticket_code,
+        status: data.status === "waitlisted" ? "waitlisted" : "registered",
       };
     }
   }

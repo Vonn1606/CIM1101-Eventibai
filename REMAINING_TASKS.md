@@ -11,7 +11,7 @@ This document outlines the remaining tasks to complete 100% of the **Mock Data â
 
 ---
 
-## Phase 2: Sign-Up College Selection
+## Phase 2: Sign-Up College Selection (/)
 
 ### Task 2.1: Load Colleges Dynamically
 - **File**: `evntify/component/login/signup/signupform.tsx` (lines 15â€“20)
@@ -25,7 +25,7 @@ This document outlines the remaining tasks to complete 100% of the **Mock Data â
 
 ## Phase 3: Registration & Fast-Pass
 
-### Task 3.1: Check Existing Registration on Page Load
+### Task 3.1: Check Existing Registration on Page Load (/)
 - **Files**:
   - `evntify/app/events/[id]/page.tsx`
   - `evntify/app/events/[id]/event-details-client.tsx` (lines 51â€“53)
