@@ -4,6 +4,8 @@ import React, { useState, useMemo, useRef } from "react";
 import Link from "next/link";
 import { submitEvent, toggleCheckIn } from "@/app/actions/events";
 import type { OrgEvent, OrgRosterStudent } from "@/lib/db/organizer";
+import ProfileDropdown from "@/component/auth/profile-dropdown";
+import { useAuth } from "@/lib/use-auth";
 import {
   Bell,
   CalendarDays,
@@ -129,6 +131,10 @@ export default function OrganizerDashboardClient({
   // const [qrModalEvent, setQrModalEvent] = useState<EventItem | null>(null);
   const [editModalEvent, setEditModalEvent] = useState<EventItem | null>(null);
   const [logsModalOpen, setLogsModalOpen] = useState(false);
+
+  // Profile dropdown
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const { user } = useAuth();
 
   const formRef = useRef<HTMLDivElement>(null);
 
@@ -508,15 +514,31 @@ export default function OrganizerDashboardClient({
               <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-[#E13654] ring-2 ring-white" />
             </button>
 
-            {/* User Profile Avatar */}
-            <button
-              type="button"
-              onClick={() => showToast("👤 Logged in as LITS Org Lead (CCSS Executive Board)")}
-              className="flex size-8 items-center justify-center rounded-full bg-[#651C32] text-xs font-bold text-white shadow-2xs hover:opacity-90"
-              title="LITS Org Lead"
-            >
-              LT
-            </button>
+            {/* User Profile Avatar + Dropdown */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setProfileDropdownOpen((o) => !o)}
+                className="flex size-8 items-center justify-center rounded-full bg-[#651C32] text-xs font-bold text-white shadow-2xs hover:opacity-90"
+                title="Account menu"
+                aria-label="Account menu"
+                aria-expanded={profileDropdownOpen}
+              >
+                LT
+              </button>
+              {profileDropdownOpen && (
+                <ProfileDropdown
+                  name={
+                    user?.user_metadata?.full_name ||
+                    user?.user_metadata?.name ||
+                    user?.email?.split("@")[0] ||
+                    "Organizer"
+                  }
+                  role="Organizer"
+                  onClose={() => setProfileDropdownOpen(false)}
+                />
+              )}
+            </div>
           </div>
         </header>
 
@@ -558,14 +580,13 @@ export default function OrganizerDashboardClient({
               >
                 Quick Check-in Mode
               </button>
-              <button
-                type="button"
-                onClick={scrollToForm}
+              <Link
+                href="/organizer-dashboard/create-event"
                 className="flex items-center gap-1.5 rounded-xl bg-[#651C32] px-5 py-2.5 text-xs font-semibold text-white shadow-xs transition hover:bg-[#521325] active:scale-95 cursor-pointer"
               >
                 <Plus size={14} />
                 Create Event
-              </button>
+              </Link>
             </div>
           </section>
 

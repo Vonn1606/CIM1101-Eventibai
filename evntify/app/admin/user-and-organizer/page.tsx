@@ -4,6 +4,9 @@ import OrOrganizersView from "@/component/admin/OrOrganizerView";
 import { getOrganizers, getAdminProfile, getAdminStats } from "@/lib/db/stats";
 import "../admin.css";
 
+// Admin pages render at request time (auth-protected, user-specific data)
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "Eventify - Event & Organizers",
 };

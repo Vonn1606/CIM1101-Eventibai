@@ -146,6 +146,7 @@ body>header.header {
 }
 
 .header-inner {
+  width: 100%;
   max-width: var(--max);
   height: 100%;
   margin: 0 auto;

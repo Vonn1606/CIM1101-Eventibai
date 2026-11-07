@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useMemo, useState, useTransition } from "react";
 import {
@@ -15,7 +15,7 @@ import {
 import type { ApprovalItem } from "@/lib/db/stats";
 import type { Proposal, Decision } from "@/app/data/proposals";
 import ApProposalCard from "./ApProposalCard";
-import ApProposalInspector from "./ApProposalInspector";
+import ApReviewModal from "./ApReviewModal";
 import { decideApproval } from "@/app/actions/approvals";
 
 type Tab = "pending" | "returned" | "approved";
@@ -56,6 +56,7 @@ function mapToProposal(a: ApprovalItem): Proposal {
     when: "",
     date: "",
     venue: a.venue,
+    venueNote: "",
     attendance: `${a.seatsTotal} capacity`,
     docs: "—",
     check: "—",
@@ -78,6 +79,11 @@ function mapToProposal(a: ApprovalItem): Proposal {
         : a.decision === "rejected"
         ? "returned"
         : "pending",
+    contact: a.submittedBy,
+    contactEmail: "",
+    clearance: "Standard",
+    clearanceNote: "",
+    documents: [],
   };
 }
 
@@ -100,10 +106,7 @@ export default function ApApprovalsView({
 
   const [tab, setTab] = useState<Tab>("pending");
   const [query, setQuery] = useState("");
-  const [selectedId, setSelectedId] = useState<string | null>(
-    initialProposals.find((p) => !p.decision || p.decision === "pending")
-      ?.id ?? null
-  );
+  const [openId, setOpenId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const count = (s: Decision) => items.filter((i) => i.status === s).length;
@@ -120,13 +123,11 @@ export default function ApApprovalsView({
       );
   }, [items, tab, query]);
 
-  const selected =
-    items.find((i) => i.id === selectedId && i.status !== "declined") ?? null;
+  const open = items.find((i) => i.id === openId) ?? null;
 
   function decide(id: string, d: "approved" | "returned" | "declined") {
-    const next = items.map((i) => (i.id === id ? { ...i, status: d } : i));
-    setItems(next);
-    setSelectedId(next.find((i) => i.status === "pending")?.id ?? null);
+    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, status: d } : i)));
+    setOpenId(null);
 
     // Fire Server Action for approved/declined
     const approvalId = approvalIds.get(id);
@@ -156,34 +157,37 @@ export default function ApApprovalsView({
               {count("pending")} proposals waiting
             </span>
           </div>
-          <h1>Event Approvals</h1>
-          <p>
-            Review submitted proposals against institutional policy, then approve,
-            return for edits or decline.
+          <h1>Clearance &amp; Compliance Queue</h1>
+          <p className="ap-sub">
+            Review event proposals against campus safety, venue capacity, and
+            institutional guidelines.
           </p>
         </div>
+
         <div className="ap-kpis">
           <div className="card ap-kpi">
-            <div className="ap-ring">
-              <svg viewBox="0 0 48 48" width="48" height="48" aria-hidden>
-                <circle cx="24" cy="24" r="19.67" fill="none" stroke="#E6EEFF" strokeWidth="4.67" />
+            <div className="ring-box">
+              <svg viewBox="0 0 45 45" className="ring">
+                <circle cx="22.5" cy="22.5" r="19.67" className="ring-bg" />
                 <circle
-                  cx="24" cy="24" r="19.67" fill="none"
-                  stroke="#E11D48" strokeWidth="4.67"
-                  strokeLinecap="round"
-                  strokeDasharray={C}
-                  strokeDashoffset={C * (1 - RATE / 100)}
-                  transform="rotate(-90 24 24)"
+                  cx="22.5"
+                  cy="22.5"
+                  r="19.67"
+                  className="ring-fg"
+                  strokeDasharray={`${(RATE / 100) * C} ${C}`}
                 />
               </svg>
-              <b>{RATE}%</b>
+              <span className="ring-txt">{RATE}%</span>
             </div>
             <div>
               <div className="label brown">Clearance rate</div>
-              <div className="ap-val">{RATE}%</div>
-              <div className="trend-up"><TrendingUp size={11} /> +2.1% this term</div>
+              <div className="ap-val">92%</div>
+              <div className="t-12 trend-green">
+                <TrendingUp size={12} /> +4% vs last term
+              </div>
             </div>
           </div>
+
           <div className="card ap-kpi">
             <div className="kpi-icon" style={{ background: "#DDE9FF", color: "#0050D4", width: 45, height: 48 }}>
               <Timer size={20} />
@@ -200,7 +204,9 @@ export default function ApApprovalsView({
       <section className="policy">
         <i className="policy-blob" />
         <div className="policy-main">
-          <span className="policy-icon"><ScrollText size={18} /></span>
+          <span className="policy-icon rose">
+            <ScrollText size={18} />
+          </span>
           <div>
             <div className="policy-title">
               <b>Institutional policy reminder</b>
@@ -258,33 +264,34 @@ export default function ApApprovalsView({
         <div className="text-xs text-neutral-500 px-4 pb-2">Saving decision…</div>
       )}
 
-      <div className="ap-grid">
-        <div className="ap-list">
-          {list.length ? (
-            list.map((p) => (
-              <ApProposalCard
-                key={p.id} p={p}
-                selected={p.id === selectedId}
-                onSelect={() => setSelectedId(p.id)}
-              />
-            ))
-          ) : (
-            <div className="card empty">
-              <CheckCircle2 size={20} />
-              <p>
-                {tab === "pending"
-                  ? "Nothing left to review. New submissions will appear here."
-                  : "No proposals in this list yet."}
-              </p>
-            </div>
-          )}
-        </div>
-        <ApProposalInspector
-          p={selected}
-          onClose={() => setSelectedId(null)}
+      <div className="rv-list">
+        {list.length ? (
+          list.map((p) => (
+            <ApProposalCard
+              key={p.id}
+              p={p}
+              onReview={() => setOpenId(p.id)}
+            />
+          ))
+        ) : (
+          <div className="card empty">
+            <CheckCircle2 size={20} />
+            <p>
+              {tab === "pending"
+                ? "Nothing left to review. New submissions will appear here."
+                : "No proposals in this list yet."}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {open && open.status === "pending" && (
+        <ApReviewModal
+          p={open}
+          onClose={() => setOpenId(null)}
           onDecide={decide}
         />
-      </div>
+      )}
     </div>
   );
 }

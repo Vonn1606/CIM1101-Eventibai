@@ -5,6 +5,9 @@ import { Plus } from "lucide-react";
 import { getEventsDirectory, getAdminProfile, getAdminStats } from "@/lib/db/stats";
 import "../admin.css";
 
+// Admin pages render at request time (auth-protected, user-specific data)
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "Eventify - Events Directory",
 };

@@ -1,17 +1,9 @@
 "use client";
 import { useAuth } from "@/lib/use-auth";
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
-import { Search, ChevronLeft } from "lucide-react";
-
-
-/* will move this somewhere else */
-function getInitials(name?: string, email?: string) {
-  const source = name?.trim() || email?.split("@")[0] || "";
-  const parts = source.split(/[\s._-]+/).filter(Boolean);
-  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-  return source.slice(0, 2).toUpperCase();
-}
+import { Search, ChevronLeft, User } from "lucide-react";
+import ProfileDropdown from "@/component/auth/profile-dropdown";
 
 export default function EventsNavbar({
   searchQuery,
@@ -20,11 +12,19 @@ export default function EventsNavbar({
   searchQuery: string;
   onSearchChange: (q: string) => void;
 }) {
-  const { user, loading, isOrganizer } = useAuth();
-  const initials = getInitials(
-    user?.user_metadata?.full_name as string | undefined,
-    user?.email
-  )
+  const { user, loading, isOrganizer, isAdmin } = useAuth();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
+  const displayName =
+    user?.user_metadata?.full_name ||
+    user?.user_metadata?.name ||
+    (user?.email ? user.email.split("@")[0] : "Alex Dela Cruz");
+
+  const roleLabel =
+    isAdmin ? "ADMIN" :
+    isOrganizer ? "LITS ORG LEAD" :
+    (user?.user_metadata?.department ? `STUDENT • ${user.user_metadata.department}` : "STUDENT • CCSS");
+
   return (
     <header className="sticky top-0 z-30 w-full border-b border-[#EAE4E1] bg-white/95 px-4 py-2.5 backdrop-blur-[6px]">
       <div className="mx-auto flex h-[44px] max-w-[1280px] items-center justify-between gap-4">
@@ -61,17 +61,37 @@ export default function EventsNavbar({
           />
         </div>
 
-
         <div className="flex items-center gap-2">
           {loading ? (
             <div className="h-8 w-16 rounded-lg bg-neutral-100 animate-pulse" />
           ) : user ? (
             <>
-              <Link href={isOrganizer ? "/organizer-dashboard" : "/my-events"} className="hidden sm:inline-flex h-8 items-center px-3 rounded-lg text-xs font-bold text-neutral-700 hover:bg-neutral-100 transition">
-                {isOrganizer ? "Organizer Dashboard" : "My Events"}
+              <Link
+                href={isAdmin ? "/admin" : isOrganizer ? "/organizer-dashboard" : "/my-events"}
+                className="hidden sm:inline-flex h-8 items-center px-3 rounded-lg text-xs font-bold text-neutral-700 hover:bg-neutral-100 transition"
+              >
+                {isAdmin ? "Admin Portal" : isOrganizer ? "Organizer Dashboard" : "My Events"}
               </Link>
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#6c0c28] text-white text-xs font-bold">
-                {initials}
+
+              {/* Profile avatar button + dropdown */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setDropdownOpen((o) => !o)}
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-[#4D0011] text-white transition hover:opacity-95 cursor-pointer"
+                  aria-label="Account menu"
+                  aria-expanded={dropdownOpen}
+                >
+                  <User size={15} strokeWidth={2.2} />
+                </button>
+
+                {dropdownOpen && (
+                  <ProfileDropdown
+                    name={displayName}
+                    role={roleLabel}
+                    onClose={() => setDropdownOpen(false)}
+                  />
+                )}
               </div>
             </>
           ) : (
