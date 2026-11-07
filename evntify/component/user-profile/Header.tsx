@@ -11,7 +11,7 @@ export default function Header() {
   const [search, setSearch] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,14 +24,17 @@ export default function Header() {
 
   /* Derive display name and role label from Supabase user, fallback to student profile */
   const displayName =
+    profile?.fullName ||
     user?.user_metadata?.full_name ||
     user?.user_metadata?.name ||
-    (user?.email ? user.email.split("@")[0] : "Alex Dela Cruz");
+    (user?.email ? user.email.split("@")[0] : "Student");
 
   const roleLabel =
-    user?.user_metadata?.department
+    profile?.department
+      ? `STUDENT • ${profile.department}`
+      : user?.user_metadata?.department
       ? `STUDENT • ${user.user_metadata.department}`
-      : "STUDENT • CCSS";
+      : "STUDENT";
 
   return (
     <header className="sticky top-0 z-20 h-20 bg-white/90 shadow-[0_1px_8px_rgba(0,0,0,0.04)] backdrop-blur-md">

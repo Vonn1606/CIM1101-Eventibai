@@ -1,4 +1,4 @@
-﻿import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 
 export type AdminStats = {
   totalStudents: number;
@@ -48,13 +48,21 @@ export type ApprovalItem = {
   org: string;
   dept: string;
   venue: string;
+  venueNote: string;
+  date: string;
+  when: string;
   submittedAt: string;
   submittedBy: string;
-  decision: "pending" | "approved" | "rejected" | null;
+  contactEmail: string;
+  decision: "pending" | "approved" | "rejected" | "returned" | "declined" | null;
   decidedAt: string | null;
   notes: string | null;
   seatsTotal: number;
+  seatsExpected: number;
   category: string;
+  brief: string;
+  safetyCheck: string;
+  capacityNote: string;
 };
 
 export async function getApprovals(): Promise<ApprovalItem[]> {
@@ -63,12 +71,12 @@ export async function getApprovals(): Promise<ApprovalItem[]> {
   const { data, error } = await supabase
     .from("event_approvals")
     .select(`
-      id, submitted_at, decision, decided_at, notes,
+      id, submitted_at, decision, decided_at, notes, brief, capacity_note, safety_check, seats_expected,
       events (
-        id, title, category, total_capacity,
+        id, title, category, total_capacity, starts_at, ends_at, description, summary,
         organizations ( name, dept_label ),
         colleges ( name ),
-        venues ( name )
+        venues ( name, details )
       ),
       profiles!submitted_by ( full_name, email )
     `)
@@ -79,6 +87,25 @@ export async function getApprovals(): Promise<ApprovalItem[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (data as any[]).map((row) => {
     const ev = row.events;
+    const startsAt = ev?.starts_at ? new Date(ev.starts_at) : null;
+    const endsAt = ev?.ends_at ? new Date(ev.ends_at) : null;
+    const dateStr = startsAt
+      ? startsAt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+      : "TBD";
+    const startTimeStr = startsAt
+      ? startsAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+      : "";
+    const endTimeStr = endsAt
+      ? endsAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+      : "";
+    const whenStr = startTimeStr
+      ? `${dateStr} · ${startTimeStr}${endTimeStr ? ` – ${endTimeStr}` : ""}`
+      : dateStr;
+
+    const desc = Array.isArray(ev?.description)
+      ? ev.description.join(" ")
+      : ev?.description || ev?.summary || row.brief || "";
+
     return {
       id: row.id,
       eventId: ev?.id ?? "",
@@ -86,13 +113,21 @@ export async function getApprovals(): Promise<ApprovalItem[]> {
       org: ev?.organizations?.name ?? ev?.colleges?.name ?? "Unknown Org",
       dept: ev?.colleges?.name ?? ev?.organizations?.dept_label ?? "",
       venue: ev?.venues?.name ?? "",
+      venueNote: ev?.venues?.details ?? "Main Campus",
+      date: dateStr,
+      when: whenStr,
       submittedAt: row.submitted_at,
       submittedBy: row.profiles?.full_name ?? row.profiles?.email ?? "Unknown",
+      contactEmail: row.profiles?.email ?? "",
       decision: row.decision ?? "pending",
       decidedAt: row.decided_at,
       notes: row.notes,
       seatsTotal: ev?.total_capacity ?? 0,
+      seatsExpected: row.seats_expected || ev?.total_capacity || 0,
       category: ev?.category ?? "",
+      brief: desc || `Category: ${ev?.category || "General"}`,
+      safetyCheck: row.safety_check ?? "Safety checks completed",
+      capacityNote: row.capacity_note ?? "",
     };
   });
 }

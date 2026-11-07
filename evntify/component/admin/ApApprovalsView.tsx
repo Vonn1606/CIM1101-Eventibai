@@ -25,12 +25,11 @@ const C = 2 * Math.PI * 19.67;
 
 /** Map an ApprovalItem (DB) to the Proposal shape the UI components expect */
 function mapToProposal(a: ApprovalItem): Proposal {
-  const tone =
-    a.decision === "approved"
-      ? "green"
-      : a.decision === "rejected"
-      ? "red"
-      : "blue";
+  const isApproved = a.decision === "approved";
+  const isDeclined = a.decision === "declined" || a.decision === "rejected";
+  const isReturned = a.decision === "returned";
+
+  const tone = isApproved ? "green" : isDeclined ? "red" : isReturned ? "amber" : "blue";
   return {
     id: a.id,
     dept: a.dept,
@@ -39,50 +38,46 @@ function mapToProposal(a: ApprovalItem): Proposal {
       month: "short",
       day: "numeric",
     }),
-    stage:
-      a.decision === "pending" || !a.decision
-        ? "Awaiting Review"
-        : a.decision === "approved"
-        ? "Approved"
-        : "Returned",
-    stageTone:
-      a.decision === "approved"
-        ? "green"
-        : a.decision === "rejected"
-        ? "red"
-        : "amber",
+    stage: isApproved
+      ? "Approved"
+      : isDeclined
+      ? "Declined"
+      : isReturned
+      ? "Returned"
+      : "Awaiting Review",
+    stageTone: isApproved ? "green" : isDeclined ? "red" : "amber",
     title: a.eventTitle,
     org: a.org,
-    when: "",
-    date: "",
+    when: a.when,
+    date: a.date,
     venue: a.venue,
-    venueNote: "",
-    attendance: `${a.seatsTotal} capacity`,
+    venueNote: a.venueNote,
+    attendance: `${a.seatsExpected || a.seatsTotal} expected attendees`,
     docs: "—",
-    check: "—",
-    checkTone: "blue",
+    check: a.safetyCheck,
+    checkTone: "green",
     risk: "Standard",
-    seatsTotal: a.seatsTotal,
-    seatsExpected: a.seatsTotal,
-    capacityNote: "",
-    brief: `Category: ${a.category || "General"}`,
+    seatsTotal: a.seatsTotal || 100,
+    seatsExpected: a.seatsExpected || a.seatsTotal || 100,
+    capacityNote: a.capacityNote,
+    brief: a.brief,
     endorsements: [],
     submittedBy: `Submitted by ${a.submittedBy}`,
     updated: a.decidedAt
       ? `Decided ${new Date(a.decidedAt).toLocaleDateString()}`
       : "",
     banner: "linear-gradient(135deg,#233144,#8B263E)",
-    // Map DB decision → UI status
-    status:
-      a.decision === "approved"
-        ? "approved"
-        : a.decision === "rejected"
-        ? "returned"
-        : "pending",
+    status: isApproved
+      ? "approved"
+      : isReturned
+      ? "returned"
+      : isDeclined
+      ? "declined"
+      : "pending",
     contact: a.submittedBy,
-    contactEmail: "",
-    clearance: "Standard",
-    clearanceNote: "",
+    contactEmail: a.contactEmail,
+    clearance: a.safetyCheck,
+    clearanceNote: "Verified by campus administration",
     documents: [],
   };
 }
@@ -129,13 +124,13 @@ export default function ApApprovalsView({
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, status: d } : i)));
     setOpenId(null);
 
-    // Fire Server Action for approved/declined
+    // Fire Server Action for approved/declined/returned
     const approvalId = approvalIds.get(id);
-    if (approvalId && (d === "approved" || d === "declined")) {
+    if (approvalId) {
       startTransition(async () => {
         await decideApproval({
           approvalId,
-          decision: d === "approved" ? "approved" : "rejected",
+          decision: d,
         });
       });
     }

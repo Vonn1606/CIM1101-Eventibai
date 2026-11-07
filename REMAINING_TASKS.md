@@ -7,19 +7,28 @@ This document outlines the remaining tasks to complete 100% of the **Mock Data â
 ## Current Status Overview
 - **Build Status**: Passing (`npx tsc --noEmit` and `npm run build` succeed with 0 errors).
 - **Core Database Features**: Schema tables (19), SSR cookie auth, role-based middleware guards, public event listings, and basic registration RPC are working.
-- **Pending Work**: Connecting real data to remaining UI widgets, removing hardcoded KPI metrics/counts, implementing missing server actions (broadcasts, event updates, suspensions, notes), dynamic QR generation, and deleting legacy mock files.
+- **Pending Work**: Connecting real data to remaining UI widgets, wiring the new `/create-event` page, hydrating proposal review modals and headers, removing hardcoded KPI metrics/counts, implementing missing server actions (broadcasts, event updates, suspensions, notes), dynamic QR generation, and deleting legacy mock files.
 
 ---
 
-## Phase 2: Sign-Up College Selection (/)
+## Phase 2: User Profiles & Navigation Auth
 
-### Task 2.1: Load Colleges Dynamically
+### Task 2.1: Load Colleges Dynamically (/)
 - **File**: `evntify/component/login/signup/signupform.tsx` (lines 15â€“20)
-- **Problem**: Currently defines a hardcoded array `const COLLEGES = [...]`.
-- **Action**:
-  - Query the `colleges` table in `app/signup/page.tsx` via `createClient()`.
-  - Pass the list as a prop to `<SignUpForm colleges={colleges} />`.
+- **Problem**: Previously defined a hardcoded array `const COLLEGES = [...]`.
 - **Done When**: Adding a college to the Supabase database automatically appears in the sign-up dropdown without code changes.
+
+### Task 2.2: Unify Real Profile Hydration in Navigation Headers
+- **Files**:
+  - `evntify/lib/use-auth.ts`
+  - `evntify/component/dashboard/events/eventsnavbar.tsx` (lines 17â€“28)
+  - `evntify/component/user-profile/Header.tsx` (lines 24â€“36)
+  - `evntify/component/admin/Header.tsx`
+- **Problem**: If `user.user_metadata` is absent or incomplete, navbars fall back to hardcoded dummy profile text: `"Alex Dela Cruz"` and `"STUDENT â€¢ CCSS"`.
+- **Action**:
+  - Update `useAuth()` to load `full_name`, `role`, `department`, and `student_number` from `profiles`.
+  - Replace the fallback strings so that the student's real profile name and academic department display in the profile button and dropdown.
+- **Done When**: Any signed-in user sees their actual profile name and college/department on all pages.
 
 ---
 
@@ -28,22 +37,11 @@ This document outlines the remaining tasks to complete 100% of the **Mock Data â
 ### Task 3.1: Check Existing Registration on Page Load (/)
 - **Files**:
   - `evntify/app/events/[id]/page.tsx`
-  - `evntify/app/events/[id]/event-details-client.tsx` (lines 51â€“53)
-- **Problem**: `isRegistered` defaults to `false`. If an already registered student reopens the event page, they see the "Register" button again.
-- **Action**:
-  - In `app/events/[id]/page.tsx`, check `supabase.from('registrations').select('ticket_code, status').eq('event_id', event.id).eq('user_id', user.id).single()`.
-  - Pass `initialRegistration={{ isRegistered: boolean, ticketCode: string, status: string }}` to `EventDetailsClient`.
-  - If registered, show **"View Fast-Pass"** or the claimed ticket badge instead of the Register button.
+  - `evntify/app/events/[id]/event-details-client.tsx`
 - **Done When**: Refreshing the page as a registered student immediately shows your ticket code and Fast-Pass button.
 
 ### Task 3.2: Enforce Registration Deadline (/)
-- **File**: `evntify/app/events/[id]/event-details-client.tsx` (lines 58â€“87, 510â€“540)
-- **Problem**:
-  - Countdown timer initial state starts with placeholder `"02" / "14" / "22"`.
-  - The "Register Now" button remains active even after the deadline passes.
-- **Action**:
-  - Calculate initial countdown state immediately using `event.registrationDeadline`.
-  - If `new Date() > new Date(event.registrationDeadline)`, disable the registration button and display a badge: `"Registration Closed"`.
+- **File**: `evntify/app/events/[id]/event-details-client.tsx`
 - **Done When**: Setting an event deadline in the past makes the Register button disabled with a clear "Registration Closed" label.
 
 ### Task 3.3: Replace Fake SVG with Dynamic QR Code
@@ -63,7 +61,7 @@ This document outlines the remaining tasks to complete 100% of the **Mock Data â
 
 ---
 
-## Phase 4: Organizer Dashboard
+## Phase 4: Organizer Dashboard & Event Creation
 
 ### Task 4.1: Dynamic Event Registry Filter Counts
 - **File**: `evntify/app/organizer-dashboard/organizer-dashboard-client.tsx` (lines 727â€“768)
@@ -123,6 +121,21 @@ This document outlines the remaining tasks to complete 100% of the **Mock Data â
   3. Load actual delivery logs from `broadcasts` and `broadcast_deliveries` inside the modal.
 - **Done When**: Broadcasting a message creates real notification rows in the database for registered attendees.
 
+### Task 4.5: Wire `/create-event` Form to Supabase Server Action & Dynamic Data
+- **Files**:
+  - `evntify/app/organizer-dashboard/create-event/page.tsx`
+  - `evntify/component/organizer/create-event-form.tsx`
+  - `evntify/app/actions/events.ts`
+- **Problem**:
+  - Submit handler contains `// TODO: wire to Supabase insert` and only shows browser `alert()`.
+  - Organization, Department, and Venue dropdowns are hardcoded arrays.
+  - Capacity calculation uses hardcoded constant `CAPACITY_MAX = 300`.
+- **Action**:
+  1. Load dynamic `venues`, `colleges`, and organizer `organizations` on `page.tsx` and pass as props to `CreateEventForm`.
+  2. Expand `submitEvent` action in `app/actions/events.ts` to handle category, dates, venue, and descriptions.
+  3. Wire form submission to call `submitEvent()`, insert into `events` and `event_approvals`, and redirect with feedback.
+- **Done When**: Submitting the form creates a real row in `events` and `event_approvals` visible on both the organizer dashboard and the admin approval queue.
+
 ---
 
 ## Phase 5: Admin Portal
@@ -155,12 +168,28 @@ This document outlines the remaining tasks to complete 100% of the **Mock Data â
      - Revalidates `/admin/events-directory` and `/events`.
 - **Done When**: Clicking Suspend changes the event status in the database and reflects immediately on the UI.
 
+### Task 5.3: Hydrate Proposal Review Modal & Implement "Return for Edits" Action
+- **Files**:
+  - `evntify/component/admin/ApReviewModal.tsx`
+  - `evntify/component/admin/ApApprovalsView.tsx`
+  - `evntify/lib/db/stats.ts` (`getApprovals()`)
+  - `evntify/app/actions/approvals.ts`
+- **Problem**:
+  - `ApReviewModal` shows empty or dummy values for dates, venue note, attendance percentage, and contacts.
+  - "Return for edits" button only updates client React state without persisting to Supabase.
+- **Action**:
+  1. In `lib/db/stats.ts`, expand `getApprovals()` to select event schedule, venue notes, organizer contacts, and safety notes.
+  2. Update `decideApproval` in `app/actions/approvals.ts` to support `"returned"` status, updating `event_approvals.decision = 'returned'` and notifying the organizer.
+  3. Wire the "Return for edits" button in `ApApprovalsView` to invoke `decideApproval`.
+- **Done When**: Clicking "Return for edits" updates the database record and shows the proposal in the "Returned for edits" tab.
+
 ---
 
 ## Phase 6: Final Cleanup & Hardcoded String Removal
 
-### Task 6.1: Delete Legacy Mock Files in `app/data/`
+### Task 6.1: Delete Legacy Mock Files & Redundant Admin DB File
 - **Files to remove**:
+  - `evntify/lib/db/admin.ts` (redundant duplicate of `lib/db/stats.ts`)
   - `evntify/app/data/proposals.ts`
   - `evntify/app/data/events-directory.ts`
   - `evntify/app/data/events.ts`
@@ -169,7 +198,7 @@ This document outlines the remaining tasks to complete 100% of the **Mock Data â
   - Move `pct()` helper from `events-directory.ts` into a utility file (e.g. `lib/utils.ts` or `lib/events.ts`).
   - Update `marqueeRows` in `component/landingpage/showcase.tsx` to read from upcoming campus events or a dedicated landing content config.
   - Delete `app/data/`.
-- **Done When**: The `app/data` folder is completely removed and `npm run build` succeeds.
+- **Done When**: The `app/data` folder and `lib/db/admin.ts` are removed and `npm run build` succeeds.
 
 ### Task 6.2: Remove Hardcoded Fallback Texts
 - **File**: `evntify/app/events/[id]/event-details-client.tsx` (lines 323â€“331)
@@ -185,31 +214,3 @@ This document outlines the remaining tasks to complete 100% of the **Mock Data â
   rm package-lock.json
   ```
 - **Done When**: Running `npm run build` inside `evntify` outputs no workspace root warning.
-
----
-
-## Recommended Execution Order
-
-```mermaid
-flowchart TD
-    A[Step 1: Fix Registration & QR in Phase 3] --> B[Step 2: Organizer Broadcasts & KPIs in Phase 4]
-    B --> C[Step 3: Admin Inspector & Suspend in Phase 5]
-    C --> D[Step 4: Migrate Types & Delete app/data in Phase 6]
-    D --> E[Step 5: Clean Root Lockfile & Final Verification]
-```
-
-1. **Step 1 (User-Facing / High Impact)**:
-   - Install `qrcode`.
-   - Update `event-details-client.tsx` to show dynamic QR code and registered state on load.
-   - Enforce registration deadline on the Register button.
-2. **Step 2 (Organizer Management)**:
-   - Dynamic registry counts and KPIs on the Organizer Dashboard.
-   - Implement `sendBroadcast` server action.
-3. **Step 3 (Admin Capabilities)**:
-   - Implement `suspendEvent` and `saveAdminNote` in `EdInspector`.
-4. **Step 4 (Code Quality & Cleanup)**:
-   - Move types out of `app/data/*` and delete `app/data/`.
-   - Delete root `package-lock.json`.
-5. **Step 5 (Final Gate)**:
-   - Run `npx tsc --noEmit && npm run build` to confirm clean production readiness.
-

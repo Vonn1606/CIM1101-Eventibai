@@ -8,7 +8,7 @@ import { z } from "zod";
 
 const decideSchema = z.object({
   approvalId: z.string().uuid(),
-  decision: z.enum(["approved", "rejected"]),
+  decision: z.enum(["approved", "rejected", "declined", "returned"]),
   notes: z.string().optional(),
 });
 
@@ -35,12 +35,14 @@ export async function decideApproval(
   if ((profileRow as any)?.role !== "admin") return { error: "Unauthorized" };
 
   const { approvalId, decision, notes } = parsed.data;
+  const dbDecision =
+    decision === "rejected" || decision === "declined" ? "declined" : decision;
 
   // 1. Update event_approvals
   const { data: approval, error: approvalErr } = await supabase
     .from("event_approvals")
     .update({
-      decision,
+      decision: dbDecision,
       decided_at: new Date().toISOString(),
       reviewed_by: user.id,
       notes: notes ?? null,
@@ -60,15 +62,19 @@ export async function decideApproval(
   await supabase
     .from("events")
     .update({
-      approval: decision,
-      ...(decision === "approved" ? { status: "open" } : {}),
+      approval: dbDecision,
+      ...(dbDecision === "approved"
+        ? { status: "open" }
+        : dbDecision === "returned"
+        ? { status: "draft" }
+        : { status: "cancelled" }),
     } as never)
     .eq("id", eventId);
 
   // 3. Write audit log
   await supabase.from("audit_logs").insert({
     actor_id: user.id,
-    action: `event_${decision}`,
+    action: `event_${dbDecision}`,
     target_type: "event",
     target_id: eventId,
     metadata: { approval_id: approvalId, notes: notes ?? null },
@@ -76,16 +82,26 @@ export async function decideApproval(
 
   // 4. Notify organizer
   if (submittedBy) {
+    const actionText =
+      dbDecision === "approved"
+        ? "approved"
+        : dbDecision === "returned"
+        ? "returned for edits"
+        : "declined";
+
     await supabase.from("notifications").insert({
       user_id: submittedBy,
-      message: `Your event proposal has been ${decision}.`,
-      link: `/events`,
+      message: `Your event proposal has been ${actionText}.${
+        notes ? ` Notes: ${notes}` : ""
+      }`,
+      link: `/organizer-dashboard`,
     } as never);
   }
 
   revalidatePath("/admin/approvals");
+  revalidatePath("/admin");
   revalidatePath("/events");
+  revalidatePath("/organizer-dashboard");
 
   return { success: true };
 }
-
