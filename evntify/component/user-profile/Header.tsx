@@ -33,8 +33,8 @@ export default function Header() {
     profile?.department
       ? `STUDENT • ${profile.department}`
       : user?.user_metadata?.department
-      ? `STUDENT • ${user.user_metadata.department}`
-      : "STUDENT";
+        ? `STUDENT • ${user.user_metadata.department}`
+        : "STUDENT";
 
   return (
     <header className="sticky top-0 z-20 h-20 bg-white/90 shadow-[0_1px_8px_rgba(0,0,0,0.04)] backdrop-blur-md">

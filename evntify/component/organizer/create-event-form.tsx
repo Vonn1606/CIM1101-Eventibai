@@ -7,7 +7,6 @@ import {
   Lock,
   MapPin,
   Users,
-  Save,
   Send,
   Info,
   Image as ImageIcon,
@@ -88,7 +87,7 @@ export default function CreateEventForm({
 }: CreateEventFormProps) {
   const router = useRouter();
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => ({
     name: "",
     category: "Seminar",
     description: "",
@@ -100,7 +99,7 @@ export default function CreateEventForm({
     start: "13:00",
     end: "17:00",
     capacity: venues[0]?.capacity ? Math.min(100, venues[0].capacity) : 100,
-  });
+  }));
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);

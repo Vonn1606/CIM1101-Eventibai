@@ -66,8 +66,8 @@ export async function decideApproval(
       ...(dbDecision === "approved"
         ? { status: "open" }
         : dbDecision === "returned"
-        ? { status: "draft" }
-        : { status: "cancelled" }),
+          ? { status: "draft" }
+          : { status: "cancelled" }),
     } as never)
     .eq("id", eventId);
 
@@ -86,14 +86,13 @@ export async function decideApproval(
       dbDecision === "approved"
         ? "approved"
         : dbDecision === "returned"
-        ? "returned for edits"
-        : "declined";
+          ? "returned for edits"
+          : "declined";
 
     await supabase.from("notifications").insert({
       user_id: submittedBy,
-      message: `Your event proposal has been ${actionText}.${
-        notes ? ` Notes: ${notes}` : ""
-      }`,
+      message: `Your event proposal has been ${actionText}.${notes ? ` Notes: ${notes}` : ""
+        }`,
       link: `/organizer-dashboard`,
     } as never);
   }

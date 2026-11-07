@@ -77,15 +77,14 @@ export async function submitEvent(
   // Resolve venue
   let venueId: string | null = inputVenueId ?? null;
   if (!venueId && venue) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: venueRow } = await (supabase as any)
+    const { data: venueRow } = (await supabase
       .from("venues")
       .select("id")
       .ilike("name", `%${venue}%`)
       .limit(1)
-      .single();
+      .single()) as { data: { id: string } | null };
 
-    venueId = venueRow ? (venueRow as any).id : null;
+    venueId = venueRow?.id ?? null;
   }
 
   // Parse dates

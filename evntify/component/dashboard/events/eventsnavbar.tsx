@@ -25,12 +25,12 @@ export default function EventsNavbar({
     isAdmin
       ? "ADMIN"
       : isOrganizer
-      ? "ORGANIZER"
-      : profile?.department
-      ? `STUDENT • ${profile.department}`
-      : user?.user_metadata?.department
-      ? `STUDENT • ${user.user_metadata.department}`
-      : "STUDENT";
+        ? "ORGANIZER"
+        : profile?.department
+          ? `STUDENT • ${profile.department}`
+          : user?.user_metadata?.department
+            ? `STUDENT • ${user.user_metadata.department}`
+            : "STUDENT";
 
   return (
     <header className="sticky top-0 z-30 w-full border-b border-[#EAE4E1] bg-white/95 px-4 py-2.5 backdrop-blur-[6px]">

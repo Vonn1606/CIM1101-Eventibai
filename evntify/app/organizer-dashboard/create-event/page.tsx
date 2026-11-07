@@ -24,16 +24,22 @@ export default async function CreateEventPage() {
     supabase.from("colleges").select("id, name, code").order("name"),
     user
       ? supabase
-          .from("organization_members")
-          .select("organization_id, organizations ( id, name, dept_label )")
-          .eq("user_id", user.id)
+        .from("organization_members")
+        .select("organization_id, organizations ( id, name, dept_label )")
+        .eq("user_id", user.id)
       : Promise.resolve({ data: [] }),
   ]);
 
   const venues = venuesRes.data ?? [];
   const colleges = collegesRes.data ?? [];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const organizations = (orgsRes.data ?? []).map((m: any) => m.organizations).filter(Boolean);
+  const organizations = ((orgsRes.data ?? []) as Array<{
+    organizations: { id: string; name: string; dept_label: string | null } | null;
+  }>)
+    .map((m) => m.organizations)
+    .filter(
+      (org): org is { id: string; name: string; dept_label: string | null } =>
+        Boolean(org)
+    );
 
   return (
     <RoleGuard allowedRole="organizer">

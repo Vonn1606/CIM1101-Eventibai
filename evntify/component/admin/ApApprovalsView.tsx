@@ -34,17 +34,19 @@ function mapToProposal(a: ApprovalItem): Proposal {
     id: a.id,
     dept: a.dept,
     tone,
-    submitted: new Date(a.submittedAt).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-    }),
+    submitted: a.submittedAt
+      ? new Date(a.submittedAt).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      })
+      : "Recently",
     stage: isApproved
       ? "Approved"
       : isDeclined
-      ? "Declined"
-      : isReturned
-      ? "Returned"
-      : "Awaiting Review",
+        ? "Declined"
+        : isReturned
+          ? "Returned"
+          : "Awaiting Review",
     stageTone: isApproved ? "green" : isDeclined ? "red" : "amber",
     title: a.eventTitle,
     org: a.org,
@@ -70,10 +72,10 @@ function mapToProposal(a: ApprovalItem): Proposal {
     status: isApproved
       ? "approved"
       : isReturned
-      ? "returned"
-      : isDeclined
-      ? "declined"
-      : "pending",
+        ? "returned"
+        : isDeclined
+          ? "declined"
+          : "pending",
     contact: a.submittedBy,
     contactEmail: a.contactEmail,
     clearance: a.safetyCheck,

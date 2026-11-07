@@ -181,10 +181,10 @@ export async function getEventsDirectory(
     venue: row.venues?.name ?? "",
     date: row.starts_at
       ? new Date(row.starts_at).toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        })
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
       : "TBD",
     registered: row.event_stats?.[0]?.registered_count ?? 0,
     capacity: row.total_capacity ?? 0,

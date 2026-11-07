@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { submitEvent, toggleCheckIn } from "@/app/actions/events";
 import type { OrgEvent, OrgRosterStudent } from "@/lib/db/organizer";
@@ -136,23 +136,12 @@ export default function OrganizerDashboardClient({
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const { user } = useAuth();
 
-  const formRef = useRef<HTMLDivElement>(null);
-
   // Toast trigger helper
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => {
       setToastMessage(null);
     }, 4000);
-  };
-
-  // Scroll to Event Submission Form
-  const scrollToForm = () => {
-    if (formRef.current) {
-      formRef.current.scrollIntoView({ behavior: "smooth" });
-      const input = document.getElementById("event-title-input");
-      if (input) input.focus();
-    }
   };
 
   // Handler: Toggle Gate Check-in for Student
@@ -331,9 +320,8 @@ export default function OrganizerDashboardClient({
           LEFT SIDEBAR (Matches Figma exact look: logo, org card, nav items)
           ==================================================================== */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col justify-between border-r border-[#ECE5DF] bg-white px-5 py-6 transition-transform duration-200 lg:translate-x-0 ${
-          sidebarOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"
-        }`}
+        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col justify-between border-r border-[#ECE5DF] bg-white px-5 py-6 transition-transform duration-200 lg:translate-x-0 ${sidebarOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"
+          }`}
       >
         <div className="flex flex-col gap-6">
           {/* Logo & Close on mobile */}
@@ -383,11 +371,10 @@ export default function OrganizerDashboardClient({
                 setActiveTab("overview");
                 setSidebarOpen(false);
               }}
-              className={`flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-xs font-semibold transition ${
-                activeTab === "overview"
+              className={`flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-xs font-semibold transition ${activeTab === "overview"
                   ? "bg-[#ECE5E0] text-[#1E1B19] shadow-2xs"
                   : "text-[#6B5B58] hover:bg-[#FAF5F2] hover:text-[#1E1B19]"
-              }`}
+                }`}
             >
               <LayoutGrid size={16} className={activeTab === "overview" ? "text-[#651C32]" : "text-[#7E6E6A]"} />
               <span>Overview</span>
@@ -748,41 +735,37 @@ export default function OrganizerDashboardClient({
               <div className="flex items-center gap-1 rounded-full bg-[#F5EFEB] p-1 self-start sm:self-auto">
                 <button
                   onClick={() => setRegistryFilter("all")}
-                  className={`rounded-full px-3.5 py-1 text-xs font-semibold transition ${
-                    registryFilter === "all"
+                  className={`rounded-full px-3.5 py-1 text-xs font-semibold transition ${registryFilter === "all"
                       ? "bg-[#651C32] text-white shadow-2xs"
                       : "text-[#6A5A57] hover:text-[#1E1B19]"
-                  }`}
+                    }`}
                 >
                   All (3)
                 </button>
                 <button
                   onClick={() => setRegistryFilter("active")}
-                  className={`rounded-full px-3.5 py-1 text-xs font-semibold transition ${
-                    registryFilter === "active"
+                  className={`rounded-full px-3.5 py-1 text-xs font-semibold transition ${registryFilter === "active"
                       ? "bg-[#651C32] text-white shadow-2xs"
                       : "text-[#6A5A57] hover:text-[#1E1B19]"
-                  }`}
+                    }`}
                 >
                   Active (1)
                 </button>
                 <button
                   onClick={() => setRegistryFilter("sao")}
-                  className={`rounded-full px-3.5 py-1 text-xs font-semibold transition ${
-                    registryFilter === "sao"
+                  className={`rounded-full px-3.5 py-1 text-xs font-semibold transition ${registryFilter === "sao"
                       ? "bg-[#651C32] text-white shadow-2xs"
                       : "text-[#6A5A57] hover:text-[#1E1B19]"
-                  }`}
+                    }`}
                 >
                   SAO Pending (1)
                 </button>
                 <button
                   onClick={() => setRegistryFilter("archived")}
-                  className={`rounded-full px-3.5 py-1 text-xs font-semibold transition ${
-                    registryFilter === "archived"
+                  className={`rounded-full px-3.5 py-1 text-xs font-semibold transition ${registryFilter === "archived"
                       ? "bg-[#651C32] text-white shadow-2xs"
                       : "text-[#6A5A57] hover:text-[#1E1B19]"
-                  }`}
+                    }`}
                 >
                   Archived (2)
                 </button>
@@ -958,7 +941,6 @@ export default function OrganizerDashboardClient({
           <section className="grid grid-cols-1 gap-6 lg:grid-cols-12 items-start">
             {/* LEFT: Fast-Track Filing Form */}
             <div
-              ref={formRef}
               id="event-submission-form"
               className="lg:col-span-7 flex flex-col justify-between rounded-2xl border border-[#ECE5DF] bg-white p-6 shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-5 scroll-mt-24"
             >
@@ -1164,11 +1146,10 @@ export default function OrganizerDashboardClient({
                       onClick={() =>
                         setActiveChannels((p) => ({ ...p, push: !p.push }))
                       }
-                      className={`flex items-center justify-center gap-1.5 rounded-xl border py-2 text-xs font-semibold transition ${
-                        activeChannels.push
+                      className={`flex items-center justify-center gap-1.5 rounded-xl border py-2 text-xs font-semibold transition ${activeChannels.push
                           ? "border-[#651C32] bg-[#FCECEF] text-[#651C32]"
                           : "border-[#ECE2DC] bg-[#FAF5F2] text-[#7A6B68]"
-                      }`}
+                        }`}
                     >
                       <Smartphone size={13} />
                       <span>In-App Push</span>
@@ -1179,11 +1160,10 @@ export default function OrganizerDashboardClient({
                       onClick={() =>
                         setActiveChannels((p) => ({ ...p, sms: !p.sms }))
                       }
-                      className={`flex items-center justify-center gap-1.5 rounded-xl border py-2 text-xs font-semibold transition ${
-                        activeChannels.sms
+                      className={`flex items-center justify-center gap-1.5 rounded-xl border py-2 text-xs font-semibold transition ${activeChannels.sms
                           ? "border-[#651C32] bg-[#FCECEF] text-[#651C32]"
                           : "border-[#ECE2DC] bg-[#FAF5F2] text-[#7A6B68]"
-                      }`}
+                        }`}
                     >
                       <MessageSquare size={13} />
                       <span>SMS Blast</span>
@@ -1194,11 +1174,10 @@ export default function OrganizerDashboardClient({
                       onClick={() =>
                         setActiveChannels((p) => ({ ...p, discord: !p.discord }))
                       }
-                      className={`flex items-center justify-center gap-1.5 rounded-xl border py-2 text-xs font-semibold transition ${
-                        activeChannels.discord
+                      className={`flex items-center justify-center gap-1.5 rounded-xl border py-2 text-xs font-semibold transition ${activeChannels.discord
                           ? "border-[#651C32] bg-[#FCECEF] text-[#651C32]"
                           : "border-[#ECE2DC] bg-[#FAF5F2] text-[#7A6B68]"
-                      }`}
+                        }`}
                     >
                       <Bot size={13} />
                       <span>Discord Bot</span>
