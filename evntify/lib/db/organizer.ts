@@ -1,4 +1,4 @@
-﻿import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 
 /* --------------------------------------------------------------------------
    Shared types used by both the Server Component page and the Client Component
@@ -77,16 +77,19 @@ export async function getOrgProfile(): Promise<OrgProfile | null> {
 const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"] as const;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapEventRow(row: any): OrgEvent {
+function mapEventRow(row: any, stats: Record<string, { registered_count: number; waitlist_count: number }> = {}): OrgEvent {
   const starts = row.starts_at ? new Date(row.starts_at) : null;
   const month = starts ? MONTHS[starts.getMonth()] : "TBD";
   const day = starts ? String(starts.getDate()).padStart(2, "0") : "--";
 
-  // derive capType from approval_status / capacity type — default RSVPs
+  const totalCap = Number(row.total_capacity ?? 0);
+  const s = stats[row.id] ?? { registered_count: 0, waitlist_count: 0 };
+  const registeredCount = Number(s.registered_count ?? 0);
+
   const dbStatus: string = row.approval ?? row.approval_status ?? "pending";
   let status: OrgEventStatus = "pending";
   if (dbStatus === "approved") {
-    status = row.registered_count >= row.capacity ? "soldout" : "live";
+    status = registeredCount >= totalCap && totalCap > 0 ? "soldout" : "live";
   } else if (dbStatus === "archived") {
     status = "archived";
   }
@@ -105,16 +108,16 @@ function mapEventRow(row: any): OrgEvent {
     title: row.title ?? "Untitled",
     venue: row.venues?.name ?? row.venue_note ?? "TBD",
     time: starts
-      ? starts.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+      ? starts.toLocaleTimeString("en-US", { timeZone: "Asia/Manila", hour: "2-digit", minute: "2-digit" })
       : "TBD",
     status,
     badgeLabel: badgeMap[status],
-    registered: row.registered_count ?? 0,
-    cap: row.capacity ?? 0,
+    registered: registeredCount,
+    cap: totalCap,
     capType: "RSVPs",
     org: row.organizations?.name ?? "—",
     tier: "Free RSVP",
-    waitlistCount: 0,
+    waitlistCount: Number(s.waitlist_count ?? 0),
   };
 }
 
@@ -141,8 +144,7 @@ export async function getOrgEvents(): Promise<OrgEvent[]> {
   const { data, error } = await (supabase as any)
     .from("events")
     .select(`
-      id, title, starts_at, approval, capacity,
-      registered_count,
+      id, title, starts_at, approval, total_capacity,
       venues ( name ),
       organizations ( name )
     `)
@@ -150,9 +152,28 @@ export async function getOrgEvents(): Promise<OrgEvent[]> {
     .order("starts_at", { ascending: false })
     .limit(20);
 
-  if (error || !data) return [];
+  if (error || !data || data.length === 0) return [];
+
+  // Fetch live stats from event_stats view
+  const eventIds = ((data ?? []) as Array<{ id: string }>).map((e) => e.id);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data as any[]).map(mapEventRow);
+  const { data: statsData } = await (supabase as any)
+    .from("event_stats")
+    .select("event_id, registered_count, waitlist_count")
+    .in("event_id", eventIds);
+
+  const statsMap: Record<string, { registered_count: number; waitlist_count: number }> = {};
+  if (statsData) {
+    ((statsData ?? []) as Array<{ event_id: string; registered_count: number | null; waitlist_count: number | null }>).forEach((s) => {
+      statsMap[s.event_id] = {
+        registered_count: Number(s.registered_count ?? 0),
+        waitlist_count: Number(s.waitlist_count ?? 0),
+      };
+    });
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data as any[]).map((row) => mapEventRow(row, statsMap));
 }
 
 /* --------------------------------------------------------------------------
@@ -217,8 +238,9 @@ export async function getOrgRoster(eventId?: string): Promise<OrgRosterStudent[]
       .join("")
       .toUpperCase();
     const college: string = profile?.colleges?.name ?? "Unknown";
+    // check_ins has a 1-to-1 unique relationship with registrations; PostgREST returns object or array
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const checkin = Array.isArray(row.check_ins) ? (row.check_ins as any[])[0] : null;
+    const checkin = Array.isArray(row.check_ins) ? (row.check_ins as any[])[0] : row.check_ins;
     const checkedInAt: string | undefined = checkin?.checked_in_at;
 
     return {
@@ -229,7 +251,8 @@ export async function getOrgRoster(eventId?: string): Promise<OrgRosterStudent[]
       studentId: row.student_number ?? row.id,
       eventTrack: "General",
       registeredAt: row.registered_at
-        ? new Date(row.registered_at).toLocaleString([], {
+        ? new Date(row.registered_at).toLocaleString("en-US", {
+            timeZone: "Asia/Manila",
             month: "short",
             day: "numeric",
             hour: "2-digit",
@@ -238,7 +261,8 @@ export async function getOrgRoster(eventId?: string): Promise<OrgRosterStudent[]
         : "—",
       checkedIn: !!checkin,
       checkedInTime: checkedInAt
-        ? new Date(checkedInAt).toLocaleTimeString([], {
+        ? new Date(checkedInAt).toLocaleTimeString("en-US", {
+            timeZone: "Asia/Manila",
             hour: "2-digit",
             minute: "2-digit",
           })

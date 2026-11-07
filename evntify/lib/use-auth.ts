@@ -25,8 +25,15 @@ async function fetchProfile(userId: string): Promise<UserProfile | null> {
     .single();
 
   if (!data) return null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const row = data as any;
+  const row = data as {
+    id: string;
+    full_name: string | null;
+    role: string | null;
+    department: string | null;
+    student_number: string | null;
+    college_id: string | null;
+    email: string | null;
+  };
   return {
     id: row.id,
     fullName: row.full_name ?? "",

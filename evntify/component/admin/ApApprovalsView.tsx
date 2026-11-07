@@ -11,6 +11,7 @@ import {
   ClipboardList,
   Undo2,
   CheckCircle2,
+  Ban,
 } from "lucide-react";
 import type { ApprovalItem } from "@/lib/db/stats";
 import type { Proposal, Decision } from "@/app/data/proposals";
@@ -18,7 +19,7 @@ import ApProposalCard from "./ApProposalCard";
 import ApReviewModal from "./ApReviewModal";
 import { decideApproval } from "@/app/actions/approvals";
 
-type Tab = "pending" | "returned" | "approved";
+type Tab = "pending" | "returned" | "approved" | "declined";
 
 const RATE = 92;
 const C = 2 * Math.PI * 19.67;
@@ -79,7 +80,7 @@ function mapToProposal(a: ApprovalItem): Proposal {
     contact: a.submittedBy,
     contactEmail: a.contactEmail,
     clearance: a.safetyCheck,
-    clearanceNote: "Verified by campus administration",
+    clearanceNote: a.safetyCheck === "Not recorded" ? "Pending inspection" : "Verified by campus administration",
     documents: [],
   };
 }
@@ -107,6 +108,9 @@ export default function ApApprovalsView({
   const [isPending, startTransition] = useTransition();
 
   const count = (s: Decision) => items.filter((i) => i.status === s).length;
+  const approvedTotal = count("approved");
+  const processedTotal = approvedTotal + count("returned") + count("declined");
+  const clearanceRate = processedTotal > 0 ? Math.round((approvedTotal / processedTotal) * 100) : RATE;
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
     return items
@@ -123,6 +127,7 @@ export default function ApApprovalsView({
   const open = items.find((i) => i.id === openId) ?? null;
 
   function decide(id: string, d: "approved" | "returned" | "declined") {
+    const previous = items;
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, status: d } : i)));
     setOpenId(null);
 
@@ -130,10 +135,15 @@ export default function ApApprovalsView({
     const approvalId = approvalIds.get(id);
     if (approvalId) {
       startTransition(async () => {
-        await decideApproval({
+        const res = await decideApproval({
           approvalId,
           decision: d,
         });
+        if (res.error) {
+          // Revert optimistic update on error
+          setItems(previous);
+          alert(`Failed to save decision: ${res.error}`);
+        }
       });
     }
   }
@@ -142,6 +152,7 @@ export default function ApApprovalsView({
     { key: "pending", label: "Pending review", icon: ClipboardList },
     { key: "returned", label: "Returned for edits", icon: Undo2 },
     { key: "approved", label: "Approved recently", icon: CheckCircle2 },
+    { key: "declined", label: "Declined", icon: Ban },
   ];
 
   return (
@@ -171,16 +182,16 @@ export default function ApApprovalsView({
                   cy="22.5"
                   r="19.67"
                   className="ring-fg"
-                  strokeDasharray={`${(RATE / 100) * C} ${C}`}
+                  strokeDasharray={`${(clearanceRate / 100) * C} ${C}`}
                 />
               </svg>
-              <span className="ring-txt">{RATE}%</span>
+              <span className="ring-txt">{clearanceRate}%</span>
             </div>
             <div>
               <div className="label brown">Clearance rate</div>
-              <div className="ap-val">92%</div>
+              <div className="ap-val">{clearanceRate}%</div>
               <div className="t-12 trend-green">
-                <TrendingUp size={12} /> +4% vs last term
+                <TrendingUp size={12} /> {approvedTotal} approved
               </div>
             </div>
           </div>

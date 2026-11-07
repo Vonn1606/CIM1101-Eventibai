@@ -38,6 +38,7 @@ export default function ProfileDropdown({ name, role, onClose }: ProfileDropdown
     await supabase.auth.signOut();
     onClose();
     router.push("/signin");
+    router.refresh();
   };
 
   return (

@@ -29,12 +29,18 @@ export async function registerForEvent(
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
 
-  const { eventId, studentNumber, college } = parsed.data;
+  const { eventId: inputEventId, studentNumber, college } = parsed.data;
+
+  // Resolve UUID if inputEventId is a slug or a UUID
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(inputEventId);
   const { data: ev } = await supabase
     .from("events")
-    .select("registration_deadline")
-    .eq("id", eventId)
+    .select("id, slug, registration_deadline")
+    .or(isUuid ? `id.eq.${inputEventId},slug.eq.${inputEventId}` : `slug.eq.${inputEventId}`)
     .maybeSingle();
+
+  if (!ev) return { error: "Event not found." };
+  const eventId = ev.id;
 
   if (
     ev?.registration_deadline &&
@@ -43,7 +49,7 @@ export async function registerForEvent(
     return { error: "Registration for this event has closed." };
   }
 
-  // 3. Get college_id from slug
+  // 3. Verify college exists
   const { data: collegeRow } = await supabase
     .from("colleges")
     .select("id")
@@ -51,31 +57,34 @@ export async function registerForEvent(
     .single();
 
   if (!collegeRow) return { error: "Invalid college selected." };
-  const collegeId = (collegeRow as { id: string }).id;
 
-  // 4. Call the RPC (handles seat counting + waitlist)
-  const { data: rpcData, error: rpcError } = await supabase.rpc(
-    "register_for_event" as never,
+  // 4. Call the RPC (matches postgres signature: p_event, p_student_number, p_college)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: rpcData, error: rpcError } = await (supabase.rpc as any)(
+    "register_for_event",
     {
-      p_event_id: eventId,
-      p_user_id: user.id,
+      p_event: eventId,
       p_student_number: studentNumber,
-      p_college_id: collegeId,
-    } as never
+      p_college: college,
+    }
   );
 
   if (rpcError) {
-    if (rpcError.message.includes("already registered"))
+    const msg = rpcError.message.toLowerCase();
+    if (msg.includes("already registered") || msg.includes("duplicate key") || msg.includes("unique")) {
       return { error: "You are already registered for this event." };
+    }
     return { error: rpcError.message };
   }
 
-  const rows = (rpcData as unknown) as Array<{ ticket_code: string; status: string }> | null;
-  const result = rows?.[0];
-  if (!result) return { error: "Registration failed. Please try again." };
+  // The postgres function returns a single registrations record (row or array depending on client)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result: any = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+  if (!result || !result.ticket_code) return { error: "Registration failed. Please try again." };
 
   // 5. Revalidate
   revalidatePath("/my-events");
+  revalidatePath(`/events/${ev?.slug ?? eventId}`);
 
   return {
     ticketCode: result.ticket_code,
@@ -180,7 +189,7 @@ export async function getMyRegistrations(userId: string): Promise<{
         venue: ev?.venues?.name ?? "",
         category: ev?.category ?? null,
       },
-      has_checked_in: Array.isArray(row.check_ins) && row.check_ins.length > 0,
+      has_checked_in: !!(Array.isArray(row.check_ins) ? row.check_ins[0] : row.check_ins),
     };
   });
 

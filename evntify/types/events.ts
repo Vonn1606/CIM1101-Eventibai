@@ -37,6 +37,7 @@ export type EventFeature = {
 
 export type EventDetail = {
     id: string;
+    dbId?: string;
     code: string;
     title: string;
     org: string;

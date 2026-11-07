@@ -30,7 +30,7 @@ export async function getAdminStats(): Promise<AdminStats> {
     supabase
       .from("event_approvals")
       .select("id", { count: "exact", head: true })
-      .is("decision", null),
+      .or("decision.is.null,decision.eq.pending"),
   ]);
 
   return {
@@ -71,7 +71,7 @@ export async function getApprovals(): Promise<ApprovalItem[]> {
   const { data, error } = await supabase
     .from("event_approvals")
     .select(`
-      id, submitted_at, decision, decided_at, notes, brief, capacity_note, safety_check, seats_expected,
+      id, submitted_at, decision, decided_at, decision_note, brief, capacity_note, safety_check, seats_expected,
       events (
         id, title, category, total_capacity, starts_at, ends_at, description, summary,
         organizations ( name, dept_label ),
@@ -90,13 +90,13 @@ export async function getApprovals(): Promise<ApprovalItem[]> {
     const startsAt = ev?.starts_at ? new Date(ev.starts_at) : null;
     const endsAt = ev?.ends_at ? new Date(ev.ends_at) : null;
     const dateStr = startsAt
-      ? startsAt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+      ? startsAt.toLocaleDateString("en-US", { timeZone: "Asia/Manila", month: "short", day: "numeric", year: "numeric" })
       : "TBD";
     const startTimeStr = startsAt
-      ? startsAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+      ? startsAt.toLocaleTimeString("en-US", { timeZone: "Asia/Manila", hour: "numeric", minute: "2-digit" })
       : "";
     const endTimeStr = endsAt
-      ? endsAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+      ? endsAt.toLocaleTimeString("en-US", { timeZone: "Asia/Manila", hour: "numeric", minute: "2-digit" })
       : "";
     const whenStr = startTimeStr
       ? `${dateStr} · ${startTimeStr}${endTimeStr ? ` – ${endTimeStr}` : ""}`
@@ -121,12 +121,12 @@ export async function getApprovals(): Promise<ApprovalItem[]> {
       contactEmail: row.profiles?.email ?? "",
       decision: row.decision ?? "pending",
       decidedAt: row.decided_at,
-      notes: row.notes,
+      notes: row.decision_note ?? null,
       seatsTotal: ev?.total_capacity ?? 0,
       seatsExpected: row.seats_expected || ev?.total_capacity || 0,
       category: ev?.category ?? "",
       brief: desc || `Category: ${ev?.category || "General"}`,
-      safetyCheck: row.safety_check ?? "Safety checks completed",
+      safetyCheck: row.safety_check ?? "Not recorded",
       capacityNote: row.capacity_note ?? "",
     };
   });
@@ -162,14 +162,27 @@ export async function getEventsDirectory(
       `id, slug, title, category, total_capacity, status, approval, starts_at, banner_color,
       organizations ( name ),
       colleges ( name ),
-      venues ( name ),
-      event_stats ( registered_count )`,
+      venues ( name )`,
       { count: "exact" }
     )
     .order("starts_at", { ascending: false })
     .range(from, to);
 
-  if (error || !data) return { items: [], total: 0 };
+  if (error || !data || data.length === 0) return { items: [], total: 0 };
+
+  const eventIds = ((data ?? []) as Array<{ id: string }>).map((e) => e.id);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: statsData } = await (supabase as any)
+    .from("event_stats")
+    .select("event_id, registered_count")
+    .in("event_id", eventIds);
+
+  const regCounts: Record<string, number> = {};
+  if (statsData) {
+    ((statsData ?? []) as Array<{ event_id: string; registered_count: number | null }>).forEach((s) => {
+      regCounts[s.event_id] = Number(s.registered_count ?? 0);
+    });
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const items: EventDirectoryItem[] = (data as any[]).map((row) => ({
@@ -181,12 +194,13 @@ export async function getEventsDirectory(
     venue: row.venues?.name ?? "",
     date: row.starts_at
       ? new Date(row.starts_at).toLocaleDateString("en-US", {
+        timeZone: "Asia/Manila",
         month: "short",
         day: "numeric",
         year: "numeric",
       })
       : "TBD",
-    registered: row.event_stats?.[0]?.registered_count ?? 0,
+    registered: regCounts[row.id] ?? 0,
     capacity: row.total_capacity ?? 0,
     status: row.status,
     approval: row.approval,
@@ -215,9 +229,9 @@ export async function getOrganizers(): Promise<OrganizerItem[]> {
   const { data, error } = await (supabase as any)
     .from("profiles")
     .select(`
-      id, full_name, student_number,
+      id, full_name, email, student_number,
       colleges ( name ),
-      organization_members ( role, organizations ( name ) )
+      organization_members ( position, organizations ( name ) )
     `)
     .eq("role", "organizer");
 
@@ -229,10 +243,10 @@ export async function getOrganizers(): Promise<OrganizerItem[]> {
     return {
       id: p.id,
       name: p.full_name ?? "Unknown",
-      role: member?.role ?? "Member",
+      role: member?.position ?? "Member",
       org: member?.organizations?.name ?? "Unaffiliated",
       college: p.colleges?.name ?? "Unknown",
-      email: `${p.student_number ?? p.id}@ue.edu.ph`,
+      email: p.email ?? (p.student_number ? `${p.student_number}@ue.edu.ph` : "organizer@ue.edu.ph"),
       pendingProposals: 0,
       activeEvents: 0,
     };

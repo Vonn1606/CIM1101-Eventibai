@@ -27,6 +27,7 @@ function rowToEventDetail(row: any, stats: StatsMap = {}): EventDetail {
   const startsAt = row.starts_at ? new Date(row.starts_at) : null;
   const dateStr = startsAt
     ? startsAt.toLocaleDateString("en-US", {
+      timeZone: "Asia/Manila",
       weekday: "long",
       month: "short",
       day: "numeric",
@@ -34,7 +35,7 @@ function rowToEventDetail(row: any, stats: StatsMap = {}): EventDetail {
     })
     : "";
   const timeStr = startsAt
-    ? startsAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })
+    ? startsAt.toLocaleTimeString("en-US", { timeZone: "Asia/Manila", hour: "numeric", minute: "2-digit", hour12: true })
     : "";
 
   const org = row.organizations;
@@ -43,6 +44,7 @@ function rowToEventDetail(row: any, stats: StatsMap = {}): EventDetail {
 
   return {
     id: row.slug,
+    dbId: row.id,
     code: row.code ?? row.slug.toUpperCase().slice(0, 10),
     title: row.title,
     org: org?.name ?? college?.name ?? "",
@@ -74,7 +76,7 @@ function rowToEventDetail(row: any, stats: StatsMap = {}): EventDetail {
           : seatsLeft <= 10
             ? "LIMITED"
             : "OPEN"
-        : row.status === "concluded"
+        : row.status === "completed" || row.status === "concluded"
           ? "COMPLETED"
           : "OPEN",
     coordinator: {
@@ -160,14 +162,21 @@ async function fetchStats(
   if (eventIds.length === 0) return {};
   const { data, error } = await supabase
     .from("event_stats" as never)
-    .select("event_id, registered_count, waitlisted_count")
+    .select("event_id, registered_count, waitlist_count")
     .in("event_id" as never, eventIds as never);
   if (error) {
     console.warn("[fetchStats] event_stats query failed:", error.message);
     return {};
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return Object.fromEntries((data as any[]).map((r) => [r.event_id, r])) as StatsMap;
+  return Object.fromEntries(
+    ((data ?? []) as Array<{ event_id: string; registered_count: number | null; waitlist_count: number | null }>).map((r) => [
+      r.event_id,
+      {
+        registered_count: Number(r.registered_count ?? 0),
+        waitlisted_count: Number(r.waitlist_count ?? 0),
+      },
+    ])
+  ) as StatsMap;
 }
 
 export async function getEvents(): Promise<CampusEvent[]> {

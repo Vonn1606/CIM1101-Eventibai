@@ -10,7 +10,10 @@ export const signUpSchema = z.object({
     .refine((e) => e.toLowerCase().endsWith("@ue.edu.ph"), {
       message: "Must be a UE school email (@ue.edu.ph)",
     }),
-  student_number: z.string().min(1, "Student number is required"),
+  student_number: z
+    .string()
+    .min(1, "Student number is required")
+    .regex(/^\d{4}-\d{5}-\w{2}$/, "Format must be YYYY-NNNNN-XX"),
   // Slug of a row in the `colleges` table; existence is verified in the signUp action.
   college: z.string().min(1, "Please select a college"),
   password: z.string().min(8, "Password must be at least 8 characters"),
@@ -28,14 +31,12 @@ export type SignInInput = z.infer<typeof signInSchema>;
 // ── Registration ───────────────────────────────────────────────────────────────
 
 export const registerSchema = z.object({
-  eventId: z.string().uuid("Invalid event ID"),
+  eventId: z.string().min(1, "Event ID is required"),
   studentNumber: z
     .string()
     .min(1, "Student number is required")
     .regex(/^\d{4}-\d{5}-\w{2}$/, "Format must be YYYY-NNNNN-XX"),
-  college: z.enum(["eng", "sci", "biz", "art"] as const, {
-    error: "Please select a college",
-  }),
+  college: z.string().min(1, "Please select a college"),
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;

@@ -1,24 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getEventBySlug, getAllEventSlugs } from "@/lib/db/events";
+import { getEventBySlug } from "@/lib/db/events";
 import EventDetailsClient from "./event-details-client";
 import { createClient } from "@/lib/supabase/server";
 import type { InitialRegistration } from "./event-details-client";
 interface PageProps {
   params: Promise<{ id: string }>;
-}
-
-// Pre-build known slugs; new events are rendered dynamically
-export async function generateStaticParams() {
-  try {
-    const slugs = await getAllEventSlugs();
-    if (slugs.length === 0) {
-      return [{ id: "_" }];
-    }
-    return slugs.map((id) => ({ id }));
-  } catch {
-    return [{ id: "_" }];
-  }
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -50,10 +37,11 @@ export default async function EventPage({ params }: PageProps) {
   };
 
   if (user) {
+    const targetEventId = event.dbId ?? event.id;
     const { data } = await supabase
       .from("registrations")
       .select("ticket_code, status")
-      .eq("event_id", event.id)
+      .eq("event_id", targetEventId)
       .eq("user_id", user.id)
       .neq("status", "cancelled")
       .maybeSingle();

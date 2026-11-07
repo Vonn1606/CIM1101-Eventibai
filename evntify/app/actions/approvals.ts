@@ -38,14 +38,14 @@ export async function decideApproval(
   const dbDecision =
     decision === "rejected" || decision === "declined" ? "declined" : decision;
 
-  // 1. Update event_approvals
+  // 1. Update event_approvals (schema uses decision_note, not notes)
   const { data: approval, error: approvalErr } = await supabase
     .from("event_approvals")
     .update({
       decision: dbDecision,
       decided_at: new Date().toISOString(),
       reviewed_by: user.id,
-      notes: notes ?? null,
+      decision_note: notes ?? null,
     } as never)
     .eq("id", approvalId)
     .select("event_id, submitted_by")
@@ -71,16 +71,16 @@ export async function decideApproval(
     } as never)
     .eq("id", eventId);
 
-  // 3. Write audit log
+  // 3. Write audit log (schema uses actor_id, action, entity, entity_id, meta)
   await supabase.from("audit_logs").insert({
     actor_id: user.id,
-    action: `event_${dbDecision}`,
-    target_type: "event",
-    target_id: eventId,
-    metadata: { approval_id: approvalId, notes: notes ?? null },
+    action: `proposal.${dbDecision}`,
+    entity: "event",
+    entity_id: eventId,
+    meta: { approval_id: approvalId, decision_note: notes ?? null },
   } as never);
 
-  // 4. Notify organizer
+  // 4. Notify organizer (schema uses user_id, title, body, link)
   if (submittedBy) {
     const actionText =
       dbDecision === "approved"
@@ -91,8 +91,8 @@ export async function decideApproval(
 
     await supabase.from("notifications").insert({
       user_id: submittedBy,
-      message: `Your event proposal has been ${actionText}.${notes ? ` Notes: ${notes}` : ""
-        }`,
+      title: `Event Proposal ${actionText.toUpperCase()}`,
+      body: `Your event proposal has been ${actionText}.${notes ? ` Notes: ${notes}` : ""}`,
       link: `/organizer-dashboard`,
     } as never);
   }

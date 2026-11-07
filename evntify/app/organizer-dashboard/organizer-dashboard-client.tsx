@@ -740,7 +740,7 @@ export default function OrganizerDashboardClient({
                       : "text-[#6A5A57] hover:text-[#1E1B19]"
                     }`}
                 >
-                  All (3)
+                  All ({events.length})
                 </button>
                 <button
                   onClick={() => setRegistryFilter("active")}
@@ -749,7 +749,7 @@ export default function OrganizerDashboardClient({
                       : "text-[#6A5A57] hover:text-[#1E1B19]"
                     }`}
                 >
-                  Active (1)
+                  Active ({events.filter((e) => e.status === "live" || e.status === "soldout").length})
                 </button>
                 <button
                   onClick={() => setRegistryFilter("sao")}
@@ -758,7 +758,7 @@ export default function OrganizerDashboardClient({
                       : "text-[#6A5A57] hover:text-[#1E1B19]"
                     }`}
                 >
-                  SAO Pending (1)
+                  SAO Pending ({events.filter((e) => e.status === "pending").length})
                 </button>
                 <button
                   onClick={() => setRegistryFilter("archived")}
@@ -767,7 +767,7 @@ export default function OrganizerDashboardClient({
                       : "text-[#6A5A57] hover:text-[#1E1B19]"
                     }`}
                 >
-                  Archived (2)
+                  Archived ({events.filter((e) => e.status === "archived").length})
                 </button>
               </div>
             </div>

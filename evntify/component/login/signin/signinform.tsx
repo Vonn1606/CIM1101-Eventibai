@@ -28,7 +28,7 @@ export default function SignInForm() {
     }
 
     const next = new URLSearchParams(window.location.search).get("next");
-    if (next && next.startsWith("/") && !next.startsWith("//")) {
+    if (next && next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/\\")) {
       router.push(next);
       return;
     }

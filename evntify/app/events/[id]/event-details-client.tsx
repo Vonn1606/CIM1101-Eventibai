@@ -114,10 +114,11 @@ export default function EventDetailsClient({ initialEvent, initialRegistration }
     setIsSubmitting(true);
     setRegError(null);
 
+    const targetEventId = event.dbId ?? event.id;
     const result: RegistrationResult = await registerForEvent({
-      eventId: event.id,
+      eventId: targetEventId,
       studentNumber: formData.studentNumber,
-      college: formData.college as "eng" | "sci" | "biz" | "art",
+      college: formData.college,
     });
 
     if (result.error) {
@@ -322,14 +323,7 @@ export default function EventDetailsClient({ initialEvent, initialRegistration }
                       <p key={idx}>{paragraph}</p>
                     ))
                   ) : (
-                    <>
-                      <p>
-                        The LITS Arena: Figma Showdown 2026 gathers aspiring campus product designers, UX researchers, and software craftsmen in a fast-paced interactive design hackathon. The mission of this year&apos;s arena is solving tactile campus pain-points: from digital queue management at student registrar offices to collaborative student study-hub booking.
-                      </p>
-                      <p>
-                        Participants will receive a design brief revealed at exactly 1:15 PM and must produce an end-to-end interactive component-driven Figma prototype accompanied by a 3-minute lightning walkthrough deck.
-                      </p>
-                    </>
+                    <p>{event.summary || "No description provided for this event."}</p>
                   )}
                 </div>
 
