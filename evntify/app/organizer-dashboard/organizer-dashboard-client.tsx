@@ -3,6 +3,8 @@
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { submitEvent, toggleCheckIn } from "@/app/actions/events";
+import { sendBroadcast, getBroadcastLogs } from "@/app/actions/broadcasts";
+import type { BroadcastLogItem } from "@/app/actions/broadcasts";
 import type { OrgEvent, OrgRosterStudent } from "@/lib/db/organizer";
 import ProfileDropdown from "@/component/auth/profile-dropdown";
 import { useAuth } from "@/lib/use-auth";
@@ -131,6 +133,8 @@ export default function OrganizerDashboardClient({
   // const [qrModalEvent, setQrModalEvent] = useState<EventItem | null>(null);
   const [editModalEvent, setEditModalEvent] = useState<EventItem | null>(null);
   const [logsModalOpen, setLogsModalOpen] = useState(false);
+  const [broadcastLogs, setBroadcastLogs] = useState<BroadcastLogItem[]>([]);
+  const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
 
   // Profile dropdown
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
@@ -243,18 +247,41 @@ export default function OrganizerDashboardClient({
     setFormMemo("");
   };
 
+  // Handler: Open Delivery Logs Modal
+  const handleOpenLogs = async () => {
+    setLogsModalOpen(true);
+    const logs = await getBroadcastLogs();
+    setBroadcastLogs(logs);
+  };
+
   // Handler: Instant Broadcast Send
-  const handleSendBroadcast = () => {
+  const handleSendBroadcast = async () => {
     if (!broadcastMessage.trim()) {
       showToast("Please enter a message to broadcast.");
       return;
     }
-    const channelNames = Object.entries(activeChannels)
-      .filter(([, active]) => active)
-      .map(([name]) => (name === "push" ? "Push" : name === "sms" ? "SMS" : "Discord"))
-      .join(", ");
 
-    showToast(`🚀 Broadcast sent to 2,940 students via [${channelNames || "In-App Push"}]!`);
+    const channels = (
+      Object.entries(activeChannels)
+        .filter(([, active]) => active)
+        .map(([name]) => name) as ("push" | "sms" | "discord")[]
+    );
+
+    setIsSendingBroadcast(true);
+    const targetEvent = events.find((ev) => ev.title === selectedCohort || ev.id === selectedCohort);
+    const res = await sendBroadcast({
+      eventId: targetEvent?.id,
+      message: broadcastMessage,
+      channels: channels.length > 0 ? channels : ["push"],
+    });
+    setIsSendingBroadcast(false);
+
+    if (res.error) {
+      showToast(`Broadcast failed: ${res.error}`);
+    } else {
+      showToast(`🚀 Broadcast sent! (${res.recipientCount} notified)`);
+      setBroadcastMessage("");
+    }
   };
 
   // Filtered Registry Events
@@ -702,7 +729,7 @@ export default function OrganizerDashboardClient({
                 </span>
                 <button
                   type="button"
-                  onClick={() => setLogsModalOpen(true)}
+                  onClick={handleOpenLogs}
                   className="font-semibold text-[#8A7B78] hover:text-[#651C32] transition cursor-pointer"
                 >
                   Logs &rarr;
@@ -1226,9 +1253,10 @@ export default function OrganizerDashboardClient({
                 <button
                   type="button"
                   onClick={handleSendBroadcast}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#651C32] py-3 text-xs font-semibold text-white shadow-xs transition hover:bg-[#521325] active:scale-98 cursor-pointer"
+                  disabled={isSendingBroadcast}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#651C32] py-3 text-xs font-semibold text-white shadow-xs transition hover:bg-[#521325] active:scale-98 cursor-pointer disabled:opacity-60"
                 >
-                  <span>Broadcast Now</span>
+                  <span>{isSendingBroadcast ? "Sending Broadcast..." : "Broadcast Now"}</span>
                   <span>🚀</span>
                 </button>
               </div>
@@ -1619,19 +1647,26 @@ export default function OrganizerDashboardClient({
                 </div>
               </div>
 
-              <div className="divide-y divide-[#ECE2DC] rounded-xl border border-[#ECE2DC] text-xs">
-                <div className="p-3 bg-[#FAF5F2] flex justify-between items-center font-semibold text-[#1E1B19]">
-                  <span>Gate Beacon: Doors open in 15 mins</span>
-                  <span className="text-[#0E6245] font-bold">— Delivery logs not available</span>
-                </div>
-                <div className="p-3 flex justify-between items-center text-[#7A6B68]">
-                  <span>Room Update: Computer Lab 204 breakout</span>
-                  <span className="text-[#0E6245]">450 / 450 Delivered (100%)</span>
-                </div>
-                <div className="p-3 flex justify-between items-center text-[#7A6B68]">
-                  <span>SAO Clearance Memo: LITS Assembly Approval</span>
-                  <span className="text-[#0E6245]">All Org Officers Notified</span>
-                </div>
+              <div className="divide-y divide-[#ECE2DC] rounded-xl border border-[#ECE2DC] text-xs max-h-64 overflow-y-auto">
+                {broadcastLogs.length > 0 ? (
+                  broadcastLogs.map((log) => (
+                    <div key={log.id} className="p-3 bg-white flex justify-between items-start gap-3">
+                      <div>
+                        <p className="font-semibold text-[#1E1B19]">{log.message}</p>
+                        <p className="text-[10px] text-[#7A6B68] mt-0.5">
+                          {log.cohortLabel} · {log.sentAt}
+                        </p>
+                      </div>
+                      <span className="text-[#0E6245] font-bold shrink-0">
+                        {log.recipientCount} Delivered
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-4 text-center text-[#7A6B68] bg-[#FAF5F2]">
+                    No broadcasts recorded yet.
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-end pt-2">

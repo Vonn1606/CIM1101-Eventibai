@@ -17,8 +17,8 @@ import {
   ChevronRight,
 } from "lucide-react";
 import type { EventDirectoryItem } from "@/lib/db/stats";
-import type { EventItem } from "@/app/data/events-directory";
-import { pct } from "@/app/data/events-directory";
+import type { EventItem } from "@/types/admin";
+import { pct } from "@/types/admin";
 import EdEventCard from "./EdEventCard";
 import EdInspector from "./EdInspector";
 

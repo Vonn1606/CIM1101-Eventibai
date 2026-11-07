@@ -18,7 +18,7 @@ import {
   CheckCircle2,
   Clock,
 } from "lucide-react";
-import { Proposal, TONES } from "@/app/data/proposals";
+import { Proposal, TONES } from "@/types/admin";
 
 type Act = "approved" | "returned" | "declined";
 

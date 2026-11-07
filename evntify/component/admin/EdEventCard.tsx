@@ -14,7 +14,7 @@ import {
   STATUS_COLOR,
   capacityTone,
   pct,
-} from "@/app/data/events-directory";
+} from "@/types/admin";
 
 const AVATAR_BG = ["#DDE9FF", "#FFDADA", "#DAE2FD"];
 const AVATAR_FG = ["#0D1C2F", "#40000C", "#131B2E"];

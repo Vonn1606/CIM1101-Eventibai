@@ -14,7 +14,7 @@ import {
   Ban,
 } from "lucide-react";
 import type { ApprovalItem } from "@/lib/db/stats";
-import type { Proposal, Decision } from "@/app/data/proposals";
+import type { Proposal, Decision } from "@/types/admin";
 import ApProposalCard from "./ApProposalCard";
 import ApReviewModal from "./ApReviewModal";
 import { decideApproval } from "@/app/actions/approvals";
