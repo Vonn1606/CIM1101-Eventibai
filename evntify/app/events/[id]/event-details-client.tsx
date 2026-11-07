@@ -41,6 +41,21 @@ interface EventDetailsClientProps {
   initialEvent: EventDetail;
   initialRegistration: InitialRegistration;
 }
+
+function getCountdown(deadline: string) {
+  // No deadline set = registration stays open
+  if (!deadline || Number.isNaN(new Date(deadline).getTime())) {
+    return { days: "--", hours: "--", minutes: "--", closed: false };
+  }
+  const diff = new Date(deadline).getTime() - Date.now();
+  const safe = Math.max(0, diff);
+  return {
+    days: String(Math.floor(safe / 86_400_000)).padStart(2, "0"),
+    hours: String(Math.floor((safe / 3_600_000) % 24)).padStart(2, "0"),
+    minutes: String(Math.floor((safe / 60_000) % 60)).padStart(2, "0"),
+    closed: diff <= 0,
+  };
+}
 export default function EventDetailsClient({ initialEvent, initialRegistration }: EventDetailsClientProps) {
   const [event, setEvent] = useState<EventDetail>(initialEvent);
   const [isCopied, setIsCopied] = useState(false);
@@ -62,39 +77,18 @@ export default function EventDetailsClient({ initialEvent, initialRegistration }
   const [regError, setRegError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Live countdown timer state (DAYS, HOURS, MINS matching the Figma design)
-  const [timeLeft, setTimeLeft] = useState({
-    days: "02",
-    hours: "14",
-    minutes: "22",
-  });
+  // Live countdown timer state 
+  const [timeLeft, setTimeLeft] = useState(() => getCountdown(initialEvent.registrationDeadline));
+  const isClosed = timeLeft.closed;
 
   useEffect(() => {
-    const target = event.registrationDeadline
-      ? new Date(event.registrationDeadline).getTime()
-      : Date.now();
-
-    const updateTimer = () => {
-      const now = new Date().getTime();
-      const diff = Math.max(0, target - now);
-
-      const d = Math.floor(diff / (1000 * 60 * 60 * 24));
-      const h = Math.floor((diff / (1000 * 60 * 60)) % 24);
-      const m = Math.floor((diff / 1000 / 60) % 60);
-
-      setTimeLeft({
-        days: String(d).padStart(2, "0"),
-        hours: String(h).padStart(2, "0"),
-        minutes: String(m).padStart(2, "0"),
-      });
-    };
-
-    updateTimer();
-    const interval = setInterval(updateTimer, 60000);
+    const tick = () => setTimeLeft(getCountdown(event.registrationDeadline));
+    tick();
+    const interval = setInterval(tick, 60000);
     return () => clearInterval(interval);
   }, [event.registrationDeadline]);
-
   // Handle Share / Copy Link
+
   const handleCopyLink = () => {
     if (typeof window !== "undefined") {
       navigator.clipboard.writeText(window.location.href);
@@ -418,7 +412,9 @@ export default function EventDetailsClient({ initialEvent, initialRegistration }
                 <div className="countdown">
                   <div className="countdown__head">
                     <Clock size={14} className="countdown__icon" />
-                    <span className="eyebrow eyebrow--dark">REGISTRATION CLOSES IN</span>
+                    <span className="eyebrow eyebrow--dark">
+                      {isClosed ? "REGISTRATION CLOSED" : "REGISTRATION CLOSES IN"}
+                    </span>
                   </div>
                   <div className="countdown__cells">
                     <div className="countdown__cell">
@@ -446,6 +442,16 @@ export default function EventDetailsClient({ initialEvent, initialRegistration }
                   >
                     <CheckCircle2 size={14} style={{ marginLeft: "4px" }} />
                     <span>{registrationStatus === "waitlisted" ? "WAITLISTED" : "REGISTERED"}</span>
+                  </button>
+                ) : isClosed ? (
+                  <button
+                    type="button"
+                    disabled
+                    aria-disabled="true"
+                    className="cta"
+                    style={{ background: "#9ca3af", cursor: "not-allowed" }}
+                  >
+                    <span>REGISTRATION CLOSED</span>
                   </button>
                 ) : (
                   <button

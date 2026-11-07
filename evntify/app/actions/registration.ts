@@ -30,6 +30,18 @@ export async function registerForEvent(
   }
 
   const { eventId, studentNumber, college } = parsed.data;
+  const { data: ev } = await supabase
+    .from("events")
+    .select("registration_deadline")
+    .eq("id", eventId)
+    .maybeSingle();
+
+  if (
+    ev?.registration_deadline &&
+    new Date(ev.registration_deadline).getTime() < Date.now()
+  ) {
+    return { error: "Registration for this event has closed." };
+  }
 
   // 3. Get college_id from slug
   const { data: collegeRow } = await supabase

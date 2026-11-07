@@ -36,7 +36,7 @@ This document outlines the remaining tasks to complete 100% of the **Mock Data �
   - If registered, show **"View Fast-Pass"** or the claimed ticket badge instead of the Register button.
 - **Done When**: Refreshing the page as a registered student immediately shows your ticket code and Fast-Pass button.
 
-### Task 3.2: Enforce Registration Deadline
+### Task 3.2: Enforce Registration Deadline (/)
 - **File**: `evntify/app/events/[id]/event-details-client.tsx` (lines 58–87, 510–540)
 - **Problem**:
   - Countdown timer initial state starts with placeholder `"02" / "14" / "22"`.
