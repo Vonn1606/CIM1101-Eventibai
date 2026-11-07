@@ -16,14 +16,19 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { DEPARTMENTS, EVENTS, EventItem, pct } from "@/app/data/events-directory";
+import { DEPARTMENTS, type EventItem, pct } from "@/app/data/events-directory";
 import EdEventCard from "./EdEventCard";
 import EdInspector from "./EdInspector";
 
 type Tab = "active" | "completed";
 type Sort = "soonest" | "booked" | "az";
 
-export default function EdEventsView() {
+interface Props {
+  /** Initial event list — from DB when available, static fallback otherwise */
+  initialEvents: EventItem[];
+}
+
+export default function EdEventsView({ initialEvents }: Props) {
   const [tab, setTab] = useState<Tab>("active");
   const [dept, setDept] = useState(DEPARTMENTS[0]);
   const [query, setQuery] = useState("");
@@ -32,15 +37,16 @@ export default function EdEventsView() {
   const [selected, setSelected] = useState<EventItem | null>(null);
 
   const counts = {
-    active: EVENTS.filter((e) => e.status !== "completed").length,
-    completed: EVENTS.filter((e) => e.status === "completed").length,
+    active: initialEvents.filter((e) => e.status !== "completed").length,
+    completed: initialEvents.filter((e) => e.status === "completed").length,
   };
 
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return EVENTS.filter((e) =>
-      tab === "completed" ? e.status === "completed" : e.status !== "completed"
-    )
+    return initialEvents
+      .filter((e) =>
+        tab === "completed" ? e.status === "completed" : e.status !== "completed"
+      )
       .filter((e) => dept === DEPARTMENTS[0] || e.dept === dept)
       .filter(
         (e) =>
@@ -56,7 +62,7 @@ export default function EdEventsView() {
           ? a.title.localeCompare(b.title)
           : 0
       );
-  }, [tab, dept, query, sort]);
+  }, [initialEvents, tab, dept, query, sort]);
 
   return (
     <div className="ed-container">
@@ -171,7 +177,7 @@ export default function EdEventsView() {
       <div className="ed-count-bar">
         <div>
           <b className="ed-t-12-600">
-            Showing {list.length} of {EVENTS.length} events
+            Showing {list.length} of {initialEvents.length} events
           </b>
           <i className="ed-dot4" />
           <span className="ed-t-12 ed-muted">
@@ -214,7 +220,7 @@ export default function EdEventsView() {
       {/* Pager */}
       <footer className="ed-pager-bar">
         <span className="ed-t-12 ed-muted">
-          Showing 1 to {list.length} of 24 events
+          Showing 1 to {list.length} of {initialEvents.length} events
         </span>
         <div className="ed-pages">
           <button disabled aria-label="Previous page">
@@ -235,4 +241,3 @@ export default function EdEventsView() {
     </div>
   );
 }
-

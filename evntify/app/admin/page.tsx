@@ -4,14 +4,20 @@ import KpiCards from "@/component/admin/KpiCards";
 import FeaturedBanner from "@/component/admin/FeaturedBanner";
 import Calendar from "@/component/admin/Calendar";
 import UpcomingEvents from "@/component/admin/UpcomingEvents";
+import { getAdminDashboardKpis } from "@/lib/db/admin";
 import { Plus } from "lucide-react";
 import "./admin.css";
+
+// Admin pages render at request time (auth-protected, user-specific data)
+export const instant = false;
 
 export const metadata = {
   title: "Eventify - Admin Portal",
 };
 
-export default function AdminPage() {
+export default async function AdminPage() {
+  const kpis = await getAdminDashboardKpis();
+
   return (
     <div className="admin-root">
       <div className="shell">
@@ -20,7 +26,7 @@ export default function AdminPage() {
           <Header />
           <main className="main">
             <div className="container">
-              <KpiCards />
+              <KpiCards kpis={kpis} />
               <FeaturedBanner />
               <section className="grid">
                 <Calendar />

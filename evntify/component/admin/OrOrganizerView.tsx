@@ -15,7 +15,6 @@ import {
     Layers,
 } from "lucide-react";
 import {
-    ORGANIZERS,
     COLLEGE_TABS,
     type CollegeFilter,
     type Organizer,
@@ -26,24 +25,29 @@ type Sort = "name" | "pending" | "events";
 
 const PAGE_SIZE = 6;
 
-export default function OrOrganizersView() {
+interface Props {
+  /** Initial organizer list — from DB when available, static fallback otherwise */
+  initialOrganizers: Organizer[];
+}
+
+export default function OrOrganizersView({ initialOrganizers }: Props) {
     const [college, setCollege] = useState<CollegeFilter>("ALL");
     const [query, setQuery] = useState("");
     const [sort, setSort] = useState<Sort>("name");
     const [page, setPage] = useState(1);
     const [toast, setToast] = useState<string | null>(null);
 
-    const totalPending = ORGANIZERS.reduce((n, o) => n + o.pendingProposals, 0);
+    const totalPending = initialOrganizers.reduce((n, o) => n + o.pendingProposals, 0);
 
     const counts = useMemo(() => {
-        const c: Record<CollegeFilter, number> = { ALL: ORGANIZERS.length, CAS: 0, CBA: 0, FAAD: 0, COE: 0 };
-        ORGANIZERS.forEach((o) => (c[o.college] += 1));
+        const c: Record<CollegeFilter, number> = { ALL: initialOrganizers.length, CAS: 0, CBA: 0, FAAD: 0, COE: 0 };
+        initialOrganizers.forEach((o) => (c[o.college] += 1));
         return c;
-    }, []);
+    }, [initialOrganizers]);
 
     const list = useMemo(() => {
         const q = query.trim().toLowerCase();
-        return ORGANIZERS.filter((o) => college === "ALL" || o.college === college)
+        return initialOrganizers.filter((o) => college === "ALL" || o.college === college)
             .filter(
                 (o) =>
                     !q ||
@@ -56,7 +60,7 @@ export default function OrOrganizersView() {
                         ? b.activeEvents - a.activeEvents
                         : a.name.localeCompare(b.name)
             );
-    }, [college, query, sort]);
+    }, [college, query, sort, initialOrganizers]);
 
     const pages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
     const current = Math.min(page, pages);
@@ -96,7 +100,7 @@ export default function OrOrganizersView() {
                         <div>
                             <div className="label">Total</div>
                             <div className="or-stat-val">
-                                <b>{ORGANIZERS.length}</b>
+                                <b>{initialOrganizers.length}</b>
                                 <span>Organizers</span>
                             </div>
                         </div>

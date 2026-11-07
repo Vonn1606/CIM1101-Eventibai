@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { PROPOSALS, Proposal, Decision } from "@/app/data/proposals";
 import ApProposalCard from "./ApProposalCard";
-import ApProposalInspector from "./ApProposalInspector";
+import ApReviewModal from "./ApReviewModal";
 
 type Tab = "pending" | "returned" | "approved";
 
@@ -25,7 +25,7 @@ export default function ApApprovalsView() {
   const [items, setItems] = useState<Proposal[]>(PROPOSALS);
   const [tab, setTab] = useState<Tab>("pending");
   const [query, setQuery] = useState("");
-  const [selectedId, setSelectedId] = useState<string | null>("lits");
+  const [openId, setOpenId] = useState<string | null>(null);
 
   const count = (s: Decision) => items.filter((i) => i.status === s).length;
   const list = useMemo(() => {
@@ -41,13 +41,11 @@ export default function ApApprovalsView() {
       );
   }, [items, tab, query]);
 
-  const selected =
-    items.find((i) => i.id === selectedId && i.status !== "declined") ?? null;
+  const open = items.find((i) => i.id === openId) ?? null;
 
   function decide(id: string, d: "approved" | "returned" | "declined") {
-    const next = items.map((i) => (i.id === id ? { ...i, status: d } : i));
-    setItems(next);
-    setSelectedId(next.find((i) => i.status === "pending")?.id ?? null);
+    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, status: d } : i)));
+    setOpenId(null);
   }
 
   const tabs: { key: Tab; label: string; icon: typeof ClipboardList }[] = [
@@ -68,7 +66,7 @@ export default function ApApprovalsView() {
           </div>
           <h1>Event Approvals</h1>
           <p>
-            Review submitted proposals against institutional policy, then approve,
+            Open a proposal to inspect its details and documents, then approve,
             return for edits or decline.
           </p>
         </div>
@@ -131,7 +129,7 @@ export default function ApApprovalsView() {
       <section className="policy">
         <i className="policy-blob" />
         <div className="policy-main">
-          <span className="policy-icon">
+          <span className="policy-icon rose">
             <ScrollText size={18} />
           </span>
           <div>
@@ -150,7 +148,7 @@ export default function ApApprovalsView() {
             <p>
               Events with high-voltage equipment, off-campus routes or more than
               500 attendees need a safety officer sign-off before a permit can be
-              issued. Check each proposal’s endorsements before approving.
+              issued. Check each proposal&apos;s endorsements before approving.
             </p>
           </div>
         </div>
@@ -198,35 +196,34 @@ export default function ApApprovalsView() {
         </div>
       </section>
 
-      <div className="ap-grid">
-        <div className="ap-list">
-          {list.length ? (
-            list.map((p) => (
-              <ApProposalCard
-                key={p.id}
-                p={p}
-                selected={p.id === selectedId}
-                onSelect={() => setSelectedId(p.id)}
-              />
-            ))
-          ) : (
-            <div className="card empty">
-              <CheckCircle2 size={20} />
-              <p>
-                {tab === "pending"
-                  ? "Nothing left to review. New submissions will appear here."
-                  : "No proposals in this list yet."}
-              </p>
-            </div>
-          )}
-        </div>
-        <ApProposalInspector
-          p={selected}
-          onClose={() => setSelectedId(null)}
+      <div className="rv-list">
+        {list.length ? (
+          list.map((p) => (
+            <ApProposalCard
+              key={p.id}
+              p={p}
+              onReview={() => setOpenId(p.id)}
+            />
+          ))
+        ) : (
+          <div className="card empty">
+            <CheckCircle2 size={20} />
+            <p>
+              {tab === "pending"
+                ? "Nothing left to review. New submissions will appear here."
+                : "No proposals in this list yet."}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {open && open.status === "pending" && (
+        <ApReviewModal
+          p={open}
+          onClose={() => setOpenId(null)}
           onDecide={decide}
         />
-      </div>
+      )}
     </div>
   );
 }
-
