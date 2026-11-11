@@ -35,12 +35,17 @@ export async function registerForEvent(
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(inputEventId);
   const { data: ev } = await supabase
     .from("events")
-    .select("id, slug, registration_deadline")
+    .select("id, slug, registration_deadline, status")
     .or(isUuid ? `id.eq.${inputEventId},slug.eq.${inputEventId}` : `slug.eq.${inputEventId}`)
     .maybeSingle();
 
   if (!ev) return { error: "Event not found." };
   const eventId = ev.id;
+
+  // Item 6: suspended events cannot take registrations (also enforced in SQL).
+  if (ev.status === "suspended") {
+    return { error: "This event has been suspended and is not accepting registrations." };
+  }
 
   if (
     ev?.registration_deadline &&
@@ -73,6 +78,9 @@ export async function registerForEvent(
     const msg = rpcError.message.toLowerCase();
     if (msg.includes("already registered") || msg.includes("duplicate key") || msg.includes("unique")) {
       return { error: "You are already registered for this event." };
+    }
+    if (msg.includes("not available")) {
+      return { error: "Registration is not available for this event." };
     }
     return { error: rpcError.message };
   }

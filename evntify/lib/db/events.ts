@@ -185,7 +185,7 @@ export async function getEvents(): Promise<CampusEvent[]> {
     .from("events")
     .select(EVENT_SELECT)
     .eq("approval", "approved")
-    .neq("status", "draft")
+    .not("status", "in", "(draft,suspended)")
     .order("starts_at", { ascending: true });
 
   if (error) {
@@ -206,6 +206,7 @@ export async function getEventBySlug(slug: string): Promise<EventDetail | null> 
     .select(EVENT_SELECT)
     .eq("slug", slug)
     .eq("approval", "approved")
+    .neq("status", "suspended")
     .single();
 
   if (error || !data) return null;
@@ -222,6 +223,7 @@ export async function getFeaturedEvents(): Promise<FeaturedEvent[]> {
     .from("events")
     .select(EVENT_SELECT)
     .eq("approval", "approved")
+    .neq("status", "suspended")
     .eq("is_featured", true)
     .order("featured_rank", { ascending: true })
     .limit(5);
@@ -282,7 +284,8 @@ export async function getAllEventSlugs(): Promise<string[]> {
   const { data } = await supabase
     .from("events")
     .select("slug")
-    .eq("approval", "approved");
+    .eq("approval", "approved")
+    .neq("status", "suspended");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return ((data ?? []) as any[]).map((r) => r.slug as string);
 }

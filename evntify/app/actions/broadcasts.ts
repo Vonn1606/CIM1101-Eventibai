@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
 export interface SendBroadcastInput {
+  /** Required: broadcasts are scoped to an event the caller owns. */
   eventId?: string;
   message: string;
   channels: ("push" | "sms" | "discord")[];
@@ -17,6 +18,9 @@ export interface BroadcastLogItem {
   cohortLabel: string;
   channels: string[];
 }
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function sendBroadcast(input: SendBroadcastInput) {
   const supabase = await createClient();
@@ -36,93 +40,85 @@ export async function sendBroadcast(input: SendBroadcastInput) {
     return { error: "Broadcast message exceeds 240 characters." };
   }
 
+  // The DB function and RLS only allow broadcasts scoped to an owned event.
+  if (!input.eventId || !UUID_RE.test(input.eventId)) {
+    return { error: "Select one of your events to broadcast to." };
+  }
+  const eventId = input.eventId;
+
   const channels = input.channels.length > 0 ? input.channels : ["push"];
 
-  // 1. Determine recipients (if eventId is provided, all registered students for that event)
-  let recipientIds: string[] = [];
-  let cohortLabel = "All Campus Students";
-
-  if (input.eventId) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: regRows } = await (supabase as any)
-      .from("registrations")
-      .select("user_id, events(title)")
-      .eq("event_id", input.eventId);
-
-    if (regRows && regRows.length > 0) {
-      recipientIds = Array.from(
-        new Set(regRows.map((r: { user_id: string }) => r.user_id).filter(Boolean))
-      );
-      const title = (regRows[0] as { events?: { title?: string } }).events?.title ?? "Selected Event";
-      cohortLabel = `${title} (${recipientIds.length} Registered)`;
-    } else {
-      cohortLabel = `Event Registrants (0)`;
-    }
-  }
-
-  // 2. Insert into broadcasts table
+  // Cohort label shown in logs (the RPC stores it as-is).
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: broadcastRow, error: broadcastErr } = await (supabase as any)
+  const { data: evRow } = await (supabase as any)
+    .from("events")
+    .select("title")
+    .eq("id", eventId)
+    .maybeSingle();
+  const cohortLabel = `${(evRow as { title?: string } | null)?.title ?? "Selected Event"} (Registered)`;
+
+  // Item 4: one transaction — ownership check, recipient fan-out, push rows
+  // delivered, sms/discord rows 'queued', and the audit log entry.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: broadcastId, error: rpcErr } = await (supabase.rpc as any)(
+    "send_broadcast",
+    {
+      p_event: eventId,
+      p_cohort: cohortLabel,
+      p_message: trimmed,
+      p_channels: channels,
+    }
+  );
+
+  if (rpcErr) {
+    if (/not allowed/i.test(rpcErr.message)) {
+      return { error: "You do not have permission to broadcast for this event." };
+    }
+    return { error: rpcErr.message };
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: row } = await (supabase as any)
     .from("broadcasts")
-    .insert({
-      event_id: input.eventId || null,
-      sent_by: user.id,
-      cohort_label: cohortLabel,
-      message: trimmed,
-      channels: channels,
-      recipient_count: recipientIds.length,
-    })
-    .select("id")
-    .single();
-
-  if (broadcastErr) {
-    return { error: broadcastErr.message };
-  }
-
-  const broadcastId = broadcastRow.id;
-
-  // 3. Insert notification & broadcast_deliveries rows if there are recipients
-  if (recipientIds.length > 0) {
-    const notificationInserts = recipientIds.map((userId) => ({
-      user_id: userId,
-      title: "Campus Announcement",
-      body: trimmed,
-      link: input.eventId ? `/events/${input.eventId}` : "/events",
-    }));
-
-    const deliveryInserts = recipientIds.flatMap((userId) =>
-      channels.map((ch) => ({
-        broadcast_id: broadcastId,
-        user_id: userId,
-        channel: ch,
-        status: "delivered",
-        delivered_at: new Date().toISOString(),
-      }))
-    );
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any).from("notifications").insert(notificationInserts);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any).from("broadcast_deliveries").insert(deliveryInserts);
-  }
+    .select("recipient_count")
+    .eq("id", broadcastId as string)
+    .maybeSingle();
 
   revalidatePath("/organizer-dashboard");
   return {
     success: true,
-    recipientCount: recipientIds.length,
+    recipientCount: Number((row as { recipient_count?: number } | null)?.recipient_count ?? 0),
     cohortLabel,
   };
 }
 
-export async function getBroadcastLogs(limit = 10): Promise<BroadcastLogItem[]> {
+/**
+ * RLS ("owners read broadcasts") already limits rows to events the caller
+ * owns (admins see all); eventId optionally narrows to one event.
+ */
+export async function getBroadcastLogs(
+  limit = 10,
+  eventId?: string
+): Promise<BroadcastLogItem[]> {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  let query = (supabase as any)
     .from("broadcasts")
     .select("id, message, sent_at, recipient_count, cohort_label, channels")
+    .not("event_id", "is", null)
     .order("sent_at", { ascending: false })
     .limit(limit);
+
+  if (eventId && UUID_RE.test(eventId)) {
+    query = query.eq("event_id", eventId);
+  }
+
+  const { data, error } = await query;
 
   if (error || !data) {
     return [];
@@ -144,4 +140,3 @@ export async function getBroadcastLogs(limit = 10): Promise<BroadcastLogItem[]> 
     channels: b.channels ?? ["push"],
   }));
 }
-

@@ -197,8 +197,37 @@ export async function toggleCheckIn(
   } = await supabase.auth.getUser();
   if (authError || !user) return { error: "Not authenticated." };
 
+  if (!z.string().uuid().safeParse(registrationId).success) {
+    return { error: "Invalid registration ID." };
+  }
+
+  // Resolve the event first: needed for the ownership check and because
+  // check_ins requires a non-null event_id.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: regRow, error: regErr } = await (supabase as any)
+    .from("registrations")
+    .select("event_id")
+    .eq("id", registrationId)
+    .single();
+
+  if (regErr || !regRow) {
+    return { error: regErr?.message ?? "Registration record not found." };
+  }
+  const eventId = (regRow as { event_id: string }).event_id;
+
+  // Item 1: only the event's owner (creator, org member or admin) may check in.
+  // RLS ("owners manage check-ins") enforces this too; this gives a clear error.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: owns, error: ownsErr } = await (supabase.rpc as any)(
+    "user_owns_event",
+    { p_event: eventId }
+  );
+  if (ownsErr) return { error: ownsErr.message };
+  if (!owns) {
+    return { error: "You do not have permission to manage check-ins for this event." };
+  }
+
   if (currentlyCheckedIn) {
-    // Remove check-in
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await (supabase as any)
       .from("check_ins")
@@ -207,43 +236,31 @@ export async function toggleCheckIn(
     if (error) return { error: error.message };
     revalidatePath("/organizer-dashboard");
     return { checkedIn: false };
-  } else {
-    // Upsert check-in: fetch event_id from registrations table as check_ins requires non-null event_id
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: regRow, error: regErr } = await (supabase as any)
-      .from("registrations")
-      .select("event_id")
-      .eq("id", registrationId)
-      .single();
-
-    if (regErr || !regRow) {
-      return { error: regErr?.message ?? "Registration record not found." };
-    }
-
-    const now = new Date().toISOString();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase as any)
-      .from("check_ins")
-      .upsert(
-        {
-          registration_id: registrationId,
-          event_id: (regRow as { event_id: string }).event_id,
-          checked_in_by: user.id,
-          checked_in_at: now,
-        },
-        { onConflict: "registration_id" }
-      );
-    if (error) return { error: error.message };
-    revalidatePath("/organizer-dashboard");
-    return {
-      checkedIn: true,
-      checkedInTime: new Date(now).toLocaleTimeString("en-US", {
-        timeZone: "Asia/Manila",
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-    };
   }
+
+  const now = new Date().toISOString();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any)
+    .from("check_ins")
+    .upsert(
+      {
+        registration_id: registrationId,
+        event_id: eventId,
+        checked_in_by: user.id,
+        checked_in_at: now,
+      },
+      { onConflict: "registration_id" }
+    );
+  if (error) return { error: error.message };
+  revalidatePath("/organizer-dashboard");
+  return {
+    checkedIn: true,
+    checkedInTime: new Date(now).toLocaleTimeString("en-US", {
+      timeZone: "Asia/Manila",
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+  };
 }
 
 /* --------------------------------------------------------------------------
