@@ -1,13 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { BadgeCheck, CalendarDays, CalendarPlus, CircleCheck, Clock, MapPin, QrCode, Ticket, X } from "lucide-react";
 import type { PastEvent, UpcomingEvent } from "@/app/actions/registration";
+import { cancelRegistration } from "@/app/actions/registration";
 import QRCode from "qrcode";
 
 export function UpcomingCard({ e }: { e: UpcomingEvent }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [qrUrl, setQrUrl] = useState<string>("");
+  const [cancelled, setCancelled] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     if (e.qrCode) {
@@ -20,6 +24,21 @@ export function UpcomingCard({ e }: { e: UpcomingEvent }) {
         .catch((err) => console.error("Error creating QR:", err));
     }
   }, [e.qrCode]);
+
+  if (cancelled) return null;
+
+  const handleCancel = () => {
+    if (!window.confirm(`Cancel your registration for "${e.title}"?`)) return;
+    startTransition(async () => {
+      const res = await cancelRegistration(e.id);
+      if (res.error) {
+        setCancelError(res.error);
+      } else {
+        setCancelled(true);
+      }
+    });
+  };
+
   return (
     <article className="overflow-hidden rounded-xl bg-white shadow-sm">
       <div className={`flex items-center justify-between px-4 py-3 text-white ${e.headerColor}`}>
@@ -80,9 +99,18 @@ export function UpcomingCard({ e }: { e: UpcomingEvent }) {
               Add to calendar
             </button>
           </div>
-          <button className="text-[10px] font-bold tracking-[0.6px] text-danger hover:underline">
-            Cancel registration
-          </button>
+          <div className="flex flex-col items-end gap-1">
+            <button
+              onClick={handleCancel}
+              disabled={isPending}
+              className="text-[10px] font-bold tracking-[0.6px] text-danger hover:underline disabled:opacity-50"
+            >
+              {isPending ? "Cancelling…" : "Cancel registration"}
+            </button>
+            {cancelError && (
+              <span className="text-[9px] text-danger">{cancelError}</span>
+            )}
+          </div>
         </div>
       </div>
 

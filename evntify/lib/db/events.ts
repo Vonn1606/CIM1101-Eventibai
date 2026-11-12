@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { EventDetail, FeaturedEvent, CampusEvent } from "@/types/events";
+import type { DepartmentId } from "@/lib/department";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -67,18 +68,29 @@ function rowToEventDetail(row: any, stats: StatsMap = {}): EventDetail {
     totalCapacity: capacity,
     registeredCount: registered,
     seatsLeft,
-    registrationDeadline: row.registration_deadline ?? "",
+    registrationDeadline: row.registration_deadline
+      ? new Date(row.registration_deadline).toLocaleString("en-US", {
+          timeZone: "Asia/Manila",
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+        })
+      : "",
     bannerColor: row.banner_color ?? "#1e2022",
     status:
-      row.status === "open"
-        ? seatsLeft === 0
-          ? "FULL"
-          : seatsLeft <= 10
-            ? "LIMITED"
-            : "OPEN"
+      row.status === "suspended"
+        ? "SUSPENDED"
         : row.status === "completed" || row.status === "concluded"
           ? "COMPLETED"
-          : "OPEN",
+          : row.status === "open"
+            ? seatsLeft === 0
+              ? "FULL"
+              : seatsLeft <= 10
+                ? "LIMITED"
+                : "OPEN"
+            : "OPEN",
     coordinator: {
       name: row.coordinator_name ?? "",
       role: org?.dept_label ? `${org.dept_label} Coordinator` : "Event Coordinator",
@@ -104,7 +116,11 @@ function rowToCampusEvent(row: any, stats: StatsMap = {}): CampusEvent {
 
   const startsAt = row.starts_at ? new Date(row.starts_at) : null;
   const dateStr = startsAt
-    ? startsAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+    ? startsAt.toLocaleDateString("en-US", {
+        timeZone: "Asia/Manila",
+        month: "short",
+        day: "numeric",
+      })
     : "";
   const venueShort = row.venues?.name ?? "";
 
@@ -118,16 +134,11 @@ function rowToCampusEvent(row: any, stats: StatsMap = {}): CampusEvent {
     seatsLeft,
     bannerColor: row.banner_color ?? "#1e2022",
     href: `/events/${row.slug}`,
-    department: (row.colleges?.slug ?? undefined) as
-      | "eng"
-      | "sci"
-      | "biz"
-      | "art"
-      | undefined,
+    department: (row.colleges?.slug as DepartmentId) ?? undefined,
     tag: row.category ?? undefined,
     startsAt: row.starts_at ?? undefined,
     createdAt: row.created_at ?? undefined,
-    status: row.status === "concluded" ? "concluded" : "open",
+    status: row.status === "completed" || row.status === "concluded" ? "completed" : "open",
   };
 }
 
@@ -148,12 +159,10 @@ const EVENT_SELECT = `
 /**
  * Fetch seat counts from the event_stats VIEW for a batch of event IDs.
  *
- * event_stats is a SQL VIEW — PostgREST cannot resolve it as an embedded join
- * (no FK metadata on views). We query it directly via .from() instead.
- *
- * The view must have a SELECT policy, e.g.:
- *   create policy "public read stats" on event_stats for select using (true);
- * If it is missing, this will silently return {} and seatsLeft defaults to total_capacity.
+ * event_stats is a standard SQL VIEW — PostgREST does not expose foreign key metadata on
+ * views for resource embedding, so we query it directly via .from().
+ * Views in PostgreSQL do not accept RLS policies directly; permissions are governed by
+ * table-level grants and the underlying base tables (unless defined WITH security_invoker = true).
  */
 async function fetchStats(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -193,8 +202,7 @@ export async function getEvents(): Promise<CampusEvent[]> {
     return [];
   }
   const rows = data ?? [];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const ids = rows.map((r: any) => r.id as string);
+  const ids = (rows as Array<{ id: string }>).map((r) => r.id);
   const stats = await fetchStats(supabase, ids);
   return rows.map((r) => rowToCampusEvent(r, stats));
 }
@@ -210,27 +218,27 @@ export async function getEventBySlug(slug: string): Promise<EventDetail | null> 
     .single();
 
   if (error || !data) return null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const stats = await fetchStats(supabase, [(data as any).id as string]);
+  const stats = await fetchStats(supabase, [(data as { id: string }).id]);
   return rowToEventDetail(data, stats);
 }
 
 export async function getFeaturedEvents(): Promise<FeaturedEvent[]> {
   const supabase = await createClient();
+  const nowIso = new Date().toISOString();
 
-  // Primary: explicitly featured events
+  // Primary: explicitly featured events that are not past, cancelled, or suspended
   const { data: featured } = await supabase
     .from("events")
     .select(EVENT_SELECT)
     .eq("approval", "approved")
-    .neq("status", "suspended")
+    .not("status", "in", "(draft,suspended,cancelled,completed)")
+    .gte("starts_at", nowIso)
     .eq("is_featured", true)
     .order("featured_rank", { ascending: true })
     .limit(5);
 
   if (featured && featured.length > 0) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ids = featured.map((r: any) => r.id as string);
+    const ids = (featured as Array<{ id: string }>).map((r) => r.id);
     const stats = await fetchStats(supabase, ids);
     return featured.map((row) => {
       const detail = rowToEventDetail(row, stats);
@@ -254,13 +262,12 @@ export async function getFeaturedEvents(): Promise<FeaturedEvent[]> {
     .select(EVENT_SELECT)
     .eq("approval", "approved")
     .eq("status", "open")
-    .gte("starts_at", new Date().toISOString())
+    .gte("starts_at", nowIso)
     .order("starts_at", { ascending: true })
     .limit(2);
 
   const fallbackRows = fallback ?? [];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const ids = fallbackRows.map((r: any) => r.id as string);
+  const ids = (fallbackRows as Array<{ id: string }>).map((r) => r.id);
   const stats = await fetchStats(supabase, ids);
 
   return fallbackRows.map((row) => {
@@ -286,6 +293,5 @@ export async function getAllEventSlugs(): Promise<string[]> {
     .select("slug")
     .eq("approval", "approved")
     .neq("status", "suspended");
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return ((data ?? []) as any[]).map((r) => r.slug as string);
+  return ((data ?? []) as Array<{ slug: string }>).map((r) => r.slug);
 }

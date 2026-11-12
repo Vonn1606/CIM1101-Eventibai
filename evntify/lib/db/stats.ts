@@ -113,7 +113,7 @@ export async function getApprovals(): Promise<ApprovalItem[]> {
       org: ev?.organizations?.name ?? ev?.colleges?.name ?? "Unknown Org",
       dept: ev?.colleges?.name ?? ev?.organizations?.dept_label ?? "",
       venue: ev?.venues?.name ?? "",
-      venueNote: ev?.venues?.details ?? "Main Campus",
+      venueNote: ev?.venues?.details ?? "",
       date: dateStr,
       when: whenStr,
       submittedAt: row.submitted_at,
@@ -231,15 +231,60 @@ export async function getOrganizers(): Promise<OrganizerItem[]> {
     .select(`
       id, full_name, email, student_number,
       colleges ( name ),
-      organization_members ( position, organizations ( name ) )
+      organization_members ( position, organization_id, organizations ( name ) )
     `)
     .eq("role", "organizer");
 
   if (error || !data) return [];
 
+  // Collect all org IDs so we can batch-query pending + active counts
+  const orgIds = new Set<string>();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (data as any[]).forEach((p) => {
+    const members = Array.isArray(p.organization_members) ? p.organization_members : [];
+    members.forEach((m: { organization_id?: string }) => {
+      if (m.organization_id) orgIds.add(m.organization_id);
+    });
+  });
+
+  // Fetch pending approval counts per org
+  const pendingByOrg: Record<string, number> = {};
+  const activeByOrg: Record<string, number> = {};
+  if (orgIds.size > 0) {
+    const ids = Array.from(orgIds);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: pendingRows } = await (supabase as any)
+      .from("approvals")
+      .select("events!inner(organization_id)")
+      .eq("decision", "pending")
+      .in("events.organization_id", ids);
+    if (pendingRows) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (pendingRows as any[]).forEach((r) => {
+        const oid = r.events?.organization_id as string | undefined;
+        if (oid) pendingByOrg[oid] = (pendingByOrg[oid] ?? 0) + 1;
+      });
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: activeRows } = await (supabase as any)
+      .from("events")
+      .select("organization_id")
+      .in("organization_id", ids)
+      .eq("approval", "approved")
+      .in("status", ["open", "draft"]);
+    if (activeRows) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (activeRows as any[]).forEach((r) => {
+        const oid = r.organization_id as string;
+        activeByOrg[oid] = (activeByOrg[oid] ?? 0) + 1;
+      });
+    }
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (data as any[]).map((p) => {
     const member = Array.isArray(p.organization_members) ? p.organization_members[0] : null;
+    const orgId = member?.organization_id as string | undefined;
     return {
       id: p.id,
       name: p.full_name ?? "Unknown",
@@ -247,8 +292,8 @@ export async function getOrganizers(): Promise<OrganizerItem[]> {
       org: member?.organizations?.name ?? "Unaffiliated",
       college: p.colleges?.name ?? "Unknown",
       email: p.email ?? (p.student_number ? `${p.student_number}@ue.edu.ph` : "organizer@ue.edu.ph"),
-      pendingProposals: 0,
-      activeEvents: 0,
+      pendingProposals: orgId ? (pendingByOrg[orgId] ?? 0) : 0,
+      activeEvents: orgId ? (activeByOrg[orgId] ?? 0) : 0,
     };
   });
 }

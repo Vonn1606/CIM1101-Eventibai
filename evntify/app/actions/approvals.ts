@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { requireAdmin } from "@/app/actions/admin";
 
 // ── Event Approvals ───────────────────────────────────────────────────────────
 
@@ -27,15 +28,15 @@ export async function decideApproval(
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
 
+  const adminCheck = await requireAdmin(supabase, user.id);
+  if (!adminCheck.ok) return { error: adminCheck.error };
+
   const { approvalId, decision, notes } = parsed.data;
   const dbDecision =
     decision === "rejected" || decision === "declined" ? "declined" : decision;
 
-  // Item 5: a single DB transaction. The function enforces admin-only and
-  // 'pending'-only, updates event_approvals + events (approved => open),
-  // notifies the organizer and writes the audit log.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase.rpc as any)("decide_approval", {
+  // Single DB transaction via RPC: updates event_approvals + events, notifies organizer, writes audit log
+  const { error } = await supabase.rpc("decide_approval", {
     p_approval: approvalId,
     p_decision: dbDecision,
     p_note: notes ?? null,

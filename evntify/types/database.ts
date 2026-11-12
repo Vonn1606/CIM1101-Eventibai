@@ -954,6 +954,23 @@ export type Database = {
         Args: { r: Database["public"]["Enums"]["user_role"] }
         Returns: boolean
       }
+      decide_approval: {
+        Args: {
+          p_approval: string
+          p_decision: Database["public"]["Enums"]["approval_status"]
+          p_note: string | null
+        }
+        Returns: undefined
+      }
+      log_audit: {
+        Args: {
+          p_action: string
+          p_entity: string
+          p_entity_id: string
+          p_meta?: Json | null
+        }
+        Returns: undefined
+      }
       register_for_event: {
         Args: { p_college: string; p_event: string; p_student_number: string }
         Returns: {
@@ -975,6 +992,28 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      send_broadcast: {
+        Args: {
+          p_channels: Database["public"]["Enums"]["broadcast_channel"][]
+          p_cohort: string
+          p_event: string
+          p_message: string
+        }
+        Returns: string
+      }
+      suspend_event: {
+        Args: {
+          p_event: string
+          p_reason: string
+        }
+        Returns: undefined
+      }
+      user_owns_event: {
+        Args: {
+          p_event: string
+        }
+        Returns: boolean
       }
     }
     Enums: {

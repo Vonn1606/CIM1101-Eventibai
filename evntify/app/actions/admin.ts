@@ -13,6 +13,22 @@ export interface SuspendEventResult {
   error?: string;
 }
 
+export async function requireAdmin(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string
+): Promise<{ ok: boolean; error?: string }> {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", userId)
+    .single();
+
+  if (profile?.role !== "admin") {
+    return { ok: false, error: "Forbidden: administrator privileges required." };
+  }
+  return { ok: true };
+}
+
 export async function saveAdminNote(
   eventId: string,
   note: string
@@ -23,6 +39,9 @@ export async function saveAdminNote(
   } = await supabase.auth.getUser();
 
   if (!user) return { error: "Authentication required." };
+
+  const adminCheck = await requireAdmin(supabase, user.id);
+  if (!adminCheck.ok) return { error: adminCheck.error };
 
   const trimmed = note.trim();
   if (!trimmed) return { error: "Note cannot be empty." };
@@ -42,8 +61,7 @@ export async function saveAdminNote(
     if (ev) targetEventId = ev.id;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase as any).from("admin_notes").insert({
+  const { error } = await supabase.from("admin_notes").insert({
     event_id: targetEventId,
     author_id: user.id,
     note: trimmed,
@@ -66,16 +84,8 @@ export async function suspendEvent(
 
   if (!user) return { error: "Authentication required." };
 
-  // Check admin role
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-
-  if (profile?.role !== "admin") {
-    return { error: "Forbidden: only admins can suspend campus events." };
-  }
+  const adminCheck = await requireAdmin(supabase, user.id);
+  if (!adminCheck.ok) return { error: adminCheck.error };
 
   let targetEventId = eventId;
   const isUuid =
@@ -91,23 +101,29 @@ export async function suspendEvent(
     if (ev) targetEventId = ev.id;
   }
 
-  // Update status to 'suspended'
-  const { error: updateErr } = await supabase
-    .from("events")
-    .update({ status: "suspended" })
-    .eq("id", targetEventId);
-
-  if (updateErr) return { error: updateErr.message };
-
-  // Insert audit log
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (supabase as any).from("audit_logs").insert({
-    actor_id: user.id,
-    action: "event_suspended",
-    entity: "events",
-    entity_id: targetEventId,
-    meta: { reason: reason || "Administrative suspension via Inspector drawer" },
+  // Update status and audit log via RPC
+  const { error: rpcErr } = await supabase.rpc("suspend_event", {
+    p_event: targetEventId,
+    p_reason: reason || "Administrative suspension via Inspector drawer",
   });
+
+  if (rpcErr) {
+    // Fallback direct update if function not deployed
+    const { error: updateErr } = await supabase
+      .from("events")
+      .update({ status: "suspended" })
+      .eq("id", targetEventId);
+
+    if (updateErr) return { error: updateErr.message };
+
+    await supabase.from("audit_logs").insert({
+      actor_id: user.id,
+      action: "event_suspended",
+      entity: "events",
+      entity_id: targetEventId,
+      meta: { reason: reason || "Administrative suspension via Inspector drawer" },
+    });
+  }
 
   revalidatePath("/admin/events-directory");
   revalidatePath("/events");
@@ -135,8 +151,7 @@ export async function getEventFacilities(
     if (ev) targetEventId = ev.id;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from("event_facilities")
     .select("label, value")
     .eq("event_id", targetEventId);
@@ -164,16 +179,14 @@ export async function getEventAdminNotes(
     if (ev) targetEventId = ev.id;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from("admin_notes")
     .select("id, note, created_at")
     .eq("event_id", targetEventId)
     .order("created_at", { ascending: false });
 
   if (error || !data) return [];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return data.map((n: any) => ({
+  return data.map((n) => ({
     id: n.id,
     note: n.note,
     createdAt: new Date(n.created_at).toLocaleString("en-US", {

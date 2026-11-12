@@ -21,7 +21,6 @@ import { decideApproval } from "@/app/actions/approvals";
 
 type Tab = "pending" | "returned" | "approved" | "declined";
 
-const RATE = 92;
 const C = 2 * Math.PI * 19.67;
 
 /** Map an ApprovalItem (DB) to the Proposal shape the UI components expect */
@@ -110,7 +109,18 @@ export default function ApApprovalsView({
   const count = (s: Decision) => items.filter((i) => i.status === s).length;
   const approvedTotal = count("approved");
   const processedTotal = approvedTotal + count("returned") + count("declined");
-  const clearanceRate = processedTotal > 0 ? Math.round((approvedTotal / processedTotal) * 100) : RATE;
+  const clearanceRate = processedTotal > 0 ? Math.round((approvedTotal / processedTotal) * 100) : 0;
+
+  // Compute average review time from decided proposals
+  const avgReviewDays = useMemo(() => {
+    const decided = initialProposals.filter((a) => a.decidedAt && a.submittedAt);
+    if (decided.length === 0) return "—";
+    const totalMs = decided.reduce((sum, a) => {
+      return sum + (new Date(a.decidedAt!).getTime() - new Date(a.submittedAt!).getTime());
+    }, 0);
+    const avgDays = totalMs / decided.length / (1000 * 60 * 60 * 24);
+    return avgDays < 1 ? `${Math.round(avgDays * 24)} hrs` : `${avgDays.toFixed(1)} days`;
+  }, [initialProposals]);
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
     return items
@@ -202,7 +212,7 @@ export default function ApApprovalsView({
             </div>
             <div>
               <div className="label brown">Avg review time</div>
-              <div className="ap-val">1.8 days</div>
+              <div className="ap-val">{avgReviewDays}</div>
               <div className="t-12 muted-brown">per proposal</div>
             </div>
           </div>

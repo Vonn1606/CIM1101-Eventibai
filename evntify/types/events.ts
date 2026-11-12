@@ -25,7 +25,7 @@ export type CampusEvent = {
     tag?: string;                // small pill on the card, e.g. "Hackathon"
     startsAt?: string;           // ISO date-time, replaces `date`
     createdAt?: string;          // for the "Recently Added" sort
-    status?: "open" | "concluded";
+    status?: "open" | "completed" | "concluded";
     date: string;
 };
 
@@ -62,7 +62,7 @@ export type EventDetail = {
     seatsLeft: number;
     registrationDeadline: string;
     bannerColor: string;
-    status: "OPEN" | "LIMITED" | "CLOSING SOON" | "FULL" | "COMPLETED";
+    status: "OPEN" | "LIMITED" | "CLOSING SOON" | "FULL" | "COMPLETED" | "SUSPENDED";
     coordinator: {
         name: string;
         role: string;

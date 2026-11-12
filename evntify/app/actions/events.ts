@@ -60,8 +60,7 @@ export async function submitEvent(
   // Verify or resolve the organiser's organisation on the server
   let orgId = inputOrgId;
   if (orgId) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: verifiedMember } = await (supabase as any)
+    const { data: verifiedMember } = await supabase
       .from("organization_members")
       .select("organization_id")
       .eq("user_id", user.id)
@@ -72,18 +71,16 @@ export async function submitEvent(
       return { error: "You are not an authorized member of the selected organization." };
     }
   } else {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: memberData } = await (supabase as any)
+    const { data: memberData } = await supabase
       .from("organization_members")
       .select("organization_id")
       .eq("user_id", user.id)
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (!memberData)
       return { error: "You are not affiliated with any organisation." };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    orgId = (memberData as any).organization_id as string;
+    orgId = memberData.organization_id;
   }
 
   // Resolve venue
@@ -94,7 +91,7 @@ export async function submitEvent(
       .select("id")
       .ilike("name", `%${venue}%`)
       .limit(1)
-      .single()) as { data: { id: string } | null };
+      .maybeSingle()) as { data: { id: string } | null };
 
     venueId = venueRow?.id ?? null;
   }
@@ -128,8 +125,18 @@ export async function submitEvent(
   const descText = description || memo || "";
   const descArray = descText ? [descText] : [];
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: insertData, error: insertError } = await (supabase as any)
+  // Map tier to database enum access_tier
+  const tierKey = (parsed.data.tier ?? "").trim().toLowerCase();
+  const dbTier: "free_rsvp" | "tiered_rsvp" | "ticketed" | "vip_only" =
+    tierKey === "vip only" || tierKey === "vip_only"
+      ? "vip_only"
+      : tierKey === "ticketed"
+        ? "ticketed"
+        : tierKey === "tiered rsvp" || tierKey === "tiered_rsvp"
+          ? "tiered_rsvp"
+          : "free_rsvp";
+
+  const { data: insertData, error: insertError } = await supabase
     .from("events")
     .insert({
       title,
@@ -141,6 +148,7 @@ export async function submitEvent(
       ends_at: endsAt,
       total_capacity: capacity,
       category: category ?? "General",
+      tier: dbTier,
       approval: "pending",
       status: "draft",
       description: descArray,
@@ -152,12 +160,10 @@ export async function submitEvent(
 
   if (insertError) return { error: insertError.message };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const newEventId = (insertData as any).id;
+  const newEventId = insertData.id;
 
   // Insert into event_approvals queue for admin review (schema column is decision_note)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: approvalInsertError } = await (supabase as any)
+  const { error: approvalInsertError } = await supabase
     .from("event_approvals")
     .insert({
       event_id: newEventId,
@@ -203,8 +209,7 @@ export async function toggleCheckIn(
 
   // Resolve the event first: needed for the ownership check and because
   // check_ins requires a non-null event_id.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: regRow, error: regErr } = await (supabase as any)
+  const { data: regRow, error: regErr } = await supabase
     .from("registrations")
     .select("event_id")
     .eq("id", registrationId)
@@ -213,12 +218,10 @@ export async function toggleCheckIn(
   if (regErr || !regRow) {
     return { error: regErr?.message ?? "Registration record not found." };
   }
-  const eventId = (regRow as { event_id: string }).event_id;
+  const eventId = regRow.event_id;
 
-  // Item 1: only the event's owner (creator, org member or admin) may check in.
-  // RLS ("owners manage check-ins") enforces this too; this gives a clear error.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: owns, error: ownsErr } = await (supabase.rpc as any)(
+  // Only the event's owner (creator, org member or admin) may check in.
+  const { data: owns, error: ownsErr } = await supabase.rpc(
     "user_owns_event",
     { p_event: eventId }
   );
@@ -228,8 +231,7 @@ export async function toggleCheckIn(
   }
 
   if (currentlyCheckedIn) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from("check_ins")
       .delete()
       .eq("registration_id", registrationId);
@@ -239,8 +241,7 @@ export async function toggleCheckIn(
   }
 
   const now = new Date().toISOString();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase as any)
+  const { error } = await supabase
     .from("check_ins")
     .upsert(
       {
@@ -313,22 +314,31 @@ export async function updateEvent(
     resubmitMemo,
   } = parsed.data;
 
-  // Verify ownership / permissions
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: existingEvent, error: fetchErr } = await (supabase as any)
+  // Verify ownership / permissions (creator, organization member, or admin)
+  const { data: owns, error: ownsErr } = await supabase.rpc("user_owns_event", {
+    p_event: eventId,
+  });
+  if (ownsErr || !owns) {
+    return { error: "You do not have permission to update this event." };
+  }
+
+  const { data: existingEvent, error: fetchErr } = await supabase
     .from("events")
-    .select("id, created_by, approval, status")
+    .select("id, approval, status")
     .eq("id", eventId)
     .single();
 
   if (fetchErr || !existingEvent) return { error: "Event not found." };
-  if (existingEvent.created_by !== user.id) {
-    // Check if user is admin
-    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if ((profile as any)?.role !== "admin") {
-      return { error: "You do not have permission to update this event." };
-    }
+
+  // Block edits to approved, ongoing, or completed events
+  if (
+    existingEvent.approval === "approved" ||
+    existingEvent.status === "ongoing" ||
+    existingEvent.status === "completed"
+  ) {
+    return {
+      error: "Approved, ongoing, or completed events cannot be edited directly.",
+    };
   }
 
   // Update object
@@ -362,8 +372,7 @@ export async function updateEvent(
     updates.status = "draft";
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: updateErr } = await (supabase as any)
+  const { error: updateErr } = await supabase
     .from("events")
     .update(updates)
     .eq("id", eventId);
@@ -371,8 +380,7 @@ export async function updateEvent(
   if (updateErr) return { error: updateErr.message };
 
   if (resubmitForReview) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any).from("event_approvals").insert({
+    const { error: apErr } = await supabase.from("event_approvals").insert({
       event_id: eventId,
       submitted_by: user.id,
       brief: updates.summary ?? null,
@@ -381,6 +389,12 @@ export async function updateEvent(
       decision: "pending",
       decision_note: resubmitMemo ?? "Resubmitted after edits",
     });
+
+    if (apErr) {
+      return {
+        error: `Event details saved, but resubmission for review failed: ${apErr.message}`,
+      };
+    }
   }
 
   revalidatePath("/organizer-dashboard");

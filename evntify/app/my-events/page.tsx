@@ -20,7 +20,7 @@ function formatDate(isoDate: string | null): string {
   if (!isoDate) return "TBA";
   const d = new Date(isoDate);
   if (isNaN(d.getTime())) return isoDate;
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return d.toLocaleDateString("en-US", { timeZone: "Asia/Manila", month: "short", day: "numeric", year: "numeric" });
 }
 
 /** Format an ISO date string to a time string (e.g. "6:00 PM") */
@@ -28,7 +28,7 @@ function formatTime(isoDate: string | null): string {
   if (!isoDate) return "TBA";
   const d = new Date(isoDate);
   if (isNaN(d.getTime())) return "";
-  return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return d.toLocaleTimeString("en-US", { timeZone: "Asia/Manila", hour: "numeric", minute: "2-digit" });
 }
 
 /** Build a calendar object for the given month */

@@ -29,16 +29,18 @@ export default function EdInspector({
     setPrevEventId(event?.id);
     setNotes("");
     setFeedback(null);
+    setFacilities([]);
+    setSavedNotes([]);
   }
 
   useEffect(() => {
     if (event?.id) {
-      getEventFacilities(event.id).then((facs) => {
-        setFacilities(facs);
-      });
-      getEventAdminNotes(event.id).then((notesList) => {
-        setSavedNotes(notesList);
-      });
+      getEventFacilities(event.id)
+        .then((facs) => setFacilities(facs))
+        .catch(() => setFacilities([]));
+      getEventAdminNotes(event.id)
+        .then((notesList) => setSavedNotes(notesList))
+        .catch(() => setSavedNotes([]));
     }
   }, [event?.id]);
 

@@ -1,5 +1,6 @@
 "use client";
 import { createClient } from "@/lib/supabase/client";
+import { signInSchema } from "@/lib/validations";
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -18,8 +19,19 @@ export default function SignInForm() {
     setError(null);
     setLoading(true);
 
+    // Validate with signInSchema before calling Supabase auth
+    const parsed = signInSchema.safeParse({ email, password });
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message ?? "Invalid input");
+      setLoading(false);
+      return;
+    }
+
     const supabase = createClient();
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: parsed.data.email,
+      password: parsed.data.password,
+    });
 
     if (signInError) {
       setError(signInError.message);
@@ -45,8 +57,7 @@ export default function SignInForm() {
         .eq("id", user.id)
         .single();
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const role = (profileRow as any)?.role ?? "student";
+      const role = profileRow?.role ?? "student";
       if (role === "admin") router.push("/admin");
       else if (role === "organizer") router.push("/organizer-dashboard");
       else router.push("/my-events");

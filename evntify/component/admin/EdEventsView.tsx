@@ -22,7 +22,7 @@ import { pct } from "@/types/admin";
 import EdEventCard from "./EdEventCard";
 import EdInspector from "./EdInspector";
 
-type Tab = "active" | "completed";
+type Tab = "active" | "completed" | "suspended";
 type Sort = "soonest" | "booked" | "az";
 
 const COLLEGE_CHIPS = [
@@ -40,7 +40,7 @@ function toEventItem(d: EventDirectoryItem): EventItem {
     draft: "scheduled",
     closed: "completed",
     concluded: "completed",
-    suspended: "completed",
+    suspended: "suspended",
   };
   return {
     id: d.slug,
@@ -75,12 +75,15 @@ export default function EdEventsView({
   const [sort, setSort] = useState<Sort>("soonest");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [selected, setSelected] = useState<EventItem | null>(null);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 12;
 
   const allMapped = useMemo(() => initialEvents.map(toEventItem), [initialEvents]);
 
   const counts = {
-    active: allMapped.filter((e) => e.status !== "completed").length,
+    active: allMapped.filter((e) => e.status !== "completed" && e.status !== "suspended").length,
     completed: allMapped.filter((e) => e.status === "completed").length,
+    suspended: allMapped.filter((e) => e.status === "suspended").length,
   };
 
   const liveCount = allMapped.filter((e) => e.status === "ongoing").length;
@@ -90,7 +93,11 @@ export default function EdEventsView({
     const q = query.trim().toLowerCase();
     return allMapped
       .filter((e) =>
-        tab === "completed" ? e.status === "completed" : e.status !== "completed"
+        tab === "completed"
+          ? e.status === "completed"
+          : tab === "suspended"
+          ? e.status === "suspended"
+          : e.status !== "completed" && e.status !== "suspended"
       )
       .filter((e) => college === COLLEGE_CHIPS[0] || e.dept.includes(college))
       .filter(
@@ -108,6 +115,11 @@ export default function EdEventsView({
           : 0
       );
   }, [allMapped, tab, college, query, sort]);
+
+  // Reset page when filters change
+  const totalPages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pagedList = list.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   return (
     <div className="ed-container">
@@ -158,11 +170,14 @@ export default function EdEventsView({
 
         <div className="ed-tools">
           <div className="ed-seg">
-            <button className={tab === "active" ? "on" : ""} onClick={() => setTab("active")}>
+            <button className={tab === "active" ? "on" : ""} onClick={() => { setTab("active"); setPage(1); }}>
               <Zap size={13} /> Active <em>{counts.active}</em>
             </button>
-            <button className={tab === "completed" ? "on" : ""} onClick={() => setTab("completed")}>
+            <button className={tab === "completed" ? "on" : ""} onClick={() => { setTab("completed"); setPage(1); }}>
               <History size={13} /> Completed <em>{counts.completed}</em>
+            </button>
+            <button className={tab === "suspended" ? "on" : ""} onClick={() => { setTab("suspended"); setPage(1); }}>
+              <AlertTriangle size={13} /> Suspended <em>{counts.suspended}</em>
             </button>
           </div>
           <span className="ed-vr" />
@@ -223,9 +238,9 @@ export default function EdEventsView({
       </div>
 
       {/* Grid / List */}
-      {list.length ? (
+      {pagedList.length ? (
         <div className={`ed-ev-grid ${view}`}>
-          {list.map((e) => (
+          {pagedList.map((e) => (
             <EdEventCard key={e.id} event={e} onInspect={setSelected} />
           ))}
         </div>
@@ -241,14 +256,32 @@ export default function EdEventsView({
       {/* Pager */}
       <footer className="ed-pager-bar">
         <span className="ed-t-12 ed-muted">
-          Showing 1 to {list.length} of {total || allMapped.length} events
+          Showing {(currentPage - 1) * PAGE_SIZE + 1} to{" "}
+          {Math.min(currentPage * PAGE_SIZE, list.length)} of{" "}
+          {total || list.length} events
         </span>
         <div className="ed-pages">
-          <button disabled aria-label="Previous page">
+          <button
+            disabled={currentPage <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            aria-label="Previous page"
+          >
             <ChevronLeft size={10} />
           </button>
-          <button className="on">1</button>
-          <button aria-label="Next page">
+          {Array.from({ length: totalPages }, (_, i) => (
+            <button
+              key={i + 1}
+              className={currentPage === i + 1 ? "on" : ""}
+              onClick={() => setPage(i + 1)}
+            >
+              {i + 1}
+            </button>
+          ))}
+          <button
+            disabled={currentPage >= totalPages}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            aria-label="Next page"
+          >
             <ChevronRight size={10} />
           </button>
         </div>

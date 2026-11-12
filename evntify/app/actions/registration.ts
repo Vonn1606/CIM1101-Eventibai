@@ -100,6 +100,52 @@ export async function registerForEvent(
   };
 }
 
+/* --------------------------------------------------------------------------
+   cancelRegistration – lets a student cancel their own registration
+   -------------------------------------------------------------------------- */
+export async function cancelRegistration(
+  registrationId: string
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+
+  // 1. Auth check
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+  if (authError || !user) return { error: "You must be signed in." };
+
+  // 2. Verify ownership — only the registrant can cancel their own registration
+  const { data: reg, error: fetchErr } = await supabase
+    .from("registrations")
+    .select("id, user_id, status, events ( slug )")
+    .eq("id", registrationId)
+    .maybeSingle();
+
+  if (fetchErr || !reg) return { error: "Registration not found." };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const regRow = reg as any;
+  if (regRow.user_id !== user.id) return { error: "You can only cancel your own registration." };
+  if (regRow.status === "cancelled") return { error: "Registration is already cancelled." };
+
+  // 3. Update status to cancelled (RLS allows users to update their own registrations)
+  const { error: updateErr } = await supabase
+    .from("registrations")
+    .update({ status: "cancelled" })
+    .eq("id", registrationId)
+    .eq("user_id", user.id);
+
+  if (updateErr) return { error: updateErr.message };
+
+  // 4. Revalidate
+  revalidatePath("/my-events");
+  const slug = regRow.events?.slug;
+  if (slug) revalidatePath(`/events/${slug}`);
+
+  return {};
+}
+
 // ─── Shape types used by EventCards & my-events page ────────────────────────
 
 export type UpcomingEvent = {

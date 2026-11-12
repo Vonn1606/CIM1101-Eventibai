@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
    Shared types used by both the Server Component page and the Client Component
    -------------------------------------------------------------------------- */
 
-export type OrgEventStatus = "live" | "soldout" | "pending" | "archived";
+export type OrgEventStatus = "live" | "soldout" | "pending" | "returned" | "declined" | "archived";
 
 export interface OrgEvent {
   id: string;          // UUID
@@ -56,7 +56,8 @@ export async function getOrgProfile(): Promise<OrgProfile | null> {
     .from("profiles")
     .select(`full_name, organization_members ( organizations ( name ) )`)
     .eq("id", user.id)
-    .single();
+    .limit(1)
+    .maybeSingle();
 
   if (!data) return null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -74,13 +75,23 @@ export async function getOrgProfile(): Promise<OrgProfile | null> {
    getOrgEvents – events owned by the logged-in organiser's organisation
    -------------------------------------------------------------------------- */
 
-const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"] as const;
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapEventRow(row: any, stats: Record<string, { registered_count: number; waitlist_count: number }> = {}): OrgEvent {
   const starts = row.starts_at ? new Date(row.starts_at) : null;
-  const month = starts ? MONTHS[starts.getMonth()] : "TBD";
-  const day = starts ? String(starts.getDate()).padStart(2, "0") : "--";
+
+  // Use Asia/Manila timezone so month/day are correct for PH users even when
+  // the server runs in UTC (e.g. 2026-11-01T01:00Z → Nov 1 in Manila, Oct 31 in UTC).
+  let month = "TBD";
+  let day = "--";
+  if (starts) {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Manila",
+      month: "short",
+      day: "2-digit",
+    }).formatToParts(starts);
+    month = (parts.find((p) => p.type === "month")?.value ?? "").toUpperCase().slice(0, 3);
+    day = parts.find((p) => p.type === "day")?.value ?? "--";
+  }
 
   const totalCap = Number(row.total_capacity ?? 0);
   const s = stats[row.id] ?? { registered_count: 0, waitlist_count: 0 };
@@ -90,6 +101,10 @@ function mapEventRow(row: any, stats: Record<string, { registered_count: number;
   let status: OrgEventStatus = "pending";
   if (dbStatus === "approved") {
     status = registeredCount >= totalCap && totalCap > 0 ? "soldout" : "live";
+  } else if (dbStatus === "returned") {
+    status = "returned";
+  } else if (dbStatus === "declined") {
+    status = "declined";
   } else if (dbStatus === "archived") {
     status = "archived";
   }
@@ -98,6 +113,8 @@ function mapEventRow(row: any, stats: Record<string, { registered_count: number;
     live: "Live • Approved",
     soldout: "Sold Out • Full",
     pending: "Pending SAO Clearance",
+    returned: "Returned for Edits",
+    declined: "Declined",
     archived: "Archived",
   };
 
@@ -116,7 +133,7 @@ function mapEventRow(row: any, stats: Record<string, { registered_count: number;
     cap: totalCap,
     capType: "RSVPs",
     org: row.organizations?.name ?? "—",
-    tier: "Free RSVP",
+    tier: row.access_tier ?? "Free RSVP",
     waitlistCount: Number(s.waitlist_count ?? 0),
   };
 }
@@ -134,7 +151,8 @@ export async function getOrgEvents(): Promise<OrgEvent[]> {
     .from("organization_members")
     .select("organization_id")
     .eq("user_id", user.id)
-    .single();
+    .limit(1)
+    .maybeSingle();
 
   if (!memberData) return [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -144,7 +162,7 @@ export async function getOrgEvents(): Promise<OrgEvent[]> {
   const { data, error } = await (supabase as any)
     .from("events")
     .select(`
-      id, title, starts_at, approval, total_capacity,
+      id, title, starts_at, approval, total_capacity, access_tier,
       venues ( name ),
       organizations ( name )
     `)
@@ -194,7 +212,8 @@ export async function getOrgRoster(eventId?: string): Promise<OrgRosterStudent[]
       .from("organization_members")
       .select("organization_id")
       .eq("user_id", user.id)
-      .single();
+      .limit(1)
+      .maybeSingle();
     if (!memberData) return [];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: evData } = await (supabase as any)
@@ -249,7 +268,7 @@ export async function getOrgRoster(eventId?: string): Promise<OrgRosterStudent[]
       name,
       yearProgram: college,
       studentId: row.student_number ?? row.id,
-      eventTrack: "General",
+      eventTrack: row.events?.category ?? "General",
       registeredAt: row.registered_at
         ? new Date(row.registered_at).toLocaleString("en-US", {
             timeZone: "Asia/Manila",
