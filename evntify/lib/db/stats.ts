@@ -63,6 +63,9 @@ export type ApprovalItem = {
   brief: string;
   safetyCheck: string;
   capacityNote: string;
+  risk: string;
+  documents: { name: string; meta: string }[];
+  endorsements: string[];
 };
 
 export async function getApprovals(): Promise<ApprovalItem[]> {
@@ -71,13 +74,14 @@ export async function getApprovals(): Promise<ApprovalItem[]> {
   const { data, error } = await supabase
     .from("event_approvals")
     .select(`
-      id, submitted_at, decision, decided_at, decision_note, brief, capacity_note, safety_check, seats_expected,
+      id, submitted_at, decision, decided_at, decision_note, brief, capacity_note, safety_check, seats_expected, risk,
       events (
         id, title, category, total_capacity, starts_at, ends_at, description, summary,
         organizations ( name, dept_label ),
         colleges ( name ),
         venues ( name, details )
       ),
+      event_documents ( kind, label, file_url ),
       profiles!submitted_by ( full_name, email )
     `)
     .order("submitted_at", { ascending: false });
@@ -106,6 +110,20 @@ export async function getApprovals(): Promise<ApprovalItem[]> {
       ? ev.description.join(" ")
       : ev?.description || ev?.summary || row.brief || "";
 
+    const docsList = Array.isArray(row.event_documents) ? row.event_documents : [];
+    const documents = docsList
+      .filter((d: { kind?: string }) => d.kind === "document")
+      .map((d: { label?: string; file_url?: string }) => ({
+        name: d.label ?? "Document",
+        meta: d.file_url ?? "Attached file",
+      }));
+    const endorsements = docsList
+      .filter((d: { kind?: string }) => d.kind === "endorsement")
+      .map((d: { label?: string }) => d.label ?? "Endorsement");
+
+    const rawRisk = row.risk ?? "standard";
+    const formattedRisk = rawRisk.charAt(0).toUpperCase() + rawRisk.slice(1);
+
     return {
       id: row.id,
       eventId: ev?.id ?? "",
@@ -128,6 +146,9 @@ export async function getApprovals(): Promise<ApprovalItem[]> {
       brief: desc || `Category: ${ev?.category || "General"}`,
       safetyCheck: row.safety_check ?? "Not recorded",
       capacityNote: row.capacity_note ?? "",
+      risk: formattedRisk,
+      documents,
+      endorsements,
     };
   });
 }
@@ -291,7 +312,7 @@ export async function getOrganizers(): Promise<OrganizerItem[]> {
       role: member?.position ?? "Member",
       org: member?.organizations?.name ?? "Unaffiliated",
       college: p.colleges?.name ?? "Unknown",
-      email: p.email ?? (p.student_number ? `${p.student_number}@ue.edu.ph` : "organizer@ue.edu.ph"),
+      email: p.email ?? (p.student_number ? `${p.student_number}@ue.edu.ph` : ""),
       pendingProposals: orgId ? (pendingByOrg[orgId] ?? 0) : 0,
       activeEvents: orgId ? (activeByOrg[orgId] ?? 0) : 0,
     };

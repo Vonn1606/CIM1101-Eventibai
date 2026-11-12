@@ -55,15 +55,19 @@ function mapToProposal(a: ApprovalItem): Proposal {
     venue: a.venue,
     venueNote: a.venueNote,
     attendance: `${a.seatsExpected || a.seatsTotal} expected attendees`,
-    docs: "—",
+    docs: a.documents && a.documents.length > 0 ? `${a.documents.length} attached` : "—",
     check: a.safetyCheck,
-    checkTone: "green",
-    risk: "Standard",
+    checkTone: a.safetyCheck.toLowerCase().includes("passed") || a.safetyCheck.toLowerCase().includes("verif")
+      ? "green"
+      : a.safetyCheck === "Not recorded"
+      ? "blue"
+      : "amber",
+    risk: a.risk || "Standard",
     seatsTotal: a.seatsTotal || 100,
     seatsExpected: a.seatsExpected || a.seatsTotal || 100,
     capacityNote: a.capacityNote,
     brief: a.brief,
-    endorsements: [],
+    endorsements: a.endorsements ?? [],
     submittedBy: `Submitted by ${a.submittedBy}`,
     updated: a.decidedAt
       ? `Decided ${new Date(a.decidedAt).toLocaleDateString()}`
@@ -80,7 +84,7 @@ function mapToProposal(a: ApprovalItem): Proposal {
     contactEmail: a.contactEmail,
     clearance: a.safetyCheck,
     clearanceNote: a.safetyCheck === "Not recorded" ? "Pending inspection" : "Verified by campus administration",
-    documents: [],
+    documents: a.documents ?? [],
   };
 }
 

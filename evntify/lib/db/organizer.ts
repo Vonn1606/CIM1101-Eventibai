@@ -204,6 +204,13 @@ export async function getOrgRoster(eventId?: string): Promise<OrgRosterStudent[]
   } = await supabase.auth.getUser();
   if (!user) return [];
 
+  // If eventId is provided, verify caller owns the event (or is admin)
+  if (eventId) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: owns } = await (supabase.rpc as any)("user_owns_event", { p_event: eventId });
+    if (!owns) return [];
+  }
+
   // If no eventId, pick the organiser's most recent approved event
   let resolvedEventId = eventId;
   if (!resolvedEventId) {
@@ -235,6 +242,7 @@ export async function getOrgRoster(eventId?: string): Promise<OrgRosterStudent[]
     .from("registrations")
     .select(`
       id, ticket_code, status, registered_at, student_number,
+      events ( category ),
       profiles ( full_name, college_id, colleges ( name ) ),
       check_ins ( checked_in_at )
     `)
