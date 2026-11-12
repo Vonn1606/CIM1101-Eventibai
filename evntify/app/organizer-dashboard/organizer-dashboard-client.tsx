@@ -426,7 +426,7 @@ export default function OrganizerDashboardClient() {
           {/* Logo & Close on mobile */}
           <div className="flex items-center justify-between">
             <Link
-              href="/"
+              href="/organizer-dashboard"
               className="flex items-center gap-2 group transition focus:outline-none"
             >
               <img

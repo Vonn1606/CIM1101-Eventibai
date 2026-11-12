@@ -22,7 +22,7 @@ export default function Sidebar() {
     <aside className="aside">
       <div>
         <div className="brand">
-          <Link href="/" className="flex items-center gap-2.5 group focus:outline-none">
+          <Link href="/admin" className="flex items-center gap-2.5 group focus:outline-none">
             <img
               src="/eventifytxt-cropped.svg"
               alt="Eventify"
