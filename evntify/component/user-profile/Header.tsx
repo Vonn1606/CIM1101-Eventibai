@@ -2,16 +2,32 @@
 
 import Link from "next/link";
 import { Bell, ChevronDown, Search, User } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/use-auth";
+import { createClient } from "@/lib/supabase/client";
 import ProfileDropdown from "@/component/auth/profile-dropdown";
 
 export default function Header() {
   const [search, setSearch] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [hasUnread, setHasUnread] = useState(false);
   const router = useRouter();
   const { user, profile } = useAuth();
+
+  useEffect(() => {
+    if (!user) return;
+    const supabase = createClient();
+    supabase
+      .from("notifications")
+      .select("id", { count: "exact", head: true })
+      .is("read_at", null)
+      .then(({ count, error }) => {
+        if (!error && typeof count === "number") {
+          setHasUnread(count > 0);
+        }
+      });
+  }, [user]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,7 +95,9 @@ export default function Header() {
             aria-label="Notifications"
           >
             <Bell className="size-4" />
-            <span className="absolute right-2 top-2 size-2 rounded-full bg-[#FDA8B3] ring-2 ring-[#FAF2EE]" />
+            {hasUnread && (
+              <span className="absolute right-2 top-2 size-2 rounded-full bg-[#FDA8B3] ring-2 ring-[#FAF2EE]" />
+            )}
           </Link>
 
           {/* Profile avatar + dropdown matching organizer & admin dashboards */}
