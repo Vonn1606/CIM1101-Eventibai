@@ -33,11 +33,28 @@ export async function registerForEvent(
 
   // Resolve UUID if inputEventId is a slug or a UUID
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(inputEventId);
-  const { data: ev } = await supabase
-    .from("events")
-    .select("id, slug, registration_deadline, status")
-    .or(isUuid ? `id.eq.${inputEventId},slug.eq.${inputEventId}` : `slug.eq.${inputEventId}`)
-    .maybeSingle();
+
+  // Use separate queries instead of interpolating user input into .or() (filter injection risk)
+  let ev: { id: string; slug: string; registration_deadline: string | null; status: string } | null = null;
+  if (isUuid) {
+    const { data } = await supabase
+      .from("events")
+      .select("id, slug, registration_deadline, status")
+      .eq("id", inputEventId)
+      .maybeSingle();
+    ev = data ?? null;
+  }
+  // If not found by UUID (or it's a slug), try slug lookup
+  if (!ev) {
+    // Sanitize slug: allow only alphanumeric and dashes to prevent injection
+    const safeSlug = inputEventId.replace(/[^a-z0-9-]/gi, "");
+    const { data } = await supabase
+      .from("events")
+      .select("id, slug, registration_deadline, status")
+      .eq("slug", safeSlug)
+      .maybeSingle();
+    ev = data ?? null;
+  }
 
   if (!ev) return { error: "Event not found." };
   const eventId = ev.id;

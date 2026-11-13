@@ -275,7 +275,7 @@ export async function getOrganizers(): Promise<OrganizerItem[]> {
     const ids = Array.from(orgIds);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: pendingRows } = await (supabase as any)
-      .from("approvals")
+      .from("event_approvals")
       .select("events!inner(organization_id)")
       .eq("decision", "pending")
       .in("events.organization_id", ids);
@@ -292,7 +292,7 @@ export async function getOrganizers(): Promise<OrganizerItem[]> {
       .select("organization_id")
       .in("organization_id", ids)
       .eq("approval", "approved")
-      .in("status", ["open", "draft"]);
+      .eq("status", "open");
     if (activeRows) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (activeRows as any[]).forEach((r) => {

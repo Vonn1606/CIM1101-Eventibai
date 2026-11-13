@@ -68,16 +68,7 @@ function rowToEventDetail(row: any, stats: StatsMap = {}): EventDetail {
     totalCapacity: capacity,
     registeredCount: registered,
     seatsLeft,
-    registrationDeadline: row.registration_deadline
-      ? new Date(row.registration_deadline).toLocaleString("en-US", {
-          timeZone: "Asia/Manila",
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-          hour: "numeric",
-          minute: "2-digit",
-        })
-      : "",
+    registrationDeadline: row.registration_deadline ?? "",
     bannerColor: row.banner_color ?? "#1e2022",
     status:
       row.status === "suspended"
@@ -117,10 +108,10 @@ function rowToCampusEvent(row: any, stats: StatsMap = {}): CampusEvent {
   const startsAt = row.starts_at ? new Date(row.starts_at) : null;
   const dateStr = startsAt
     ? startsAt.toLocaleDateString("en-US", {
-        timeZone: "Asia/Manila",
-        month: "short",
-        day: "numeric",
-      })
+      timeZone: "Asia/Manila",
+      month: "short",
+      day: "numeric",
+    })
     : "";
   const venueShort = row.venues?.name ?? "";
 

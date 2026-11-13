@@ -736,7 +736,11 @@ export default function EventDetailsClient({ initialEvent, initialRegistration }
                   <button
                     type="button"
                     onClick={() => {
-                      alert("Fast-Pass ticket saved! Ready for speed-gate entry.");
+                      if (!qrCodeDataUrl) return;
+                      const a = document.createElement("a");
+                      a.href = qrCodeDataUrl;
+                      a.download = `fast-pass-${ticketCode}.png`;
+                      a.click();
                     }}
                     className="flex-1 py-2.5 px-3 rounded-lg bg-[#6c0c28] text-white font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-[#8b263e] transition"
                   >

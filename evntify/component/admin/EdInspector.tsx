@@ -17,7 +17,6 @@ export default function EdInspector({
   event: EventItem | null;
   onClose: () => void;
 }) {
-  const [prevEventId, setPrevEventId] = useState(event?.id);
   const [notes, setNotes] = useState("");
   const [savingNote, setSavingNote] = useState(false);
   const [suspending, setSuspending] = useState(false);
@@ -25,15 +24,13 @@ export default function EdInspector({
   const [facilities, setFacilities] = useState<Array<{ label: string; value: string }>>([]);
   const [savedNotes, setSavedNotes] = useState<Array<{ id: string; note: string; createdAt: string }>>([]);
 
-  if (event?.id !== prevEventId) {
-    setPrevEventId(event?.id);
+  // Reset stale state and reload data whenever the selected event changes.
+  // Moved from render body into useEffect to avoid setState-during-render.
+  useEffect(() => {
     setNotes("");
     setFeedback(null);
     setFacilities([]);
     setSavedNotes([]);
-  }
-
-  useEffect(() => {
     if (event?.id) {
       getEventFacilities(event.id)
         .then((facs) => setFacilities(facs))

@@ -324,7 +324,7 @@ export async function updateEvent(
 
   const { data: existingEvent, error: fetchErr } = await supabase
     .from("events")
-    .select("id, approval, status")
+    .select("id, slug, approval, status")
     .eq("id", eventId)
     .single();
 
@@ -399,7 +399,7 @@ export async function updateEvent(
 
   revalidatePath("/organizer-dashboard");
   revalidatePath("/admin/approvals");
-  revalidatePath(`/events/${eventId}`);
+  revalidatePath(`/events/${existingEvent.slug}`);
 
   return { success: true };
 }

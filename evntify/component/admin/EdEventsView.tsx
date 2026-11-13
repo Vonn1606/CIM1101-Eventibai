@@ -96,8 +96,8 @@ export default function EdEventsView({
         tab === "completed"
           ? e.status === "completed"
           : tab === "suspended"
-          ? e.status === "suspended"
-          : e.status !== "completed" && e.status !== "suspended"
+            ? e.status === "suspended"
+            : e.status !== "completed" && e.status !== "suspended"
       )
       .filter((e) => college === COLLEGE_CHIPS[0] || e.dept.includes(college))
       .filter(
@@ -111,8 +111,8 @@ export default function EdEventsView({
         sort === "booked"
           ? pct(b) - pct(a)
           : sort === "az"
-          ? a.title.localeCompare(b.title)
-          : 0
+            ? a.title.localeCompare(b.title)
+            : 0
       );
   }, [allMapped, tab, college, query, sort]);
 
@@ -157,7 +157,7 @@ export default function EdEventsView({
           <Search size={16} />
           <input
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => { setQuery(e.target.value); setPage(1); }}
             placeholder="Search events, clubs, venues…"
             aria-label="Search events"
           />
@@ -212,7 +212,7 @@ export default function EdEventsView({
           <button
             key={d}
             className={`ed-dept-chip ${college === d ? "on" : ""}`}
-            onClick={() => setCollege(d)}
+            onClick={() => { setCollege(d); setPage(1); }}
           >
             {d}
           </button>
@@ -256,9 +256,9 @@ export default function EdEventsView({
       {/* Pager */}
       <footer className="ed-pager-bar">
         <span className="ed-t-12 ed-muted">
-          Showing {(currentPage - 1) * PAGE_SIZE + 1} to{" "}
-          {Math.min(currentPage * PAGE_SIZE, list.length)} of{" "}
-          {total || list.length} events
+          {list.length === 0
+            ? "No events found"
+            : `Showing ${(currentPage - 1) * PAGE_SIZE + 1} to ${Math.min(currentPage * PAGE_SIZE, list.length)} of ${total || list.length} events`}
         </span>
         <div className="ed-pages">
           <button

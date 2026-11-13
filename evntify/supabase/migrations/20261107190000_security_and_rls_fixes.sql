@@ -305,6 +305,14 @@ begin
     raise exception 'User profile not found';
   end if;
 
+  -- Guard: prevent duplicate registration
+  if exists (
+    select 1 from public.registrations
+    where event_id = p_event and user_id = auth.uid() and status <> 'cancelled'
+  ) then
+    raise exception 'already registered';
+  end if;
+
   select count(*) into v_taken from public.registrations
     where event_id = p_event and status = 'registered';
 

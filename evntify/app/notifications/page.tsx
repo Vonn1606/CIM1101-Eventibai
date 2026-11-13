@@ -196,12 +196,37 @@ export default function NotificationsPage() {
     fetchNotifications();
   }, [fetchNotifications]);
 
+  // Realtime: re-fetch when a new notification is inserted or updated for this user
+  useEffect(() => {
+    if (!user) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel("notifications-realtime")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          fetchNotifications();
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, fetchNotifications]);
+
   const unreadCount = items.filter((n) => n.unread).length;
   const visible = filter === "unread" ? items.filter((n) => n.unread) : items;
   const fresh = visible.filter((n) => n.unread);
   const earlier = visible.filter((n) => !n.unread);
 
   const markAllRead = async () => {
+    if (!user) return;
     setItems((prev) =>
       prev.map((n) => ({
         ...n,
@@ -215,6 +240,7 @@ export default function NotificationsPage() {
       await supabase
         .from("notifications")
         .update({ read_at: new Date().toISOString() })
+        .eq("user_id", user.id)
         .is("read_at", null);
     } catch (err) {
       console.error("Failed to mark all as read:", err);
@@ -222,10 +248,15 @@ export default function NotificationsPage() {
   };
 
   const handleDismiss = async (id: string) => {
+    if (!user) return;
     setItems((prev) => prev.filter((n) => n.id !== id));
     try {
       const supabase = createClient();
-      await supabase.from("notifications").delete().eq("id", id);
+      await supabase
+        .from("notifications")
+        .delete()
+        .eq("id", id)
+        .eq("user_id", user.id);
     } catch (err) {
       console.error("Failed to dismiss notification:", err);
     }
@@ -239,11 +270,11 @@ export default function NotificationsPage() {
       prev.map((n) =>
         n.id === id
           ? {
-              ...n,
-              unread: nextUnread,
-              badgeIcon: nextUnread ? item.badgeIcon : undefined,
-              badgeText: nextUnread ? item.badgeText : undefined,
-            }
+            ...n,
+            unread: nextUnread,
+            badgeIcon: nextUnread ? item.badgeIcon : undefined,
+            badgeText: nextUnread ? item.badgeText : undefined,
+          }
           : n
       )
     );
@@ -312,11 +343,10 @@ export default function NotificationsPage() {
                 role="tab"
                 aria-selected={filter === "all"}
                 onClick={() => setFilter("all")}
-                className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold tracking-wide transition cursor-pointer ${
-                  filter === "all"
+                className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold tracking-wide transition cursor-pointer ${filter === "all"
                     ? "bg-[#4D0011] text-white shadow-xs"
                     : "bg-[#FAF2EE] text-[#554243] hover:bg-[#F4ECE8]"
-                }`}
+                  }`}
               >
                 All
               </button>
@@ -325,20 +355,18 @@ export default function NotificationsPage() {
                 role="tab"
                 aria-selected={filter === "unread"}
                 onClick={() => setFilter("unread")}
-                className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold tracking-wide transition cursor-pointer ${
-                  filter === "unread"
+                className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold tracking-wide transition cursor-pointer ${filter === "unread"
                     ? "bg-[#4D0011] text-white shadow-xs"
                     : "bg-[#FAF2EE] text-[#554243] hover:bg-[#F4ECE8]"
-                }`}
+                  }`}
               >
                 Unread
                 {unreadCount > 0 && (
                   <span
-                    className={`inline-flex items-center justify-center size-4 rounded-full text-[10px] font-bold ${
-                      filter === "unread"
+                    className={`inline-flex items-center justify-center size-4 rounded-full text-[10px] font-bold ${filter === "unread"
                         ? "bg-white text-[#4D0011]"
                         : "bg-[#4D0011] text-white"
-                    }`}
+                      }`}
                   >
                     {unreadCount}
                   </span>
@@ -471,11 +499,10 @@ function NotificationCard({
 
   return (
     <div
-      className={`relative flex items-start gap-4 p-5 rounded-2xl border transition-all duration-150 ${
-        n.unread
+      className={`relative flex items-start gap-4 p-5 rounded-2xl border transition-all duration-150 ${n.unread
           ? "bg-white border-[#F2E9E4] shadow-[0_2px_8px_rgba(77,0,17,0.04)]"
           : "bg-white/95 border-[#F2E9E4] hover:shadow-[0_2px_8px_rgba(0,0,0,0.03)]"
-      }`}
+        }`}
     >
       {/* Icon with status badge */}
       <div className="relative shrink-0">
@@ -522,11 +549,10 @@ function NotificationCard({
               n.actions.primary.href ? (
                 <Link
                   href={n.actions.primary.href}
-                  className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer shadow-xs ${
-                    n.actions.primary.variant === "green"
+                  className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer shadow-xs ${n.actions.primary.variant === "green"
                       ? "bg-[#083F31] text-white hover:bg-[#00281D]"
                       : "bg-[#4D0011] text-white hover:bg-[#6C0C28]"
-                  }`}
+                    }`}
                 >
                   {PrimaryIcon && <PrimaryIcon size={13} />}
                   <span>{n.actions.primary.label}</span>
@@ -534,11 +560,10 @@ function NotificationCard({
               ) : (
                 <button
                   type="button"
-                  className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer shadow-xs ${
-                    n.actions.primary.variant === "green"
+                  className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer shadow-xs ${n.actions.primary.variant === "green"
                       ? "bg-[#083F31] text-white hover:bg-[#00281D]"
                       : "bg-[#4D0011] text-white hover:bg-[#6C0C28]"
-                  }`}
+                    }`}
                 >
                   {PrimaryIcon && <PrimaryIcon size={13} />}
                   <span>{n.actions.primary.label}</span>
