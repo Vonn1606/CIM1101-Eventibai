@@ -39,7 +39,7 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-20 h-20 bg-white/90 shadow-[0_1px_8px_rgba(0,0,0,0.04)] backdrop-blur-md">
       <div className="mx-auto flex h-full max-w-[1440px] items-center gap-6 px-6 lg:px-10">
-        <Link href="/" className="flex items-center gap-2.5 group focus:outline-none shrink-0">
+        <Link href="/my-events" className="flex items-center gap-2.5 group focus:outline-none shrink-0">
           <img
             src="/eventifytxt-cropped.svg"
             alt="Eventify"
@@ -73,13 +73,14 @@ export default function Header() {
             Explore <ChevronDown className="size-3" />
           </Link>
 
-          <button
+          <Link
+            href="/notifications"
             className="relative flex size-9 items-center justify-center rounded-xl bg-[#FAF2EE] text-[#554243] transition hover:bg-[#F4ECE8]"
             aria-label="Notifications"
           >
             <Bell className="size-4" />
             <span className="absolute right-2 top-2 size-2 rounded-full bg-[#FDA8B3] ring-2 ring-[#FAF2EE]" />
-          </button>
+          </Link>
 
           {/* Profile avatar + dropdown matching organizer & admin dashboards */}
           <div className="relative">
