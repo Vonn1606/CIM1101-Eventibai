@@ -15,11 +15,15 @@ export default async function AdminLayout({
     redirect("/signin?next=/admin");
   }
 
-  const { data: profileRow } = await supabase
+  const { data: profileRow, error: profileError } = await supabase
     .from("profiles")
     .select("role")
     .eq("id", user.id)
     .single();
+
+  if (profileError) {
+    console.error("AdminLayout: failed to load profile:", profileError);
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const role = (profileRow as any)?.role;

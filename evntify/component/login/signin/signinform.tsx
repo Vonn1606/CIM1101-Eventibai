@@ -39,31 +39,39 @@ export default function SignInForm() {
       return;
     }
 
-    const next = new URLSearchParams(window.location.search).get("next");
-    if (next && next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/\\")) {
-      router.push(next);
-      return;
-    }
-
-    // Fetch role from profiles
+    // Fetch role from profiles and validate access
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (user) {
-      const { data: profileRow } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single();
-
-      const role = profileRow?.role ?? "student";
-      if (role === "admin") router.push("/admin");
-      else if (role === "organizer") router.push("/organizer-dashboard");
-      else router.push("/my-events");
-    } else {
-      router.push("/my-events");
+    if (!user) {
+      setError("Could not load your profile: no user found");
+      setLoading(false);
+      return;
     }
+
+    const { data: profileRow, error: profileError } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    if (profileError || !profileRow) {
+      setError(`Could not load your profile: ${profileError?.message ?? "no row"}`);
+      setLoading(false);
+      return;
+    }
+
+    const role = profileRow.role;
+    const home = role === "admin" ? "/admin" : role === "organizer" ? "/organizer-dashboard" : "/my-events";
+
+    const next = new URLSearchParams(window.location.search).get("next");
+    const safe = next && next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/\\");
+    const allowed =
+      safe && (!next!.startsWith("/admin") || role === "admin") &&
+      (!next!.startsWith("/organizer-dashboard") || role !== "student");
+
+    router.push(allowed ? next! : home);
   };
 
   return (

@@ -18,6 +18,9 @@ export default async function OrganizerDashboardPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/signin");
 
+  const { data: p } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  if (p?.role !== "organizer" && p?.role !== "admin") redirect("/my-events");
+
   // Fetch in parallel
   const [profile, events, roster] = await Promise.all([
     getOrgProfile(),

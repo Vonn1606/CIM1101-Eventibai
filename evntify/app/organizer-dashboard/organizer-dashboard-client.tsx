@@ -61,17 +61,17 @@ const QUICK_PRESETS = [
   {
     id: "doors-open",
     label: "Doors open 15m",
-    text: "Doors open in 15 mins! Have your student QR codes ready for fast gate tap at Tan Yan Kee 11th Flr.",
+    text: "Doors open in 15 mins! Have your student QR codes ready for fast gate tap at the venue entrance.",
   },
   {
     id: "swag-booth",
     label: "Swag at Booth",
-    text: "Limited edition LITS sticker packs & lanyards are now available at Booth #4 foyer. Claim with your event pass!",
+    text: "Event merchandise and kits are now available at the main foyer. Claim with your event pass!",
   },
   {
     id: "room-change",
     label: "Room Change",
-    text: "Notice: The workshop breakout session has been relocated to Computer Lab 204. Please proceed calmly.",
+    text: "Notice: The workshop breakout session has been relocated. Please proceed calmly.",
   },
 ];
 
@@ -100,27 +100,23 @@ export default function OrganizerDashboardClient({
   // App Data
   const [events, setEvents] = useState<OrgEvent[]>(initialEvents);
   const [roster, setRoster] = useState<OrgRosterStudent[]>(initialRoster);
-  const [broadcastMessage, setBroadcastMessage] = useState(
-    "Doors open in 15 mins! Have your student QR codes ready for fast gate tap at Tan Yan Kee 11th Flr."
-  );
+  const [broadcastMessage, setBroadcastMessage] = useState("");
   const [activeChannels, setActiveChannels] = useState<{ [key: string]: boolean }>({
     push: true,
     sms: true,
     discord: true,
   });
-  const [selectedCohort, setSelectedCohort] = useState("All Registered Students (1,140)");
-  const [selectedRosterEvent, setSelectedRosterEvent] = useState(
-    "LITS General Assembly (400 pax)"
-  );
+  const [selectedCohort, setSelectedCohort] = useState("all");
+  const [selectedRosterEvent, setSelectedRosterEvent] = useState("all");
   const [rosterSearch, setRosterSearch] = useState("");
   const [headerSearch, setHeaderSearch] = useState("");
 
   // Form State for "Submit Event for SAO Approval"
   const [formTitle, setFormTitle] = useState("");
-  const [formHostOrg, setFormHostOrg] = useState("League of Information Tech Students");
-  const [formVenue, setFormVenue] = useState("Tan Yan Kee Conf Hall • 11th Flr");
-  const [formDate, setFormDate] = useState("2026-11-12");
-  const [formCapLimit, setFormCapLimit] = useState("250");
+  const [formHostOrg, setFormHostOrg] = useState(orgName);
+  const [formVenue, setFormVenue] = useState("");
+  const [formDate, setFormDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [formCapLimit, setFormCapLimit] = useState("200");
   const [formTier, setFormTier] = useState("Tiled RSVP");
   const [formMemo, setFormMemo] = useState("");
 
@@ -268,7 +264,7 @@ export default function OrganizerDashboardClient({
     );
 
     setIsSendingBroadcast(true);
-    const targetEvent = events.find((ev) => ev.title === selectedCohort || ev.id === selectedCohort);
+    const targetEvent = selectedCohort === "all" ? undefined : events.find((ev) => ev.title === selectedCohort || ev.id === selectedCohort);
     const res = await sendBroadcast({
       eventId: targetEvent?.id,
       message: broadcastMessage,
@@ -309,18 +305,54 @@ export default function OrganizerDashboardClient({
 
   // Filtered Roster Students
   const filteredRoster = useMemo(() => {
+    let list = roster;
+    if (selectedRosterEvent && selectedRosterEvent !== "all") {
+      list = list.filter(
+        (s) => s.eventTrack.toLowerCase() === selectedRosterEvent.toLowerCase()
+      );
+    }
     const q = rosterSearch.toLowerCase().trim();
-    if (!q) return roster;
-    return roster.filter(
+    if (!q) return list;
+    return list.filter(
       (s) =>
         s.name.toLowerCase().includes(q) ||
         s.studentId.toLowerCase().includes(q) ||
         s.eventTrack.toLowerCase().includes(q) ||
         s.yearProgram.toLowerCase().includes(q)
     );
-  }, [roster, rosterSearch]);
+  }, [roster, selectedRosterEvent, rosterSearch]);
 
   const checkedInCount = roster.filter((s) => s.checkedIn).length;
+  const activeEventsCount = useMemo(
+    () => events.filter((e) => e.status === "live" || e.status === "soldout").length,
+    [events]
+  );
+  const pendingCount = useMemo(
+    () => events.filter((e) => e.status === "pending").length,
+    [events]
+  );
+  const totalRegistered = useMemo(
+    () => events.reduce((sum, e) => sum + (e.registered || 0), 0),
+    [events]
+  );
+  const totalCapacity = useMemo(
+    () => events.reduce((sum, e) => sum + (e.cap || 0), 0),
+    [events]
+  );
+  const bookedVenues = useMemo(
+    () => Array.from(new Set(events.filter((e) => e.venue && e.venue !== "TBD").map((e) => e.venue))),
+    [events]
+  );
+  const hallUtilization = totalCapacity > 0 ? Math.round((totalRegistered / totalCapacity) * 100) : 0;
+  const organizerInitials = organizerName
+    ? organizerName
+        .split(" ")
+        .map((p) => p[0])
+        .filter(Boolean)
+        .slice(0, 2)
+        .join("")
+        .toUpperCase()
+    : "OR";
 
   return (
     <div
@@ -520,7 +552,11 @@ export default function OrganizerDashboardClient({
             {/* Notification Bell */}
             <button
               type="button"
-              onClick={() => showToast("🔔 3 unread alerts: SAO cleared LITS General Assembly, 2 new RSVPs.")}
+              onClick={() =>
+                showToast(
+                  `🔔 ${pendingCount} event(s) in review, ${activeEventsCount} active.`
+                )
+              }
               className="relative flex size-8 items-center justify-center rounded-xl border border-[#ECE2DC] bg-white text-[#554243] transition hover:bg-[#FAF5F2]"
               aria-label="Notifications"
             >
@@ -538,7 +574,7 @@ export default function OrganizerDashboardClient({
                 aria-label="Account menu"
                 aria-expanded={profileDropdownOpen}
               >
-                LT
+                {organizerInitials}
               </button>
               {profileDropdownOpen && (
                 <ProfileDropdown
@@ -546,7 +582,7 @@ export default function OrganizerDashboardClient({
                     user?.user_metadata?.full_name ||
                     user?.user_metadata?.name ||
                     user?.email?.split("@")[0] ||
-                    "Organizer"
+                    organizerName
                   }
                   role="Organizer"
                   onClose={() => setProfileDropdownOpen(false)}
@@ -578,7 +614,7 @@ export default function OrganizerDashboardClient({
                 </span>
               </div>
               <div className="flex items-center gap-2 text-xs text-[#7A6B68]">
-                <span className="font-semibold text-[#1E1B19]">LITS Executive Board</span>
+                <span className="font-semibold text-[#1E1B19]">{orgName}</span>
                 <span>—</span>
                 <span className="rounded-full bg-[#FCECEF] px-2 py-0.5 text-[11px] font-semibold text-[#8C233C]">
                   Org Mode Active
@@ -615,7 +651,7 @@ export default function OrganizerDashboardClient({
                   TOTAL CHECK-INS
                 </span>
                 <span className="rounded-full bg-[#E5F7F0] px-2 py-0.5 text-[10px] font-bold text-[#0E6245]">
-                  +24% vs lw
+                  {checkedInCount} verified
                 </span>
               </div>
               <div className="my-2 flex items-baseline gap-2">
@@ -628,17 +664,17 @@ export default function OrganizerDashboardClient({
                   {checkedInCount.toLocaleString()}
                 </span>
                 <div className="text-[10px] leading-tight text-[#8A7B78] flex flex-col font-medium">
-                  <span>total</span>
-                  <span>cap</span>
+                  <span>of {roster.length}</span>
+                  <span>roster</span>
                 </div>
               </div>
               <div>
                 <div className="mb-1 flex justify-between text-[11px] font-medium text-[#7A6B68]">
                   <span>Campus Hall Utilization</span>
-                  <span className="font-bold text-[#1E1B19]">—</span>
+                  <span className="font-bold text-[#1E1B19]">{hallUtilization > 0 ? `${hallUtilization}%` : "—"}</span>
                 </div>
                 <div className="h-1.5 w-full rounded-full bg-[#F2ECE8] overflow-hidden">
-                  <div className="h-full w-0 rounded-full bg-[#651C32]" />
+                  <div className="h-full rounded-full bg-[#651C32]" style={{ width: `${hallUtilization}%` }} />
                 </div>
               </div>
             </div>
@@ -650,7 +686,7 @@ export default function OrganizerDashboardClient({
                   LIVE ACTIVE EVENTS
                 </span>
                 <span className="rounded-full bg-[#E5F7F0] px-2 py-0.5 text-[10px] font-bold text-[#0E6245]">
-                  6 operating now
+                  {activeEventsCount} operating now
                 </span>
               </div>
               <div className="my-2 flex items-baseline gap-2">
@@ -660,7 +696,7 @@ export default function OrganizerDashboardClient({
                     fontFamily: "var(--font-playfair), var(--font-newsreader), Georgia, serif",
                   }}
                 >
-                  03
+                  {String(bookedVenues.length).padStart(2, "0")}
                 </span>
                 <span className="text-xs font-medium text-[#7A6B68] leading-tight">
                   venues booked
@@ -668,7 +704,7 @@ export default function OrganizerDashboardClient({
               </div>
               <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#8C233C]">
                 <span className="size-2 rounded-full bg-[#8C233C]" />
-                <span>Tan Yan Kee Conf Hall is nearing!</span>
+                <span>{bookedVenues[0] ? `${bookedVenues[0]} is active` : "No active venues currently"}</span>
               </div>
             </div>
 
@@ -679,7 +715,7 @@ export default function OrganizerDashboardClient({
                   SAO APPROVAL QUEUE
                 </span>
                 <span className="rounded-full bg-[#FDF0E8] px-2 py-0.5 text-[10px] font-bold text-[#C4384F]">
-                  Priority
+                  {pendingCount > 0 ? "Pending" : "Cleared"}
                 </span>
               </div>
               <div className="my-2 flex items-baseline gap-2">
@@ -689,15 +725,15 @@ export default function OrganizerDashboardClient({
                     fontFamily: "var(--font-playfair), var(--font-newsreader), Georgia, serif",
                   }}
                 >
-                  01
+                  {String(pendingCount).padStart(2, "0")}
                 </span>
                 <span className="text-xs font-medium text-[#7A6B68] leading-tight">
-                  in dean review
+                  in review
                 </span>
               </div>
               <div className="flex items-center gap-1.5 text-[11px] text-[#7A6B68] font-medium">
                 <Clock size={12} className="text-[#8A7B78]" />
-                <span>Est. Turnaround ~4.2 hrs</span>
+                <span>{pendingCount > 0 ? "Awaiting SAO clearance" : "All proposals processed"}</span>
               </div>
             </div>
 
@@ -716,7 +752,7 @@ export default function OrganizerDashboardClient({
                     fontFamily: "var(--font-playfair), var(--font-newsreader), Georgia, serif",
                   }}
                 >
-                  —
+                  {totalRegistered > 0 ? totalRegistered.toLocaleString() : "0"}
                 </span>
                 <span className="text-xs font-medium text-[#7A6B68] leading-tight">
                   students
@@ -725,7 +761,7 @@ export default function OrganizerDashboardClient({
               <div className="flex items-center justify-between text-[11px]">
                 <span className="flex items-center gap-1 font-semibold text-[#0E6245]">
                   <span className="size-1.5 rounded-full bg-[#0E6245]" />
-                  — SMS / Bot
+                  Push / SMS
                 </span>
                 <button
                   type="button"
@@ -1154,10 +1190,12 @@ export default function OrganizerDashboardClient({
                       onChange={(e) => setSelectedCohort(e.target.value)}
                       className="w-full appearance-none rounded-xl border border-[#ECE2DC] bg-[#FAF5F2] pl-8 pr-8 py-2 text-xs font-medium text-[#1E1B19] focus:bg-white focus:border-[#651C32] focus:outline-none transition cursor-pointer"
                     >
-                      <option value="All Registered Students (1,140)">All Registered Students (1,140)</option>
-                      <option value="LITS General Assembly (400 pax)">LITS General Assembly (400 pax)</option>
-                      <option value="LITS Figma Sprint Attendees (50 pax)">LITS Figma Sprint Attendees (50 pax)</option>
-                      <option value="Executive Committee & Volunteers (28)">Executive Committee &amp; Volunteers (28)</option>
+                      <option value="all">All Registered Students ({totalRegistered})</option>
+                      {events.map((ev) => (
+                        <option key={ev.id} value={ev.id}>
+                          {ev.title} ({ev.registered} pax)
+                        </option>
+                      ))}
                     </select>
                     <Users size={14} className="pointer-events-none absolute left-3 top-2.5 text-[#8A7B78]" />
                     <ChevronDown size={14} className="pointer-events-none absolute right-3 top-2.5 text-[#8A7B78]" />
@@ -1245,6 +1283,7 @@ export default function OrganizerDashboardClient({
                     maxLength={240}
                     value={broadcastMessage}
                     onChange={(e) => setBroadcastMessage(e.target.value)}
+                    placeholder="Type an announcement to send to attendees or pick a quick preset above..."
                     className="w-full resize-none rounded-xl border border-[#ECE2DC] bg-[#FAF5F2] p-3 text-xs text-[#1E1B19] placeholder:text-[#9A8B88] focus:bg-white focus:border-[#651C32] focus:outline-none transition"
                   />
                 </div>
@@ -1292,9 +1331,12 @@ export default function OrganizerDashboardClient({
                     onChange={(e) => setSelectedRosterEvent(e.target.value)}
                     className="appearance-none rounded-xl border border-[#ECE2DC] bg-[#FAF5F2] px-3.5 py-1.5 pr-8 text-xs font-semibold text-[#1E1B19] focus:bg-white focus:border-[#651C32] focus:outline-none transition cursor-pointer"
                   >
-                    <option value="LITS General Assembly (400 pax)">LITS General Assembly (400 pax)</option>
-                    <option value="LITS Figma Sprint (50 pax)">LITS Figma Sprint (50 pax)</option>
-                    <option value="Mr & Ms University (300 pax)">Mr &amp; Ms University (300 pax)</option>
+                    <option value="all">All Events ({roster.length} registered)</option>
+                    {events.map((ev) => (
+                      <option key={ev.id} value={ev.title}>
+                        {ev.title} ({ev.registered} pax)
+                      </option>
+                    ))}
                   </select>
                   <ChevronDown size={14} className="pointer-events-none absolute right-2.5 top-2.5 text-[#8A7B78]" />
                 </div>

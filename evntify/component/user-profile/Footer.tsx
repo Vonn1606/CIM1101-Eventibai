@@ -13,7 +13,7 @@ export default function Footer() {
       <div className="mx-auto flex max-w-[1200px] flex-wrap items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
           <span className="font-serif-display text-xl font-extrabold italic text-maroon">Eventify</span>
-          <p className="text-[11px] text-body">© 2026 Eventify · LITS Student Council Portal</p>
+          <p className="text-[11px] text-body">© 2026 Eventify · Campus Event Management Portal</p>
         </div>
         <nav className="flex gap-5">
           {links.map((l) => (

@@ -63,7 +63,7 @@ This document outlines the remaining tasks to complete 100% of the **Mock Data â
 
 ## Phase 4: Organizer Dashboard & Event Creation
 
-### Task 4.1: Dynamic Event Registry Filter Counts
+### Task 4.1: Dynamic Event Registry Filter Counts (/)
 - **File**: `evntify/app/organizer-dashboard/organizer-dashboard-client.tsx` (lines 727â€“768)
 - **Problem**: Filter pill buttons have hardcoded numbers: `All (3)`, `Active (1)`, `SAO Pending (1)`, and `Archived (2)`.
 - **Action**:
@@ -79,7 +79,7 @@ This document outlines the remaining tasks to complete 100% of the **Mock Data â
   - Display `{counts.all}`, `{counts.active}`, `{counts.sao}`, `{counts.archived}` in the buttons.
 - **Done When**: Filter pill counts match the actual number of events in each tab.
 
-### Task 4.2: Replace Hardcoded Organizer KPI Cards
+### Task 4.2: Replace Hardcoded Organizer KPI Cards (/)
 - **Files**:
   - `evntify/lib/db/stats.ts` or `evntify/lib/db/organizer.ts`
   - `evntify/app/organizer-dashboard/organizer-dashboard-client.tsx` (lines 611â€“689)
@@ -187,7 +187,7 @@ This document outlines the remaining tasks to complete 100% of the **Mock Data â
 
 ## Phase 6: Final Cleanup & Hardcoded String Removal
 
-### Task 6.1: Delete Legacy Mock Files & Redundant Admin DB File
+### Task 6.1: Delete Legacy Mock Files & Redundant Admin DB File (/)
 - **Files to remove**:
   - `evntify/lib/db/admin.ts` (redundant duplicate of `lib/db/stats.ts`)
   - `evntify/app/data/proposals.ts`
@@ -200,13 +200,13 @@ This document outlines the remaining tasks to complete 100% of the **Mock Data â
   - Delete `app/data/`.
 - **Done When**: The `app/data` folder and `lib/db/admin.ts` are removed and `npm run build` succeeds.
 
-### Task 6.2: Remove Hardcoded Fallback Texts
+### Task 6.2: Remove Hardcoded Fallback Texts (/)
 - **File**: `evntify/app/events/[id]/event-details-client.tsx` (lines 323â€“331)
 - **Problem**: Still contains hardcoded fallback description:
   `"The LITS Arena: Figma Showdown 2026 gathers aspiring campus product designers..."`.
 - **Action**: Replace with a clean generic empty state or prompt (e.g. `"No event description provided by organizer."`).
 
-### Task 6.3: Remove Redundant Root `package-lock.json`
+### Task 6.3: Remove Redundant Root `package-lock.json` (/)
 - **File**: `c:\Users\Vonn\CIM1101---Project\package-lock.json`
 - **Problem**: An empty lockfile in the parent directory causes Next.js Turbopack to show a workspace root inference warning on every build.
 - **Action**:

@@ -34,7 +34,7 @@ export default async function AdminPage() {
               <KpiCards stats={stats} />
               <FeaturedBanner event={featuredEvent ?? undefined} />
               <section className="grid">
-                <Calendar />
+                <Calendar events={upcomingEvents} featuredEvent={featuredEvent} />
                 <UpcomingEvents events={upcomingEvents} />
               </section>
             </div>

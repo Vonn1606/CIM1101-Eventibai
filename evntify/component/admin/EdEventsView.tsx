@@ -56,7 +56,7 @@ function toEventItem(d: EventDirectoryItem): EventItem {
     people: [],
     accent: d.bannerColor,
     banner: `linear-gradient(135deg, ${d.bannerColor}, #1a1a2e)`,
-    facilities: ["—", "—", "—", "—"] as [string, string, string, string],
+    facilities: [] as unknown as [string, string, string, string],
   };
 }
 

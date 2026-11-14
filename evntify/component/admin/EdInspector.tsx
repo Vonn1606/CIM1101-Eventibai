@@ -141,12 +141,14 @@ function InspectorBody({
                         {f.label}: {f.value}
                       </span>
                     ))
-                  ) : (
+                  ) : event.facilities && event.facilities.length > 0 && event.facilities[0] !== "—" ? (
                     event.facilities.map((f) => (
                       <span key={f} className="ed-t-12 ed-muted">
                         {f}
                       </span>
                     ))
+                  ) : (
+                    <span className="ed-t-12 ed-muted col-span-2">No special facility requirements recorded.</span>
                   )}
                 </div>
               </div>

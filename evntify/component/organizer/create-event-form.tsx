@@ -210,7 +210,7 @@ export default function CreateEventForm({
               <CeLabel>Event Name</CeLabel>
               <input
                 className="ce-input"
-                placeholder="e.g., LITS Tech Summit 2026: Quantum Horizons"
+                placeholder="e.g., Campus Tech Summit 2026: Quantum Horizons"
                 value={form.name}
                 onChange={(e) => set("name", e.target.value)}
                 required
