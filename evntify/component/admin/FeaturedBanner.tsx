@@ -6,32 +6,54 @@ interface FeaturedBannerProps {
 }
 
 export default function FeaturedBanner({ event }: FeaturedBannerProps) {
-  const title = event?.title ?? "The 40th Anniversary Concert: Finale";
-  const venue = event?.venue ?? "Main Auditorium";
-  const status = event?.status ?? "pending";
+  if (!event) {
+    return (
+      <section className="banner">
+        <div className="banner-body">
+          <span className="live-chip">
+            <Radio size={11} color="#8A7B78" />
+            <span>Featured assembly: None active</span>
+          </span>
+          <h2 className="banner-title" style={{ opacity: 0.75 }}>
+            No Featured Event Active
+          </h2>
+          <p className="banner-text" style={{ opacity: 0.65 }}>
+            No campus assembly or event is currently designated as featured. Mark an approved event as featured in the directory to spotlight it on this dashboard.
+          </p>
+        </div>
+      </section>
+    );
+  }
 
-  const dateLabel = event?.starts_at
+  const title = event.title;
+  const venue = event.venue;
+  const status = event.status;
+  const summary =
+    event.summary ||
+    "Official highlighted campus event scheduled and verified by university administration.";
+
+  const dateLabel = event.starts_at
     ? new Date(event.starts_at).toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
         hour: "numeric",
         minute: "2-digit",
       })
-    : "Dec 12, 7:00 PM";
+    : "Date TBD";
 
   const statusLabel =
     status === "approved"
       ? "Approved"
       : status === "ongoing"
       ? "Live now"
-      : "Final approvals pending";
+      : "Scheduled";
 
   return (
     <section className="banner">
       <div className="banner-body">
         <span className="live-chip">
           <Radio size={11} color="#22C55E" />
-          <span>Featured assembly: live planning</span>
+          <span>Featured assembly: spotlight</span>
         </span>
         <div className="banner-meta">
           <span className="meta green"><MapPin size={12} /> {venue}</span>
@@ -39,18 +61,12 @@ export default function FeaturedBanner({ event }: FeaturedBannerProps) {
           <span className="meta"><Clock size={12} /> {dateLabel}</span>
         </div>
         <h2 className="banner-title">{title}</h2>
-        <p className="banner-text">
-          Closing night of the anniversary season, bringing together student ensembles,
-          alumni performers and guest conductors for a full-house celebration.
-        </p>
+        <p className="banner-text">{summary}</p>
       </div>
       <div className="banner-foot">
         <div className="status">
           <span className="status-dot" />
           <span>{statusLabel}</span>
-        </div>
-        <div className="pager">
-          <span className="on" /><span /><span /><span />
         </div>
       </div>
     </section>

@@ -324,28 +324,32 @@ export type FeaturedEventItem = {
   starts_at: string | null;
   venue: string;
   status: string;
+  summary?: string | null;
 };
 
 export async function getFeaturedEvent(): Promise<FeaturedEventItem | null> {
   const supabase = await createClient();
 
+  // Query explicitly featured events that are approved and upcoming
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
     .from("events")
-    .select(`title, starts_at, status, venues ( name )`)
+    .select(`title, starts_at, status, summary, description, is_featured, venues ( name )`)
     .eq("approval", "approved")
+    .eq("is_featured", true)
     .gte("starts_at", new Date().toISOString())
     .order("starts_at", { ascending: true })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (error || !data) return null;
 
   return {
     title: data.title ?? "Untitled Event",
     starts_at: data.starts_at ?? null,
-    venue: data.venues?.name ?? "TBD",
+    venue: data.venues?.name ?? "Campus Venue",
     status: data.status ?? "scheduled",
+    summary: data.summary ?? (Array.isArray(data.description) ? data.description[0] : null),
   };
 }
 
