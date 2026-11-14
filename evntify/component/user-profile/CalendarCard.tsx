@@ -1,17 +1,30 @@
 "use client";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
-import { calendar as c } from "@/lib/events";
 
 const WEEK = ["S", "M", "T", "W", "T", "F", "S"];
 
-export default function CalendarCard() {
-  const days = Array.from({ length: c.days }, (_, i) => i + 1);
+interface CalendarCardProps {
+  monthLabel: string;
+  prevTail: number[];
+  days: number;
+  featured: number;
+  registered: number[];
+}
+
+export default function CalendarCard({
+  monthLabel,
+  prevTail,
+  days: totalDays,
+  featured,
+  registered,
+}: CalendarCardProps) {
+  const days = Array.from({ length: totalDays }, (_, i) => i + 1);
   return (
     <div className="rounded-xl bg-white px-5 pb-0 shadow-sm">
       <div className="-mx-5 flex items-center justify-between rounded-t-xl bg-surface-low/50 p-3">
         <div className="flex items-center gap-1 pl-2">
           <Calendar className="size-4 text-maroon" />
-          <h2 className="text-lg font-bold">{c.monthLabel}</h2>
+          <h2 className="text-lg font-bold">{monthLabel}</h2>
         </div>
         <div className="flex items-center gap-1">
           <button aria-label="Previous month" className="grid size-8 place-items-center rounded-lg text-body hover:bg-surface-high transition">
@@ -35,16 +48,16 @@ export default function CalendarCard() {
       </div>
 
       <div className="mt-2 grid grid-cols-7 gap-1 pb-3">
-        {c.prevTail.map((d) => (
+        {prevTail.map((d) => (
           <span key={`p${d}`} className="grid h-[60px] place-items-center text-[11px] text-surface-highest">
             {d}
           </span>
         ))}
         {days.map((d) => {
-          const featured = d === c.featured;
-          const reg = c.registered.includes(d);
+          const isFeatured = d === featured;
+          const reg = registered.includes(d);
           const base = "relative flex h-[60px] flex-col items-center justify-center rounded-lg text-[13px] transition cursor-pointer";
-          if (featured)
+          if (isFeatured)
             return (
               <button key={d} className={`${base} gap-0.5 rounded-xl bg-maroon font-bold text-[15px] text-white shadow-md`}>
                 {d}
@@ -81,4 +94,3 @@ export default function CalendarCard() {
     </div>
   );
 }
-

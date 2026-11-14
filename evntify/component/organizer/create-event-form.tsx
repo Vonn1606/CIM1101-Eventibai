@@ -7,13 +7,38 @@ import {
   Lock,
   MapPin,
   Users,
-  Save,
   Send,
   Info,
   Image as ImageIcon,
+  AlertCircle,
+  Loader2,
 } from "lucide-react";
+import { submitEvent } from "@/app/actions/events";
 
-const CAPACITY_MAX = 300;
+export type VenueOption = {
+  id: string;
+  name: string;
+  capacity: number;
+  details: string | null;
+};
+
+export type CollegeOption = {
+  id: string;
+  name: string;
+  code?: string | null;
+};
+
+export type OrgOption = {
+  id: string;
+  name: string;
+  dept_label: string | null;
+};
+
+interface CreateEventFormProps {
+  venues?: VenueOption[];
+  colleges?: CollegeOption[];
+  organizations?: OrgOption[];
+}
 
 /* ---------- Sub-components ---------- */
 
@@ -55,38 +80,92 @@ function CeSectionHeader({
 
 /* ---------- Main component ---------- */
 
-export default function CreateEventForm() {
+export default function CreateEventForm({
+  venues = [],
+  colleges = [],
+  organizations = [],
+}: CreateEventFormProps) {
   const router = useRouter();
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => ({
     name: "",
-    category: "",
+    category: "Seminar",
     description: "",
-    organization: "LITS",
-    department: "College of Computer Studies & Systems",
-    venue: "",
-    date: "2026-11-15",
+    organizationId: organizations[0]?.id ?? "",
+    collegeId: colleges[0]?.id ?? "",
+    venueId: venues[0]?.id ?? "",
+    venue: venues[0]?.name ?? "",
+    date: new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0],
     start: "13:00",
     end: "17:00",
-    capacity: 300,
-  });
+    capacity: venues[0]?.capacity ? Math.min(100, venues[0].capacity) : 100,
+  }));
+
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const selectedVenue = venues.find(
+    (v) => v.id === form.venueId || v.name === form.venue
+  );
+  const maxCapacity = selectedVenue?.capacity ?? 500;
 
   const set = (k: string, v: string | number) =>
     setForm((f) => ({ ...f, [k]: v }));
 
-  const filled = Math.min(100, Math.round((Number(form.capacity) / CAPACITY_MAX) * 85));
+  const onVenueChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const vId = e.target.value;
+    const found = venues.find((v) => v.id === vId);
+    setForm((f) => ({
+      ...f,
+      venueId: vId,
+      venue: found?.name ?? "",
+      capacity: found ? Math.min(f.capacity, found.capacity) : f.capacity,
+    }));
+  };
 
-  const submit = (e: React.FormEvent) => {
+  const filled = Math.min(
+    100,
+    Math.round((Number(form.capacity) / maxCapacity) * 100)
+  );
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: wire to Supabase insert
-    console.log("Submit event", form);
-    alert("Event submitted for admin review!");
+    setSubmitting(true);
+    setError(null);
+
+    const res = await submitEvent({
+      title: form.name,
+      category: form.category,
+      description: form.description,
+      organizationId: form.organizationId || undefined,
+      collegeId: form.collegeId || undefined,
+      venueId: form.venueId || undefined,
+      venue: form.venue,
+      date: form.date,
+      startTime: form.start,
+      endTime: form.end,
+      capacity: Number(form.capacity),
+    });
+
+    if (res.error) {
+      setError(res.error);
+      setSubmitting(false);
+      return;
+    }
+
     router.push("/organizer-dashboard");
   };
 
-  return (
-    <form onSubmit={submit} className="ce-form-wrap">
+  const dateMonthStr = (() => {
+    try {
+      return new Date(form.date).toLocaleDateString("en-US", { month: "short" });
+    } catch {
+      return "TBD";
+    }
+  })();
 
+  return (
+    <form onSubmit={handleSubmit} className="ce-form-wrap">
       {/* Header & breadcrumb */}
       <div className="ce-header">
         <nav className="ce-crumbs">
@@ -109,8 +188,14 @@ export default function CreateEventForm() {
         </div>
       </div>
 
-      <div className="ce-form-body">
+      {error && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-700 border border-red-200">
+          <AlertCircle size={16} />
+          <span>{error}</span>
+        </div>
+      )}
 
+      <div className="ce-form-body">
         {/* Section 1 — Basic Info */}
         <section className="ce-card">
           <CeSectionHeader
@@ -141,7 +226,6 @@ export default function CreateEventForm() {
                   onChange={(e) => set("category", e.target.value)}
                   required
                 >
-                  <option value="" disabled>Select event category</option>
                   <option>Seminar</option>
                   <option>Workshop</option>
                   <option>Competition</option>
@@ -185,27 +269,39 @@ export default function CreateEventForm() {
               <CeLabel>Organization</CeLabel>
               <div className="ce-select-wrap">
                 <select
-                  value={form.organization}
-                  onChange={(e) => set("organization", e.target.value)}
+                  value={form.organizationId}
+                  onChange={(e) => set("organizationId", e.target.value)}
                 >
-                  <option>LITS</option>
-                  <option>CCS Student Council</option>
-                  <option>ACM Chapter</option>
+                  {organizations.length > 0 ? (
+                    organizations.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.name}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="">Campus Student Organization</option>
+                  )}
                 </select>
                 <ChevronDown size={14} className="ce-chev" />
               </div>
             </div>
 
             <div className="ce-field">
-              <CeLabel>Academic Department</CeLabel>
+              <CeLabel>Academic Department / College</CeLabel>
               <div className="ce-select-wrap">
                 <select
-                  value={form.department}
-                  onChange={(e) => set("department", e.target.value)}
+                  value={form.collegeId}
+                  onChange={(e) => set("collegeId", e.target.value)}
                 >
-                  <option>College of Computer Studies &amp; Systems</option>
-                  <option>College of Engineering</option>
-                  <option>College of Business</option>
+                  {colleges.length > 0 ? (
+                    colleges.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="">General Academic Department</option>
+                  )}
                 </select>
                 <ChevronDown size={14} className="ce-chev" />
               </div>
@@ -227,20 +323,24 @@ export default function CreateEventForm() {
               <CeLabel>Venue Selection</CeLabel>
               <div className="ce-select-wrap">
                 <select
-                  value={form.venue}
-                  onChange={(e) => set("venue", e.target.value)}
+                  value={form.venueId}
+                  onChange={onVenueChange}
                   required
                 >
                   <option value="" disabled>Select an approved campus venue...</option>
-                  <option>Main Auditorium</option>
-                  <option>Innovation Hall</option>
-                  <option>Computer Lab 3</option>
-                  <option>Tan Yan Kee Conference Hall</option>
+                  {venues.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.name} (Max {v.capacity} pax)
+                    </option>
+                  ))}
                 </select>
                 <MapPin size={14} className="ce-chev" />
               </div>
               <small className="ce-hint">
-                <i className="ce-dot" /> Only approved campus venues are shown
+                <i className="ce-dot" />{" "}
+                {selectedVenue?.details
+                  ? selectedVenue.details
+                  : "Only approved campus venues are shown"}
               </small>
             </div>
 
@@ -285,12 +385,15 @@ export default function CreateEventForm() {
               <input
                 type="number"
                 min={1}
+                max={maxCapacity}
                 className="ce-input"
                 value={form.capacity}
-                onChange={(e) => set("capacity", Number(e.target.value))}
+                onChange={(e) =>
+                  set("capacity", Math.min(maxCapacity, Number(e.target.value)))
+                }
                 required
               />
-              <small>RSVP capping triggers waitlist automatically</small>
+              <small>Max capacity for this venue: {maxCapacity} seats</small>
             </div>
 
             <div className="ce-meter ce-span-half">
@@ -314,7 +417,7 @@ export default function CreateEventForm() {
         {/* Section 4 — Live Preview Strip */}
         <section className="ce-preview">
           <div className="ce-preview-date">
-            <span>Nov</span>
+            <span>{dateMonthStr}</span>
             <ImageIcon size={16} color="#fff" />
           </div>
           <div className="ce-preview-body">
@@ -341,20 +444,28 @@ export default function CreateEventForm() {
               type="button"
               className="ce-btn ce-btn-ghost"
               onClick={() => router.push("/organizer-dashboard")}
+              disabled={submitting}
             >
               Cancel
             </button>
-            <button type="button" className="ce-btn ce-btn-soft">
-              <Save size={12} /> Save as Draft
-            </button>
-            <button type="submit" className="ce-btn ce-btn-primary">
-              Submit Event <Send size={12} />
+            <button
+              type="submit"
+              className="ce-btn ce-btn-primary"
+              disabled={submitting}
+            >
+              {submitting ? (
+                <>
+                  <Loader2 size={12} className="animate-spin" /> Submitting...
+                </>
+              ) : (
+                <>
+                  Submit Event <Send size={12} />
+                </>
+              )}
             </button>
           </div>
         </div>
-
       </div>
     </form>
   );
 }
-

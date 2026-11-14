@@ -9,7 +9,7 @@ import {
   ChevronRight,
   FileSearch,
 } from "lucide-react";
-import { Proposal, TONES } from "@/app/data/proposals";
+import { Proposal, TONES } from "@/types/admin";
 
 export default function ApProposalCard({
   p,

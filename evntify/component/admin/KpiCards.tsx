@@ -1,12 +1,17 @@
-import { GraduationCap, Building, CalendarCheck, LayoutGrid, TrendingUp } from "lucide-react";
-import type { AdminKpis } from "@/lib/db/admin";
+import { GraduationCap, Building, CalendarCheck, LayoutGrid, TrendingUp, Clock } from "lucide-react";
+import type { AdminStats } from "@/lib/db/stats";
 
-interface Props {
-  kpis: AdminKpis;
+interface KpiCardsProps {
+  stats?: AdminStats;
 }
 
-export default function KpiCards({ kpis }: Props) {
-  const densityPct = `${kpis.venueDensity}%`;
+export default function KpiCards({ stats }: KpiCardsProps) {
+  const s = stats ?? {
+    totalStudents: 0,
+    totalOrganizations: 0,
+    scheduledEvents: 0,
+    pendingApprovals: 0,
+  };
 
   return (
     <section className="kpis">
@@ -14,14 +19,16 @@ export default function KpiCards({ kpis }: Props) {
         <div className="kpi-top">
           <div>
             <div className="label">Total Students</div>
-            <div className="kpi-value">{kpis.totalStudents.toLocaleString()}</div>
+            <div className="kpi-value">{s.totalStudents.toLocaleString()}</div>
           </div>
-          <div className="kpi-icon" style={{ background: "#E6EEFF", color: "#8B263E" }}><GraduationCap size={20} /></div>
+          <div className="kpi-icon" style={{ background: "#E6EEFF", color: "#8B263E" }}>
+            <GraduationCap size={20} />
+          </div>
         </div>
         <div className="kpi-foot">
-          <span className="trend red-text"><TrendingUp size={13} /> {kpis.studentTrend}%</span>
-          <span className="t-12 muted">vs last term</span>
-          <span className="pill">Active</span>
+          <span className="trend red-text"><TrendingUp size={13} /> Active</span>
+          <span className="t-12 muted">enrolled students</span>
+          <span className="pill">Live</span>
         </div>
         <div className="blob" style={{ background: "rgba(255,218,218,.3)" }} />
       </div>
@@ -30,13 +37,15 @@ export default function KpiCards({ kpis }: Props) {
         <div className="kpi-top">
           <div>
             <div className="label">Total Organizations</div>
-            <div className="kpi-value">{kpis.totalOrganizations}</div>
+            <div className="kpi-value">{s.totalOrganizations}</div>
           </div>
-          <div className="kpi-icon" style={{ background: "#DAE2FD", color: "#0050D4" }}><Building size={20} /></div>
+          <div className="kpi-icon" style={{ background: "#DAE2FD", color: "#0050D4" }}>
+            <Building size={20} />
+          </div>
         </div>
         <div className="kpi-foot">
-          <span className="trend blue-text"><TrendingUp size={13} /> {kpis.newOrgsThisMonth} new</span>
-          <span className="t-12 muted">this month</span>
+          <span className="trend blue-text"><TrendingUp size={13} /> Registered</span>
+          <span className="t-12 muted">active orgs</span>
         </div>
         <div className="blob" style={{ background: "rgba(218,226,253,.5)" }} />
       </div>
@@ -45,31 +54,35 @@ export default function KpiCards({ kpis }: Props) {
         <div className="kpi-top">
           <div>
             <div className="label">Scheduled Events</div>
-            <div className="kpi-value">{kpis.scheduledEvents}</div>
+            <div className="kpi-value">{s.scheduledEvents}</div>
           </div>
-          <div className="kpi-icon" style={{ background: "#DDE9FF", color: "#8B263E" }}><CalendarCheck size={20} /></div>
+          <div className="kpi-icon" style={{ background: "#DDE9FF", color: "#8B263E" }}>
+            <CalendarCheck size={20} />
+          </div>
         </div>
         <div className="kpi-foot">
           <span className="live-dot" />
           <span className="t-12-600 muted">Next 30 days</span>
-          <span className="label-sm red-text">Busy</span>
+          {s.scheduledEvents > 10 && <span className="label-sm red-text">Busy</span>}
         </div>
       </div>
 
       <div className="card kpi">
         <div className="kpi-top">
           <div>
-            <div className="label">Venue Booking Density</div>
-            <div className="kpi-value">{densityPct}</div>
+            <div className="label">Pending Approvals</div>
+            <div className="kpi-value">{s.pendingApprovals}</div>
           </div>
-          <div className="kpi-icon" style={{ background: "#EFF4FF", color: "#2F6AF2" }}><LayoutGrid size={18} /></div>
+          <div className="kpi-icon" style={{ background: "#EFF4FF", color: "#2F6AF2" }}>
+            <Clock size={18} />
+          </div>
         </div>
-        <div className="density">
-          <div className="cap-row">
-            <span className="label-sm">Utilization</span>
-            <span className="label-sm dark">{densityPct}</span>
-          </div>
-          <div className="bar"><span style={{ width: densityPct, background: "#8B263E" }} /></div>
+        <div className="kpi-foot">
+          <span className={s.pendingApprovals > 0 ? "trend red-text" : "trend"}>
+            <LayoutGrid size={13} />
+            {s.pendingApprovals > 0 ? " Needs review" : " All clear"}
+          </span>
+          <span className="t-12 muted">awaiting SAO decision</span>
         </div>
       </div>
     </section>

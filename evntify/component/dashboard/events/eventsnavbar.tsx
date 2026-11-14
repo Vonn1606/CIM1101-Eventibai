@@ -12,18 +12,25 @@ export default function EventsNavbar({
   searchQuery: string;
   onSearchChange: (q: string) => void;
 }) {
-  const { user, loading, isOrganizer, isAdmin } = useAuth();
+  const { user, profile, loading, isOrganizer, isAdmin } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const displayName =
+    profile?.fullName ||
     user?.user_metadata?.full_name ||
     user?.user_metadata?.name ||
-    (user?.email ? user.email.split("@")[0] : "Alex Dela Cruz");
+    (user?.email ? user.email.split("@")[0] : "Student");
 
   const roleLabel =
-    isAdmin ? "ADMIN" :
-    isOrganizer ? "LITS ORG LEAD" :
-    (user?.user_metadata?.department ? `STUDENT • ${user.user_metadata.department}` : "STUDENT • CCSS");
+    isAdmin
+      ? "ADMIN"
+      : isOrganizer
+        ? "ORGANIZER"
+        : profile?.department
+          ? `STUDENT • ${profile.department}`
+          : user?.user_metadata?.department
+            ? `STUDENT • ${user.user_metadata.department}`
+            : "STUDENT";
 
   return (
     <header className="sticky top-0 z-30 w-full border-b border-[#EAE4E1] bg-white/95 px-4 py-2.5 backdrop-blur-[6px]">

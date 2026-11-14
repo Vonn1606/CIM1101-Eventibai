@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getAllEvents, featuredEvents } from "@/lib/events";
+import { getEvents, getFeaturedEvents } from "@/lib/db/events";
 import EventsClient from "./events-client";
 
 export const metadata: Metadata = {
@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   description: "Browse and discover upcoming campus talks, concerts, sports, and student activities.",
 };
 
-export default function EventsPage() {
-  const events = getAllEvents();
+export default async function EventsPage() {
+  const [events, featuredEvents] = await Promise.all([getEvents(), getFeaturedEvents()]);
   return <EventsClient initialEvents={events} featuredEvents={featuredEvents} />;
 }

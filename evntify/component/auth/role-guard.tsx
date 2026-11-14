@@ -9,15 +9,11 @@ interface RoleGuardProps {
   children: React.ReactNode;
 }
 
-// Set to false to enforce authentication
-const DISABLE_AUTH_FOR_DEV = false;
-
 export default function RoleGuard({ allowedRole, children }: RoleGuardProps) {
   const { user, loading, isOrganizer } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (DISABLE_AUTH_FOR_DEV) return;
     if (loading) return;
 
     if (!user) {
@@ -36,11 +32,6 @@ export default function RoleGuard({ allowedRole, children }: RoleGuardProps) {
       return;
     }
   }, [user, loading, isOrganizer, allowedRole, router]);
-
-  // When disabled for dev preview, render children directly without waiting or redirecting
-  if (DISABLE_AUTH_FOR_DEV) {
-    return <>{children}</>;
-  }
 
   if (loading) {
     return (

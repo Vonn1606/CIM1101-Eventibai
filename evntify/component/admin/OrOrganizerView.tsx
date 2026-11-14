@@ -14,40 +14,42 @@ import {
     X,
     Layers,
 } from "lucide-react";
-import {
-    COLLEGE_TABS,
-    type CollegeFilter,
-    type Organizer,
-} from "@/app/data/organizer";
+import type { OrganizerItem } from "@/lib/db/stats";
 import OrOrganizerCard from "./OrOrganizerCard";
 
 type Sort = "name" | "pending" | "events";
 
 const PAGE_SIZE = 6;
 
-interface Props {
-  /** Initial organizer list — from DB when available, static fallback otherwise */
-  initialOrganizers: Organizer[];
+interface OrOrganizersViewProps {
+  initialOrganizers?: OrganizerItem[];
 }
 
-export default function OrOrganizersView({ initialOrganizers }: Props) {
-    const [college, setCollege] = useState<CollegeFilter>("ALL");
+export default function OrOrganizersView({ initialOrganizers = [] }: OrOrganizersViewProps) {
+    const [college, setCollege] = useState("ALL");
     const [query, setQuery] = useState("");
     const [sort, setSort] = useState<Sort>("name");
     const [page, setPage] = useState(1);
     const [toast, setToast] = useState<string | null>(null);
 
-    const totalPending = initialOrganizers.reduce((n, o) => n + o.pendingProposals, 0);
+    const ORGANIZERS = initialOrganizers;
+
+    const totalPending = ORGANIZERS.reduce((n, o) => n + o.pendingProposals, 0);
+
+    const collegeTabs = useMemo(() => {
+        const unique = Array.from(new Set(ORGANIZERS.map((o) => o.college)));
+        return [{ key: "ALL", label: "All Colleges" }, ...unique.map((c) => ({ key: c, label: c }))];
+    }, [ORGANIZERS]);
 
     const counts = useMemo(() => {
-        const c: Record<CollegeFilter, number> = { ALL: initialOrganizers.length, CAS: 0, CBA: 0, FAAD: 0, COE: 0 };
-        initialOrganizers.forEach((o) => (c[o.college] += 1));
+        const c: Record<string, number> = { ALL: ORGANIZERS.length };
+        ORGANIZERS.forEach((o) => { c[o.college] = (c[o.college] ?? 0) + 1; });
         return c;
-    }, [initialOrganizers]);
+    }, [ORGANIZERS]);
 
     const list = useMemo(() => {
         const q = query.trim().toLowerCase();
-        return initialOrganizers.filter((o) => college === "ALL" || o.college === college)
+        return ORGANIZERS.filter((o) => college === "ALL" || o.college === college)
             .filter(
                 (o) =>
                     !q ||
@@ -60,7 +62,7 @@ export default function OrOrganizersView({ initialOrganizers }: Props) {
                         ? b.activeEvents - a.activeEvents
                         : a.name.localeCompare(b.name)
             );
-    }, [college, query, sort, initialOrganizers]);
+    }, [college, query, sort, ORGANIZERS]);
 
     const pages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
     const current = Math.min(page, pages);
@@ -71,11 +73,11 @@ export default function OrOrganizersView({ initialOrganizers }: Props) {
         window.setTimeout(() => setToast(null), 3500);
     }
 
-    function onMessage(o: Organizer) {
+    function onMessage(o: OrganizerItem) {
         flash(`Message thread opened with ${o.name} (${o.org}).`);
     }
 
-    const activeLabel = COLLEGE_TABS.find((t) => t.key === college)?.label ?? "All Colleges";
+    const activeLabel = collegeTabs.find((t) => t.key === college)?.label ?? "All Colleges";
 
     return (
         <div className="or-page">
@@ -100,7 +102,7 @@ export default function OrOrganizersView({ initialOrganizers }: Props) {
                         <div>
                             <div className="label">Total</div>
                             <div className="or-stat-val">
-                                <b>{initialOrganizers.length}</b>
+                                <b>{ORGANIZERS.length}</b>
                                 <span>Organizers</span>
                             </div>
                         </div>
@@ -156,7 +158,7 @@ export default function OrOrganizersView({ initialOrganizers }: Props) {
                 </div>
 
                 <div className="or-tabs" role="tablist" aria-label="Filter by college">
-                    {COLLEGE_TABS.map((t) => (
+                    {collegeTabs.map((t) => (
                         <button
                             key={t.key}
                             type="button"
@@ -170,7 +172,7 @@ export default function OrOrganizersView({ initialOrganizers }: Props) {
                         >
                             {t.key === "ALL" && <Layers size={14} />}
                             {t.label}
-                            <em>{counts[t.key]}</em>
+                            <em>{counts[t.key] ?? 0}</em>
                         </button>
                     ))}
                 </div>

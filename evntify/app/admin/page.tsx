@@ -4,33 +4,38 @@ import KpiCards from "@/component/admin/KpiCards";
 import FeaturedBanner from "@/component/admin/FeaturedBanner";
 import Calendar from "@/component/admin/Calendar";
 import UpcomingEvents from "@/component/admin/UpcomingEvents";
-import { getAdminDashboardKpis } from "@/lib/db/admin";
 import { Plus } from "lucide-react";
+import { getAdminStats, getFeaturedEvent, getUpcomingEvents, getAdminProfile } from "@/lib/db/stats";
 import "./admin.css";
 
 // Admin pages render at request time (auth-protected, user-specific data)
-export const instant = false;
+export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Eventify - Admin Portal",
 };
 
 export default async function AdminPage() {
-  const kpis = await getAdminDashboardKpis();
+  const [stats, featuredEvent, upcomingEvents, adminProfile] = await Promise.all([
+    getAdminStats(),
+    getFeaturedEvent(),
+    getUpcomingEvents(4),
+    getAdminProfile(),
+  ]);
 
   return (
     <div className="admin-root">
       <div className="shell">
-        <Sidebar />
+        <Sidebar pendingApprovals={stats.pendingApprovals} />
         <div className="content">
-          <Header />
+          <Header profile={adminProfile} />
           <main className="main">
             <div className="container">
-              <KpiCards kpis={kpis} />
-              <FeaturedBanner />
+              <KpiCards stats={stats} />
+              <FeaturedBanner event={featuredEvent ?? undefined} />
               <section className="grid">
                 <Calendar />
-                <UpcomingEvents />
+                <UpcomingEvents events={upcomingEvents} />
               </section>
             </div>
           </main>

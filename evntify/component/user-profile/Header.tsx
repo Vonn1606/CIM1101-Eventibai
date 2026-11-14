@@ -2,16 +2,32 @@
 
 import Link from "next/link";
 import { Bell, ChevronDown, Search, User } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/use-auth";
+import { createClient } from "@/lib/supabase/client";
 import ProfileDropdown from "@/component/auth/profile-dropdown";
 
 export default function Header() {
   const [search, setSearch] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [hasUnread, setHasUnread] = useState(false);
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+
+  useEffect(() => {
+    if (!user) return;
+    const supabase = createClient();
+    supabase
+      .from("notifications")
+      .select("id", { count: "exact", head: true })
+      .is("read_at", null)
+      .then(({ count, error }) => {
+        if (!error && typeof count === "number") {
+          setHasUnread(count > 0);
+        }
+      });
+  }, [user]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,14 +40,17 @@ export default function Header() {
 
   /* Derive display name and role label from Supabase user, fallback to student profile */
   const displayName =
+    profile?.fullName ||
     user?.user_metadata?.full_name ||
     user?.user_metadata?.name ||
-    (user?.email ? user.email.split("@")[0] : "Alex Dela Cruz");
+    (user?.email ? user.email.split("@")[0] : "Student");
 
   const roleLabel =
-    user?.user_metadata?.department
-      ? `STUDENT • ${user.user_metadata.department}`
-      : "STUDENT • CCSS";
+    profile?.department
+      ? `STUDENT • ${profile.department}`
+      : user?.user_metadata?.department
+        ? `STUDENT • ${user.user_metadata.department}`
+        : "STUDENT";
 
   return (
     <header className="sticky top-0 z-20 h-20 bg-white/90 shadow-[0_1px_8px_rgba(0,0,0,0.04)] backdrop-blur-md">
@@ -76,7 +95,9 @@ export default function Header() {
             aria-label="Notifications"
           >
             <Bell className="size-4" />
-            <span className="absolute right-2 top-2 size-2 rounded-full bg-[#FDA8B3] ring-2 ring-[#FAF2EE]" />
+            {hasUnread && (
+              <span className="absolute right-2 top-2 size-2 rounded-full bg-[#FDA8B3] ring-2 ring-[#FAF2EE]" />
+            )}
           </Link>
 
           {/* Profile avatar + dropdown matching organizer & admin dashboards */}

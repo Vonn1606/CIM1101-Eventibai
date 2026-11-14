@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useAuth } from "@/lib/use-auth";
 
 export default function Header() {
+    const { user, loading, isOrganizer, isAdmin } = useAuth();
 
     const handleScroll = (id: string) => (e: React.MouseEvent) => {
         const el = document.getElementById(id);
@@ -40,9 +42,28 @@ export default function Header() {
                     >
                         About
                     </Link>
-                    <Link href="/signin" className="nav-cta">
-                        Sign In
-                    </Link>
+                    {!loading && user ? (
+                        <Link
+                            href={
+                                isAdmin
+                                    ? "/admin"
+                                    : isOrganizer
+                                    ? "/organizer-dashboard"
+                                    : "/my-events"
+                            }
+                            className="nav-cta"
+                        >
+                            {isAdmin
+                                ? "Admin Portal"
+                                : isOrganizer
+                                ? "Organizer Dashboard"
+                                : "My Events"}
+                        </Link>
+                    ) : (
+                        <Link href="/signin" className="nav-cta">
+                            Sign In
+                        </Link>
+                    )}
                 </nav>
             </div>
         </header>

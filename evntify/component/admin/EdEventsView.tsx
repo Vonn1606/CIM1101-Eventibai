@@ -16,38 +16,90 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { DEPARTMENTS, type EventItem, pct } from "@/app/data/events-directory";
+import type { EventDirectoryItem } from "@/lib/db/stats";
+import type { EventItem } from "@/types/admin";
+import { pct } from "@/types/admin";
 import EdEventCard from "./EdEventCard";
 import EdInspector from "./EdInspector";
 
-type Tab = "active" | "completed";
+type Tab = "active" | "completed" | "suspended";
 type Sort = "soonest" | "booked" | "az";
 
-interface Props {
-  /** Initial event list — from DB when available, static fallback otherwise */
-  initialEvents: EventItem[];
+const COLLEGE_CHIPS = [
+  "All Colleges",
+  "Engineering",
+  "Arts & Science",
+  "Business",
+  "Design",
+] as const;
+
+/** Map DB item → legacy EventItem shape for child components */
+function toEventItem(d: EventDirectoryItem): EventItem {
+  const statusMap: Record<string, EventItem["status"]> = {
+    open: "ongoing",
+    draft: "scheduled",
+    closed: "completed",
+    concluded: "completed",
+    suspended: "suspended",
+  };
+  return {
+    id: d.slug,
+    dept: d.dept,
+    title: d.title,
+    blurb: d.category,
+    status: (statusMap[d.status] ?? "scheduled") as EventItem["status"],
+    org: d.org,
+    date: d.date,
+    venue: d.venue,
+    registered: d.registered,
+    capacity: d.capacity || 1,
+    people: [],
+    accent: d.bannerColor,
+    banner: `linear-gradient(135deg, ${d.bannerColor}, #1a1a2e)`,
+    facilities: ["—", "—", "—", "—"] as [string, string, string, string],
+  };
 }
 
-export default function EdEventsView({ initialEvents }: Props) {
+interface EdEventsViewProps {
+  initialEvents?: EventDirectoryItem[];
+  total?: number;
+}
+
+export default function EdEventsView({
+  initialEvents = [],
+  total = 0,
+}: EdEventsViewProps) {
   const [tab, setTab] = useState<Tab>("active");
-  const [dept, setDept] = useState(DEPARTMENTS[0]);
+  const [college, setCollege] = useState(COLLEGE_CHIPS[0] as string);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<Sort>("soonest");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [selected, setSelected] = useState<EventItem | null>(null);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 12;
+
+  const allMapped = useMemo(() => initialEvents.map(toEventItem), [initialEvents]);
 
   const counts = {
-    active: initialEvents.filter((e) => e.status !== "completed").length,
-    completed: initialEvents.filter((e) => e.status === "completed").length,
+    active: allMapped.filter((e) => e.status !== "completed" && e.status !== "suspended").length,
+    completed: allMapped.filter((e) => e.status === "completed").length,
+    suspended: allMapped.filter((e) => e.status === "suspended").length,
   };
+
+  const liveCount = allMapped.filter((e) => e.status === "ongoing").length;
+  const approvedCount = allMapped.filter((e) => e.status !== "completed").length;
 
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return initialEvents
+    return allMapped
       .filter((e) =>
-        tab === "completed" ? e.status === "completed" : e.status !== "completed"
+        tab === "completed"
+          ? e.status === "completed"
+          : tab === "suspended"
+            ? e.status === "suspended"
+            : e.status !== "completed" && e.status !== "suspended"
       )
-      .filter((e) => dept === DEPARTMENTS[0] || e.dept === dept)
+      .filter((e) => college === COLLEGE_CHIPS[0] || e.dept.includes(college))
       .filter(
         (e) =>
           !q ||
@@ -59,10 +111,15 @@ export default function EdEventsView({ initialEvents }: Props) {
         sort === "booked"
           ? pct(b) - pct(a)
           : sort === "az"
-          ? a.title.localeCompare(b.title)
-          : 0
+            ? a.title.localeCompare(b.title)
+            : 0
       );
-  }, [initialEvents, tab, dept, query, sort]);
+  }, [allMapped, tab, college, query, sort]);
+
+  // Reset page when filters change
+  const totalPages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pagedList = list.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   return (
     <div className="ed-container">
@@ -82,14 +139,14 @@ export default function EdEventsView({ initialEvents }: Props) {
         </div>
         <div className="ed-glance">
           <span>
-            <i style={{ background: "#10B981" }} />6 live
+            <i style={{ background: "#10B981" }} />{liveCount} live
           </span>
           <span>
             <CheckCircle2 size={13} color="#0050D4" />
-            12 approved
+            {approvedCount} approved
           </span>
           <span className="ed-red-text">
-            <AlertTriangle size={13} color="#B80035" />2 flagged
+            <AlertTriangle size={13} color="#B80035" />0 flagged
           </span>
         </div>
       </section>
@@ -100,7 +157,7 @@ export default function EdEventsView({ initialEvents }: Props) {
           <Search size={16} />
           <input
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => { setQuery(e.target.value); setPage(1); }}
             placeholder="Search events, clubs, venues…"
             aria-label="Search events"
           />
@@ -113,17 +170,14 @@ export default function EdEventsView({ initialEvents }: Props) {
 
         <div className="ed-tools">
           <div className="ed-seg">
-            <button
-              className={tab === "active" ? "on" : ""}
-              onClick={() => setTab("active")}
-            >
+            <button className={tab === "active" ? "on" : ""} onClick={() => { setTab("active"); setPage(1); }}>
               <Zap size={13} /> Active <em>{counts.active}</em>
             </button>
-            <button
-              className={tab === "completed" ? "on" : ""}
-              onClick={() => setTab("completed")}
-            >
+            <button className={tab === "completed" ? "on" : ""} onClick={() => { setTab("completed"); setPage(1); }}>
               <History size={13} /> Completed <em>{counts.completed}</em>
+            </button>
+            <button className={tab === "suspended" ? "on" : ""} onClick={() => { setTab("suspended"); setPage(1); }}>
+              <AlertTriangle size={13} /> Suspended <em>{counts.suspended}</em>
             </button>
           </div>
           <span className="ed-vr" />
@@ -141,32 +195,24 @@ export default function EdEventsView({ initialEvents }: Props) {
             <ChevronDown size={10} />
           </div>
           <div className="ed-view-switch">
-            <button
-              className={view === "grid" ? "on" : ""}
-              onClick={() => setView("grid")}
-              aria-label="Grid view"
-            >
+            <button className={view === "grid" ? "on" : ""} onClick={() => setView("grid")} aria-label="Grid view">
               <LayoutGrid size={14} />
             </button>
-            <button
-              className={view === "list" ? "on" : ""}
-              onClick={() => setView("list")}
-              aria-label="List view"
-            >
+            <button className={view === "list" ? "on" : ""} onClick={() => setView("list")} aria-label="List view">
               <List size={14} />
             </button>
           </div>
         </div>
       </section>
 
-      {/* Department chips */}
+      {/* College chips */}
       <div className="ed-chip-bar">
-        <span className="ed-label">Department</span>
-        {DEPARTMENTS.map((d) => (
+        <span className="ed-label">College</span>
+        {COLLEGE_CHIPS.map((d) => (
           <button
             key={d}
-            className={`ed-dept-chip ${dept === d ? "on" : ""}`}
-            onClick={() => setDept(d)}
+            className={`ed-dept-chip ${college === d ? "on" : ""}`}
+            onClick={() => { setCollege(d); setPage(1); }}
           >
             {d}
           </button>
@@ -177,33 +223,24 @@ export default function EdEventsView({ initialEvents }: Props) {
       <div className="ed-count-bar">
         <div>
           <b className="ed-t-12-600">
-            Showing {list.length} of {initialEvents.length} events
+            Showing {list.length} of {total || allMapped.length} events
           </b>
           <i className="ed-dot4" />
           <span className="ed-t-12 ed-muted">
-            Filtered by {dept.toLowerCase()}
+            Filtered by {college.toLowerCase()}
           </span>
         </div>
         <div className="ed-cap-legend">
-          <span>
-            <i style={{ background: "#10B981" }} />
-            Under capacity
-          </span>
-          <span>
-            <i style={{ background: "#F59E0B" }} />
-            Nearly full
-          </span>
-          <span>
-            <i style={{ background: "#E11D48" }} />
-            At capacity
-          </span>
+          <span><i style={{ background: "#10B981" }} />Under capacity</span>
+          <span><i style={{ background: "#F59E0B" }} />Nearly full</span>
+          <span><i style={{ background: "#E11D48" }} />At capacity</span>
         </div>
       </div>
 
       {/* Grid / List */}
-      {list.length ? (
+      {pagedList.length ? (
         <div className={`ed-ev-grid ${view}`}>
-          {list.map((e) => (
+          {pagedList.map((e) => (
             <EdEventCard key={e.id} event={e} onInspect={setSelected} />
           ))}
         </div>
@@ -211,8 +248,7 @@ export default function EdEventsView({ initialEvents }: Props) {
         <div className="ed-empty ed-card">
           <ShieldCheck size={20} />
           <p>
-            No events match these filters. Clear the search or pick another
-            department.
+            No events match these filters. Clear the search or pick another college.
           </p>
         </div>
       )}
@@ -220,18 +256,32 @@ export default function EdEventsView({ initialEvents }: Props) {
       {/* Pager */}
       <footer className="ed-pager-bar">
         <span className="ed-t-12 ed-muted">
-          Showing 1 to {list.length} of {initialEvents.length} events
+          {list.length === 0
+            ? "No events found"
+            : `Showing ${(currentPage - 1) * PAGE_SIZE + 1} to ${Math.min(currentPage * PAGE_SIZE, list.length)} of ${total || list.length} events`}
         </span>
         <div className="ed-pages">
-          <button disabled aria-label="Previous page">
+          <button
+            disabled={currentPage <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            aria-label="Previous page"
+          >
             <ChevronLeft size={10} />
           </button>
-          <button className="on">1</button>
-          <button>2</button>
-          <button>3</button>
-          <span className="ed-t-12 ed-muted">…</span>
-          <button>8</button>
-          <button aria-label="Next page">
+          {Array.from({ length: totalPages }, (_, i) => (
+            <button
+              key={i + 1}
+              className={currentPage === i + 1 ? "on" : ""}
+              onClick={() => setPage(i + 1)}
+            >
+              {i + 1}
+            </button>
+          ))}
+          <button
+            disabled={currentPage >= totalPages}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            aria-label="Next page"
+          >
             <ChevronRight size={10} />
           </button>
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   MapPin,
@@ -15,10 +15,15 @@ import {
   AlertCircle,
   Plus,
   ArrowLeft,
+  Bell,
+  ArrowRight,
+  Loader2,
   type LucideIcon,
 } from "lucide-react";
 import Header from "@/component/user-profile/Header";
 import RoleGuard from "@/component/auth/role-guard";
+import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/lib/use-auth";
 
 type Notification = {
   id: string;
@@ -47,121 +52,249 @@ type Notification = {
   };
 };
 
-const INITIAL_NOTIFICATIONS: Notification[] = [
-  {
-    id: "1",
-    unread: true,
-    tone: "rose",
-    icon: MapPin,
-    badgeText: "!",
-    badgeBg: "#4D0011",
-    badgeColor: "#ffffff",
-    title: "Venue Relocation:",
-    body: "LITS General Assembly moved from 4th Flr Audio-Visual to 11th Flr Auditorium B due to high cohort registration.",
-    time: "10m ago",
-    dept: "DEPT. OF COMPUTER STUDIES",
-    actions: {
+function formatRelativeTime(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
+  if (isNaN(diffSec) || diffSec < 0) return "Just now";
+  if (diffSec < 60) return "Just now";
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHours = Math.floor(diffMin / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function parseNotificationRow(row: {
+  id: string;
+  user_id: string;
+  title: string;
+  body: string | null;
+  link: string | null;
+  read_at: string | null;
+  created_at: string;
+}): Notification {
+  const unread = row.read_at === null;
+  const fullText = `${row.title} ${row.body || ""}`.toLowerCase();
+
+  let tone: "rose" | "mint" | "sand" = "sand";
+  let icon: LucideIcon = Bell;
+  let badgeIcon: LucideIcon | undefined = undefined;
+  let badgeText: string | undefined = undefined;
+  let badgeBg: string | undefined = undefined;
+  let badgeColor: string | undefined = undefined;
+
+  if (fullText.includes("approved") || fullText.includes("confirmed") || fullText.includes("ticket") || fullText.includes("pass")) {
+    tone = "mint";
+    icon = Ticket;
+    if (unread) {
+      badgeIcon = Check;
+      badgeBg = "#083F31";
+      badgeColor = "#BAEED9";
+    }
+  } else if (fullText.includes("relocat") || fullText.includes("cancel") || fullText.includes("urgent") || fullText.includes("rejected")) {
+    tone = "rose";
+    icon = fullText.includes("relocat") ? MapPin : AlertCircle;
+    if (unread) {
+      badgeText = "!";
+      badgeBg = "#4D0011";
+      badgeColor = "#ffffff";
+    }
+  } else if (fullText.includes("waitlist") || fullText.includes("deadline") || fullText.includes("expires") || fullText.includes("reminder")) {
+    tone = "sand";
+    icon = Clock;
+    if (unread) {
+      badgeIcon = Plus;
+      badgeBg = "#FFDAD6";
+      badgeColor = "#BA1A1A";
+    }
+  } else if (fullText.includes("advisory") || fullText.includes("memo") || fullText.includes("announcement")) {
+    tone = "sand";
+    icon = Megaphone;
+  } else if (fullText.includes("art") || fullText.includes("exhibit")) {
+    tone = "rose";
+    icon = Palette;
+  }
+
+  let actions: Notification["actions"] = undefined;
+  if (row.link) {
+    const isPass = row.link.includes("my-events");
+    actions = {
       primary: {
-        label: "View Updated Ticket",
-        icon: Ticket,
-        variant: "maroon",
-        href: "/events",
-      },
-    },
-  },
-  {
-    id: "2",
-    unread: true,
-    tone: "mint",
-    icon: Ticket,
-    badgeIcon: Check,
-    badgeBg: "#083F31",
-    badgeColor: "#BAEED9",
-    title: "Ticket Confirmed:",
-    body: "Your seat pass for Mister & Miss University of the East 2025 is now generated and linked to your student ID.",
-    time: "45m ago",
-    dept: "UNIVERSITY CULTURAL GUILD",
-    actions: {
-      primary: {
-        label: "View Pass",
-        icon: Ticket,
-        variant: "maroon",
-        href: "/my-events",
-      },
-    },
-  },
-  {
-    id: "3",
-    unread: false,
-    tone: "sand",
-    icon: Clock,
-    badgeIcon: Plus,
-    badgeBg: "#FFDAD6",
-    badgeColor: "#BA1A1A",
-    title: "Waitlist Granted:",
-    body: "A workstation seat opened up for High-Bay Tech Lab Sprint. Confirmation window holds for 30 minutes.",
-    time: "2h ago",
-    dept: "COLLEGE OF ENGINEERING",
-    actions: {
-      primary: {
-        label: "Claim Seat (Expires in 30m)",
-        icon: Clock,
-        variant: "green",
-        href: "/events",
+        label: isPass ? "View Pass" : "View Details",
+        icon: isPass ? Ticket : ArrowRight,
+        variant: tone === "mint" ? "green" : "maroon",
+        href: row.link,
       },
       secondary: {
-        label: "Decline",
+        label: "Dismiss",
       },
-    },
-  },
-  {
-    id: "4",
-    unread: false,
-    tone: "rose",
-    icon: Palette,
-    title: "Art Exhibit Perks:",
-    body: "Canvas tote bag and commemorative token pass are ready for claiming at Sining Silangan Atrium Gallery.",
-    time: "5h ago",
-    dept: "FINE ARTS STUDENT COUNCIL",
-  },
-  {
-    id: "5",
-    unread: false,
-    tone: "sand",
-    icon: Megaphone,
-    title: "SAO Official Advisory:",
-    body: "Inclement Weather Contingency protocol activated for weekend Campus Quad Festivities. Outdoor booths transitioned to the South Concourse.",
-    time: "Yesterday",
-    dept: "STUDENT AFFAIRS OFFICE",
-    actions: {
+    };
+  } else {
+    actions = {
       secondary: {
-        label: "Download Memo (PDF)",
+        label: "Dismiss",
       },
-    },
-  },
-];
+    };
+  }
+
+  return {
+    id: row.id,
+    unread,
+    tone,
+    icon,
+    badgeIcon,
+    badgeText,
+    badgeBg,
+    badgeColor,
+    title: row.title,
+    body: row.body || "",
+    time: formatRelativeTime(row.created_at),
+    dept: "CAMPUS NOTIFICATION",
+    actions,
+  };
+}
 
 export default function NotificationsPage() {
+  const { user, profile, loading: authLoading } = useAuth();
   const [filter, setFilter] = useState<"all" | "unread">("all");
-  const [items, setItems] = useState<Notification[]>(INITIAL_NOTIFICATIONS);
+  const [items, setItems] = useState<Notification[]>([]);
+  const [fetching, setFetching] = useState(true);
+  const [refreshTick, setRefreshTick] = useState(0);
+  // Derived value: no setState needed, and the JSX below keeps using `loading`.
+  const loading = authLoading || (!!user && fetching);
+
+  // Load notifications. setState only runs inside the promise callback.
+  useEffect(() => {
+    if (!user) return;
+    let ignore = false;
+    const supabase = createClient();
+    supabase
+      .from("notifications")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .then(
+        ({ data, error }) => {
+          if (ignore) return;
+          if (error) {
+            console.error("Error fetching notifications:", error);
+          } else if (data) {
+            setItems(data.map(parseNotificationRow));
+          }
+          setFetching(false);
+        },
+        (err: unknown) => {
+          if (ignore) return;
+          console.error("Failed to load notifications:", err);
+          setFetching(false);
+        }
+      );
+    return () => {
+      ignore = true;
+    };
+  }, [user, refreshTick]);
+
+  // Realtime: re-fetch when a new notification is inserted or updated for this user
+  useEffect(() => {
+    if (!user) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel("notifications-realtime")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          setRefreshTick((t) => t + 1);
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
 
   const unreadCount = items.filter((n) => n.unread).length;
   const visible = filter === "unread" ? items.filter((n) => n.unread) : items;
   const fresh = visible.filter((n) => n.unread);
   const earlier = visible.filter((n) => !n.unread);
 
-  const markAllRead = () =>
-    setItems((prev) => prev.map((n) => ({ ...n, unread: false })));
-
-  const handleDismiss = (id: string) => {
-    setItems((prev) => prev.filter((n) => n.id !== id));
-  };
-
-  const toggleReadStatus = (id: string) => {
+  const markAllRead = async () => {
+    if (!user) return;
     setItems((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, unread: !n.unread } : n))
+      prev.map((n) => ({
+        ...n,
+        unread: false,
+        badgeIcon: undefined,
+        badgeText: undefined,
+      }))
     );
+    try {
+      const supabase = createClient();
+      await supabase
+        .from("notifications")
+        .update({ read_at: new Date().toISOString() })
+        .eq("user_id", user.id)
+        .is("read_at", null);
+    } catch (err) {
+      console.error("Failed to mark all as read:", err);
+    }
   };
+
+  const handleDismiss = async (id: string) => {
+    if (!user) return;
+    setItems((prev) => prev.filter((n) => n.id !== id));
+    try {
+      const supabase = createClient();
+      await supabase
+        .from("notifications")
+        .delete()
+        .eq("id", id)
+        .eq("user_id", user.id);
+    } catch (err) {
+      console.error("Failed to dismiss notification:", err);
+    }
+  };
+
+  const toggleReadStatus = async (id: string) => {
+    const item = items.find((n) => n.id === id);
+    if (!item) return;
+    const nextUnread = !item.unread;
+    setItems((prev) =>
+      prev.map((n) =>
+        n.id === id
+          ? {
+            ...n,
+            unread: nextUnread,
+            badgeIcon: nextUnread ? item.badgeIcon : undefined,
+            badgeText: nextUnread ? item.badgeText : undefined,
+          }
+          : n
+      )
+    );
+    try {
+      const supabase = createClient();
+      await supabase
+        .from("notifications")
+        .update({ read_at: nextUnread ? null : new Date().toISOString() })
+        .eq("id", id);
+    } catch (err) {
+      console.error("Failed to update notification read status:", err);
+    }
+  };
+
+  const userInitial =
+    profile?.fullName?.[0]?.toUpperCase() ||
+    user?.user_metadata?.full_name?.[0]?.toUpperCase() ||
+    user?.email?.[0]?.toUpperCase() ||
+    "U";
 
   return (
     <RoleGuard allowedRole="user">
@@ -191,14 +324,15 @@ export default function NotificationsPage() {
                 <button
                   type="button"
                   onClick={markAllRead}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#8C4B56] hover:text-[#4D0011] transition cursor-pointer py-1 px-2 rounded-md hover:bg-[#FAF2EE]"
+                  disabled={unreadCount === 0}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#8C4B56] hover:text-[#4D0011] transition cursor-pointer py-1 px-2 rounded-md hover:bg-[#FAF2EE] disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <CheckCheck size={14} className="stroke-[2.2]" />
                   <span>Mark all as read</span>
                 </button>
 
                 <div className="flex size-7 items-center justify-center rounded-full bg-[#4D0011] text-white shadow-xs">
-                  <span className="text-[11px] font-bold">A</span>
+                  <span className="text-[11px] font-bold">{userInitial}</span>
                 </div>
               </div>
             </div>
@@ -210,11 +344,10 @@ export default function NotificationsPage() {
                 role="tab"
                 aria-selected={filter === "all"}
                 onClick={() => setFilter("all")}
-                className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold tracking-wide transition cursor-pointer ${
-                  filter === "all"
-                    ? "bg-[#4D0011] text-white shadow-xs"
-                    : "bg-[#FAF2EE] text-[#554243] hover:bg-[#F4ECE8]"
-                }`}
+                className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold tracking-wide transition cursor-pointer ${filter === "all"
+                  ? "bg-[#4D0011] text-white shadow-xs"
+                  : "bg-[#FAF2EE] text-[#554243] hover:bg-[#F4ECE8]"
+                  }`}
               >
                 All
               </button>
@@ -223,20 +356,18 @@ export default function NotificationsPage() {
                 role="tab"
                 aria-selected={filter === "unread"}
                 onClick={() => setFilter("unread")}
-                className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold tracking-wide transition cursor-pointer ${
-                  filter === "unread"
-                    ? "bg-[#4D0011] text-white shadow-xs"
-                    : "bg-[#FAF2EE] text-[#554243] hover:bg-[#F4ECE8]"
-                }`}
+                className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold tracking-wide transition cursor-pointer ${filter === "unread"
+                  ? "bg-[#4D0011] text-white shadow-xs"
+                  : "bg-[#FAF2EE] text-[#554243] hover:bg-[#F4ECE8]"
+                  }`}
               >
                 Unread
                 {unreadCount > 0 && (
                   <span
-                    className={`inline-flex items-center justify-center size-4 rounded-full text-[10px] font-bold ${
-                      filter === "unread"
-                        ? "bg-white text-[#4D0011]"
-                        : "bg-[#4D0011] text-white"
-                    }`}
+                    className={`inline-flex items-center justify-center size-4 rounded-full text-[10px] font-bold ${filter === "unread"
+                      ? "bg-white text-[#4D0011]"
+                      : "bg-[#4D0011] text-white"
+                      }`}
                   >
                     {unreadCount}
                   </span>
@@ -246,58 +377,67 @@ export default function NotificationsPage() {
 
             {/* Notifications Feed */}
             <div className="flex flex-col gap-8 pt-1">
-              {/* NEW Section */}
-              {fresh.length > 0 && (
-                <section className="flex flex-col gap-3">
-                  <div className="flex items-center justify-between px-1">
-                    <span className="text-[11px] font-bold tracking-[0.6px] uppercase text-[#887272]">
-                      NEW
-                    </span>
-                    <span className="text-xs font-medium text-[#8C4B56]">
-                      {fresh.length} update{fresh.length > 1 ? "s" : ""}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-col gap-3">
-                    {fresh.map((n) => (
-                      <NotificationCard
-                        key={n.id}
-                        n={n}
-                        onDismiss={handleDismiss}
-                        onToggleRead={toggleReadStatus}
-                      />
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {/* EARLIER Section */}
-              {earlier.length > 0 && (
-                <section className="flex flex-col gap-3">
-                  <div className="flex items-center justify-between px-1">
-                    <span className="text-[11px] font-bold tracking-[0.6px] uppercase text-[#887272]">
-                      EARLIER
-                    </span>
-                    <span className="text-xs text-[#887272]">Past 48 hours</span>
-                  </div>
-
-                  <div className="flex flex-col gap-3">
-                    {earlier.map((n) => (
-                      <NotificationCard
-                        key={n.id}
-                        n={n}
-                        onDismiss={handleDismiss}
-                        onToggleRead={toggleReadStatus}
-                      />
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {visible.length === 0 && (
-                <div className="py-16 text-center text-sm text-[#887272]">
-                  You&apos;re all caught up. No notifications found.
+              {loading ? (
+                <div className="flex items-center justify-center py-16 text-sm text-[#887272] gap-2">
+                  <Loader2 className="size-4 animate-spin" />
+                  <span>Loading notifications...</span>
                 </div>
+              ) : (
+                <>
+                  {/* NEW Section */}
+                  {fresh.length > 0 && (
+                    <section className="flex flex-col gap-3">
+                      <div className="flex items-center justify-between px-1">
+                        <span className="text-[11px] font-bold tracking-[0.6px] uppercase text-[#887272]">
+                          NEW
+                        </span>
+                        <span className="text-xs font-medium text-[#8C4B56]">
+                          {fresh.length} update{fresh.length > 1 ? "s" : ""}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-col gap-3">
+                        {fresh.map((n) => (
+                          <NotificationCard
+                            key={n.id}
+                            n={n}
+                            onDismiss={handleDismiss}
+                            onToggleRead={toggleReadStatus}
+                          />
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {/* EARLIER Section */}
+                  {earlier.length > 0 && (
+                    <section className="flex flex-col gap-3">
+                      <div className="flex items-center justify-between px-1">
+                        <span className="text-[11px] font-bold tracking-[0.6px] uppercase text-[#887272]">
+                          EARLIER
+                        </span>
+                        <span className="text-xs text-[#887272]">Past 48 hours</span>
+                      </div>
+
+                      <div className="flex flex-col gap-3">
+                        {earlier.map((n) => (
+                          <NotificationCard
+                            key={n.id}
+                            n={n}
+                            onDismiss={handleDismiss}
+                            onToggleRead={toggleReadStatus}
+                          />
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {visible.length === 0 && (
+                    <div className="py-16 text-center text-sm text-[#887272]">
+                      You&apos;re all caught up. No notifications found.
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -360,11 +500,10 @@ function NotificationCard({
 
   return (
     <div
-      className={`relative flex items-start gap-4 p-5 rounded-2xl border transition-all duration-150 ${
-        n.unread
-          ? "bg-white border-[#F2E9E4] shadow-[0_2px_8px_rgba(77,0,17,0.04)]"
-          : "bg-white/95 border-[#F2E9E4] hover:shadow-[0_2px_8px_rgba(0,0,0,0.03)]"
-      }`}
+      className={`relative flex items-start gap-4 p-5 rounded-2xl border transition-all duration-150 ${n.unread
+        ? "bg-white border-[#F2E9E4] shadow-[0_2px_8px_rgba(77,0,17,0.04)]"
+        : "bg-white/95 border-[#F2E9E4] hover:shadow-[0_2px_8px_rgba(0,0,0,0.03)]"
+        }`}
     >
       {/* Icon with status badge */}
       <div className="relative shrink-0">
@@ -411,11 +550,10 @@ function NotificationCard({
               n.actions.primary.href ? (
                 <Link
                   href={n.actions.primary.href}
-                  className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer shadow-xs ${
-                    n.actions.primary.variant === "green"
-                      ? "bg-[#083F31] text-white hover:bg-[#00281D]"
-                      : "bg-[#4D0011] text-white hover:bg-[#6C0C28]"
-                  }`}
+                  className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer shadow-xs ${n.actions.primary.variant === "green"
+                    ? "bg-[#083F31] text-white hover:bg-[#00281D]"
+                    : "bg-[#4D0011] text-white hover:bg-[#6C0C28]"
+                    }`}
                 >
                   {PrimaryIcon && <PrimaryIcon size={13} />}
                   <span>{n.actions.primary.label}</span>
@@ -423,11 +561,10 @@ function NotificationCard({
               ) : (
                 <button
                   type="button"
-                  className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer shadow-xs ${
-                    n.actions.primary.variant === "green"
-                      ? "bg-[#083F31] text-white hover:bg-[#00281D]"
-                      : "bg-[#4D0011] text-white hover:bg-[#6C0C28]"
-                  }`}
+                  className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer shadow-xs ${n.actions.primary.variant === "green"
+                    ? "bg-[#083F31] text-white hover:bg-[#00281D]"
+                    : "bg-[#4D0011] text-white hover:bg-[#6C0C28]"
+                    }`}
                 >
                   {PrimaryIcon && <PrimaryIcon size={13} />}
                   <span>{n.actions.primary.label}</span>

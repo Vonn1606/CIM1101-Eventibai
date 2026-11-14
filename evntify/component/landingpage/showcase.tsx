@@ -1,4 +1,4 @@
-import { marqueeRows, type EventCard } from "@/app/data/events";
+import { marqueeRows, type EventCard } from "@/types/landing";
 
 function Card({ title }: EventCard) {
   return (

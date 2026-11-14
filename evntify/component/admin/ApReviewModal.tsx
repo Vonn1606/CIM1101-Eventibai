@@ -18,7 +18,7 @@ import {
   CheckCircle2,
   Clock,
 } from "lucide-react";
-import { Proposal, TONES } from "@/app/data/proposals";
+import { Proposal, TONES } from "@/types/admin";
 
 type Act = "approved" | "returned" | "declined";
 
@@ -69,7 +69,7 @@ export default function ApReviewModal({
               </span>
               <span className="chip stage-soft">
                 <i />
-                Awaiting administrator decision
+                {p.stage}
               </span>
             </div>
             <h2 id="rv-title">{p.title}</h2>
@@ -97,7 +97,7 @@ export default function ApReviewModal({
               <div>
                 <div className="label brown">Date &amp; time</div>
                 <b>{p.date}</b>
-                <small>Setup opens 2 hours before start</small>
+                <small>{p.when}</small>
               </div>
             </div>
             <div className="rv-box">
@@ -107,7 +107,7 @@ export default function ApReviewModal({
               <div>
                 <div className="label brown">Venue &amp; location</div>
                 <b>{p.venue}</b>
-                <small>{p.venueNote}</small>
+                <small>{p.venueNote || "Campus Location"}</small>
               </div>
             </div>
           </div>

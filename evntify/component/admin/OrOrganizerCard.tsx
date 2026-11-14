@@ -1,5 +1,20 @@
-import { Users, Mail, Phone, MessageSquare, Clock, CalendarDays, Building2 } from "lucide-react";
-import { COLLEGE_TONE, type Organizer } from "@/app/data/organizer";
+import { Users, Mail, MessageSquare, Clock, CalendarDays, Building2 } from "lucide-react";
+import type { OrganizerItem } from "@/lib/db/stats";
+
+// Deterministic colour from a string (college name)
+function collegeColour(name: string): { bg: string; fg: string } {
+    const palettes = [
+        { bg: "#DBE1FF", fg: "#00174B" },
+        { bg: "#DAE2FD", fg: "#131B2E" },
+        { bg: "#DDE9FF", fg: "#0D1C2F" },
+        { bg: "#FFDADA", fg: "#40000C" },
+        { bg: "#D9F5E3", fg: "#0A3320" },
+        { bg: "#FFF3DA", fg: "#3B2300" },
+    ];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) | 0;
+    return palettes[Math.abs(hash) % palettes.length];
+}
 
 function initials(name: string) {
     return name
@@ -15,12 +30,12 @@ export default function OrOrganizerCard({
     showCollege,
     onMessage,
 }: {
-    organizer: Organizer;
+    organizer: OrganizerItem;
     showCollege: boolean;
-    onMessage: (o: Organizer) => void;
+    onMessage: (o: OrganizerItem) => void;
 }) {
     const o = organizer;
-    const tone = COLLEGE_TONE[o.college];
+    const tone = collegeColour(o.college);
     const hasPending = o.pendingProposals > 0;
 
     return (
@@ -29,7 +44,7 @@ export default function OrOrganizerCard({
                 <div className="or-who">
                     <div className="or-avatar" style={{ background: tone.bg, color: tone.fg }}>
                         {initials(o.name)}
-                        <i className={`or-presence ${o.online ? "on" : ""}`} aria-label={o.online ? "Online" : "Offline"} />
+                        <i className="or-presence" aria-label="Offline" />
                     </div>
                     <div className="or-who-text">
                         <div className="or-name-row">
@@ -62,14 +77,11 @@ export default function OrOrganizerCard({
             <div className="or-next">
                 <div className="or-next-text">
                     <Users size={13} color="#0050D4" />
-                    <span>{o.nextEvent}</span>
+                    <span>{o.org}</span>
                 </div>
                 <div className="or-actions">
                     <a href={`mailto:${o.email}`} aria-label={`Email ${o.name}`} title={o.email}>
                         <Mail size={15} />
-                    </a>
-                    <a href={`tel:${o.phone}`} aria-label={`Call ${o.name}`} title={o.phone}>
-                        <Phone size={15} />
                     </a>
                     <button type="button" aria-label={`Message ${o.name}`} onClick={() => onMessage(o)}>
                         <MessageSquare size={14} />

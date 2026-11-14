@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import {
   Search,
   SlidersHorizontal,
@@ -11,23 +11,120 @@ import {
   ClipboardList,
   Undo2,
   CheckCircle2,
+  Ban,
 } from "lucide-react";
-import { PROPOSALS, Proposal, Decision } from "@/app/data/proposals";
+import type { ApprovalItem } from "@/lib/db/stats";
+import type { Proposal, Decision } from "@/types/admin";
 import ApProposalCard from "./ApProposalCard";
 import ApReviewModal from "./ApReviewModal";
+import { decideApproval } from "@/app/actions/approvals";
 
-type Tab = "pending" | "returned" | "approved";
+type Tab = "pending" | "returned" | "approved" | "declined";
 
-const RATE = 92;
 const C = 2 * Math.PI * 19.67;
 
-export default function ApApprovalsView() {
-  const [items, setItems] = useState<Proposal[]>(PROPOSALS);
+/** Map an ApprovalItem (DB) to the Proposal shape the UI components expect */
+function mapToProposal(a: ApprovalItem): Proposal {
+  const isApproved = a.decision === "approved";
+  const isDeclined = a.decision === "declined" || a.decision === "rejected";
+  const isReturned = a.decision === "returned";
+
+  const tone = isApproved ? "green" : isDeclined ? "red" : isReturned ? "amber" : "blue";
+  return {
+    id: a.id,
+    dept: a.dept,
+    tone,
+    submitted: a.submittedAt
+      ? new Date(a.submittedAt).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      })
+      : "Recently",
+    stage: isApproved
+      ? "Approved"
+      : isDeclined
+        ? "Declined"
+        : isReturned
+          ? "Returned"
+          : "Awaiting Review",
+    stageTone: isApproved ? "green" : isDeclined ? "red" : "amber",
+    title: a.eventTitle,
+    org: a.org,
+    when: a.when,
+    date: a.date,
+    venue: a.venue,
+    venueNote: a.venueNote,
+    attendance: `${a.seatsExpected || a.seatsTotal} expected attendees`,
+    docs: a.documents && a.documents.length > 0 ? `${a.documents.length} attached` : "—",
+    check: a.safetyCheck,
+    checkTone: a.safetyCheck.toLowerCase().includes("passed") || a.safetyCheck.toLowerCase().includes("verif")
+      ? "green"
+      : a.safetyCheck === "Not recorded"
+      ? "blue"
+      : "amber",
+    risk: a.risk || "Standard",
+    seatsTotal: a.seatsTotal || 100,
+    seatsExpected: a.seatsExpected || a.seatsTotal || 100,
+    capacityNote: a.capacityNote,
+    brief: a.brief,
+    endorsements: a.endorsements ?? [],
+    submittedBy: `Submitted by ${a.submittedBy}`,
+    updated: a.decidedAt
+      ? `Decided ${new Date(a.decidedAt).toLocaleDateString()}`
+      : "",
+    banner: "linear-gradient(135deg,#233144,#8B263E)",
+    status: isApproved
+      ? "approved"
+      : isReturned
+        ? "returned"
+        : isDeclined
+          ? "declined"
+          : "pending",
+    contact: a.submittedBy,
+    contactEmail: a.contactEmail,
+    clearance: a.safetyCheck,
+    clearanceNote: a.safetyCheck === "Not recorded" ? "Pending inspection" : "Verified by campus administration",
+    documents: a.documents ?? [],
+  };
+}
+
+interface ApApprovalsViewProps {
+  initialProposals?: ApprovalItem[];
+}
+
+export default function ApApprovalsView({
+  initialProposals = [],
+}: ApApprovalsViewProps) {
+  const [items, setItems] = useState<Proposal[]>(
+    initialProposals.map(mapToProposal)
+  );
+  // Keep map from proposal UI-id → DB approval id
+  const [approvalIds] = useState<Map<string, string>>(() => {
+    const m = new Map<string, string>();
+    initialProposals.forEach((a) => m.set(a.id, a.id));
+    return m;
+  });
+
   const [tab, setTab] = useState<Tab>("pending");
   const [query, setQuery] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
 
   const count = (s: Decision) => items.filter((i) => i.status === s).length;
+  const approvedTotal = count("approved");
+  const processedTotal = approvedTotal + count("returned") + count("declined");
+  const clearanceRate = processedTotal > 0 ? Math.round((approvedTotal / processedTotal) * 100) : 0;
+
+  // Compute average review time from decided proposals
+  const avgReviewDays = useMemo(() => {
+    const decided = initialProposals.filter((a) => a.decidedAt && a.submittedAt);
+    if (decided.length === 0) return "—";
+    const totalMs = decided.reduce((sum, a) => {
+      return sum + (new Date(a.decidedAt!).getTime() - new Date(a.submittedAt!).getTime());
+    }, 0);
+    const avgDays = totalMs / decided.length / (1000 * 60 * 60 * 24);
+    return avgDays < 1 ? `${Math.round(avgDays * 24)} hrs` : `${avgDays.toFixed(1)} days`;
+  }, [initialProposals]);
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
     return items
@@ -44,14 +141,32 @@ export default function ApApprovalsView() {
   const open = items.find((i) => i.id === openId) ?? null;
 
   function decide(id: string, d: "approved" | "returned" | "declined") {
+    const previous = items;
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, status: d } : i)));
     setOpenId(null);
+
+    // Fire Server Action for approved/declined/returned
+    const approvalId = approvalIds.get(id);
+    if (approvalId) {
+      startTransition(async () => {
+        const res = await decideApproval({
+          approvalId,
+          decision: d,
+        });
+        if (res.error) {
+          // Revert optimistic update on error
+          setItems(previous);
+          alert(`Failed to save decision: ${res.error}`);
+        }
+      });
+    }
   }
 
   const tabs: { key: Tab; label: string; icon: typeof ClipboardList }[] = [
     { key: "pending", label: "Pending review", icon: ClipboardList },
     { key: "returned", label: "Returned for edits", icon: Undo2 },
     { key: "approved", label: "Approved recently", icon: CheckCircle2 },
+    { key: "declined", label: "Declined", icon: Ban },
   ];
 
   return (
@@ -64,62 +179,44 @@ export default function ApApprovalsView() {
               {count("pending")} proposals waiting
             </span>
           </div>
-          <h1>Event Approvals</h1>
-          <p>
-            Open a proposal to inspect its details and documents, then approve,
-            return for edits or decline.
+          <h1>Clearance &amp; Compliance Queue</h1>
+          <p className="ap-sub">
+            Review event proposals against campus safety, venue capacity, and
+            institutional guidelines.
           </p>
         </div>
+
         <div className="ap-kpis">
           <div className="card ap-kpi">
-            <div className="ap-ring">
-              <svg viewBox="0 0 48 48" width="48" height="48" aria-hidden>
+            <div className="ring-box">
+              <svg viewBox="0 0 45 45" className="ring">
+                <circle cx="22.5" cy="22.5" r="19.67" className="ring-bg" />
                 <circle
-                  cx="24"
-                  cy="24"
+                  cx="22.5"
+                  cy="22.5"
                   r="19.67"
-                  fill="none"
-                  stroke="#E6EEFF"
-                  strokeWidth="4.67"
-                />
-                <circle
-                  cx="24"
-                  cy="24"
-                  r="19.67"
-                  fill="none"
-                  stroke="#E11D48"
-                  strokeWidth="4.67"
-                  strokeLinecap="round"
-                  strokeDasharray={C}
-                  strokeDashoffset={C * (1 - RATE / 100)}
-                  transform="rotate(-90 24 24)"
+                  className="ring-fg"
+                  strokeDasharray={`${(clearanceRate / 100) * C} ${C}`}
                 />
               </svg>
-              <b>{RATE}%</b>
+              <span className="ring-txt">{clearanceRate}%</span>
             </div>
             <div>
               <div className="label brown">Clearance rate</div>
-              <div className="ap-val">{RATE}%</div>
-              <div className="trend-up">
-                <TrendingUp size={11} /> +2.1% this term
+              <div className="ap-val">{clearanceRate}%</div>
+              <div className="t-12 trend-green">
+                <TrendingUp size={12} /> {approvedTotal} approved
               </div>
             </div>
           </div>
+
           <div className="card ap-kpi">
-            <div
-              className="kpi-icon"
-              style={{
-                background: "#DDE9FF",
-                color: "#0050D4",
-                width: 45,
-                height: 48,
-              }}
-            >
+            <div className="kpi-icon" style={{ background: "#DDE9FF", color: "#0050D4", width: 45, height: 48 }}>
               <Timer size={20} />
             </div>
             <div>
               <div className="label brown">Avg review time</div>
-              <div className="ap-val">1.8 days</div>
+              <div className="ap-val">{avgReviewDays}</div>
               <div className="t-12 muted-brown">per proposal</div>
             </div>
           </div>
@@ -135,13 +232,7 @@ export default function ApApprovalsView() {
           <div>
             <div className="policy-title">
               <b>Institutional policy reminder</b>
-              <span
-                className="chip"
-                style={{
-                  background: "rgba(184,0,53,.1)",
-                  color: "#B80035",
-                }}
-              >
+              <span className="chip" style={{ background: "rgba(184,0,53,.1)", color: "#B80035" }}>
                 Mandatory
               </span>
             </div>
@@ -163,17 +254,12 @@ export default function ApApprovalsView() {
             const n = count(key);
             return (
               <button
-                key={key}
-                type="button"
-                role="tab"
+                key={key} type="button" role="tab"
                 aria-selected={tab === key}
                 className={tab === key ? "on" : ""}
                 onClick={() => setTab(key)}
               >
-                <Icon
-                  size={13}
-                  color={key === "approved" ? "#059669" : undefined}
-                />
+                <Icon size={13} color={key === "approved" ? "#059669" : undefined} />
                 {label}
                 {n > 0 && <em>{n}</em>}
               </button>
@@ -195,6 +281,10 @@ export default function ApApprovalsView() {
           </button>
         </div>
       </section>
+
+      {isPending && (
+        <div className="text-xs text-neutral-500 px-4 pb-2">Saving decision…</div>
+      )}
 
       <div className="rv-list">
         {list.length ? (

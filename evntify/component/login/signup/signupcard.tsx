@@ -1,6 +1,6 @@
-import SignUpForm from "./signupform";
+import SignUpForm, { type CollegeOption } from "./signupform";
 
-export default function SignUpCard() {
+export default function SignUpCard({ colleges }: { colleges: CollegeOption[] }) {
   return (
     <div className="w-full max-w-[450px] bg-white rounded-3xl border border-neutral-100 shadow-[0_4px_24px_rgba(0,0,0,0.04)] px-7 py-9 sm:px-9 sm:py-11">
       {/* Star Icon Badge */}
@@ -25,7 +25,7 @@ export default function SignUpCard() {
         </p>
       </div>
 
-      <SignUpForm />
+      <SignUpForm colleges={colleges} />
     </div>
   );
 }

@@ -27,24 +27,37 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import type { EventDetail } from "@/types/events";
+import { registerForEvent } from "@/app/actions/registration";
+import type { RegistrationResult } from "@/app/actions/registration";
+import QRCode from "qrcode";
 import "./event-details.css";
+
+export type InitialRegistration = {
+  isRegistered: boolean;
+  ticketCode: string;
+  status: "registered" | "waitlisted" | null;
+};
 
 interface EventDetailsClientProps {
   initialEvent: EventDetail;
+  initialRegistration: InitialRegistration;
 }
-function getTimeLeft(deadline?: string) {
-  const target = new Date(deadline || "2027-01-13T08:30:00").getTime();
-  const diff = Math.max(0, target - Date.now());
-  const d = Math.floor(diff / (1000 * 60 * 60 * 24));
-  const h = Math.floor((diff / (1000 * 60 * 60)) % 24);
-  const m = Math.floor((diff / 1000 / 60) % 60);
+
+function getCountdown(deadline: string) {
+  // No deadline set = registration stays open
+  if (!deadline || Number.isNaN(new Date(deadline).getTime())) {
+    return { days: "--", hours: "--", minutes: "--", closed: false };
+  }
+  const diff = new Date(deadline).getTime() - Date.now();
+  const safe = Math.max(0, diff);
   return {
-    days: String(d).padStart(2, "0"),
-    hours: String(h).padStart(2, "0"),
-    minutes: String(m).padStart(2, "0"),
+    days: String(Math.floor(safe / 86_400_000)).padStart(2, "0"),
+    hours: String(Math.floor((safe / 3_600_000) % 24)).padStart(2, "0"),
+    minutes: String(Math.floor((safe / 60_000) % 60)).padStart(2, "0"),
+    closed: diff <= 0,
   };
 }
-export default function EventDetailsClient({ initialEvent }: EventDetailsClientProps) {
+export default function EventDetailsClient({ initialEvent, initialRegistration }: EventDetailsClientProps) {
   const [event, setEvent] = useState<EventDetail>(initialEvent);
   const [isCopied, setIsCopied] = useState(false);
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
@@ -55,55 +68,44 @@ export default function EventDetailsClient({ initialEvent }: EventDetailsClientP
     fullName: "",
     studentNumber: "",
     email: "",
-    college: "College of Engineering",
+    college: "eng",
   });
-  const [ticketCode, setTicketCode] = useState<string>(() => {
-    if (typeof window === "undefined") return "LITS-PASS-8821";
-    try {
-      const saved = localStorage.getItem(`registered_event_${initialEvent.id}`);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.ticketCode) return parsed.ticketCode;
-      }
-    } catch {
-      // ignore
-    }
-    return "LITS-PASS-8821";
-  });
+  const [ticketCode, setTicketCode] = useState<string>(initialRegistration.ticketCode);
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>("");
+  const [isRegistered, setIsRegistered] = useState(initialRegistration.isRegistered);
+  const [registrationStatus, setRegistrationStatus] = useState<"registered" | "waitlisted" | null>(
+    initialRegistration.status
+  );
+  const [regError, setRegError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Live countdown timer state (DAYS, HOURS, MINS matching the Figma design)
-  const [timeLeft, setTimeLeft] = useState({
-    days: "02",
-    hours: "14",
-    minutes: "22",
-  });
-
+  // Live countdown timer state 
+  const [timeLeft, setTimeLeft] = useState(() => getCountdown(initialEvent.registrationDeadline));
+  const isClosed = timeLeft.closed;
 
   useEffect(() => {
-    const target = new Date(event.registrationDeadline || "2027-01-13T08:30:00").getTime();
-
-    const updateTimer = () => {
-      const now = new Date().getTime();
-      const diff = Math.max(0, target - now);
-
-      const d = Math.floor(diff / (1000 * 60 * 60 * 24));
-      const h = Math.floor((diff / (1000 * 60 * 60)) % 24);
-      const m = Math.floor((diff / 1000 / 60) % 60);
-
-      setTimeLeft({
-        days: String(d).padStart(2, "0"),
-        hours: String(h).padStart(2, "0"),
-        minutes: String(m).padStart(2, "0"),
-      });
-    };
-
-    updateTimer();
-    const interval = setInterval(updateTimer, 60000);
+    const tick = () => setTimeLeft(getCountdown(event.registrationDeadline));
+    tick();
+    const interval = setInterval(tick, 60000);
     return () => clearInterval(interval);
   }, [event.registrationDeadline]);
 
+  useEffect(() => {
+    if (ticketCode) {
+      QRCode.toDataURL(ticketCode, {
+        width: 256,
+        margin: 1,
+        color: {
+          dark: "#1a1c1e",
+          light: "#ffffff",
+        },
+      })
+        .then((url) => setQrCodeDataUrl(url))
+        .catch((err) => console.error("Error generating QR code:", err));
+    }
+  }, [ticketCode]);
   // Handle Share / Copy Link
+
   const handleCopyLink = () => {
     if (typeof window !== "undefined") {
       navigator.clipboard.writeText(window.location.href);
@@ -124,34 +126,35 @@ export default function EventDetailsClient({ initialEvent }: EventDetailsClientP
   };
 
   // Submit registration form
-  const handleRegisterSubmit = (e: React.FormEvent) => {
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setRegError(null);
 
-    setTimeout(() => {
-      const generatedCode = `LITS-FIGMA-${Math.floor(1000 + Math.random() * 9000)}`;
-      setTicketCode(generatedCode);
+    const targetEventId = event.dbId ?? event.id;
+    const result: RegistrationResult = await registerForEvent({
+      eventId: targetEventId,
+      studentNumber: formData.studentNumber,
+      college: formData.college,
+    });
 
-      setEvent((prev) => ({
-        ...prev,
-        registeredCount: Math.min(prev.totalCapacity, prev.registeredCount + 1),
-        seatsLeft: Math.max(0, prev.seatsLeft - 1),
-      }));
-
-      localStorage.setItem(
-        `registered_event_${event.id}`,
-        JSON.stringify({
-          ticketCode: generatedCode,
-          ...formData,
-          eventTitle: event.title,
-          registeredAt: new Date().toISOString(),
-        })
-      );
-
+    if (result.error) {
+      setRegError(result.error);
       setIsSubmitting(false);
-      setIsRegisterModalOpen(false);
-      setIsFastPassModalOpen(true);
-    }, 600);
+      return;
+    }
+
+    setTicketCode(result.ticketCode ?? "");
+    setRegistrationStatus(result.status ?? "registered");
+    setIsRegistered(true);
+    setEvent((prev) => ({
+      ...prev,
+      registeredCount: Math.min(prev.totalCapacity, prev.registeredCount + 1),
+      seatsLeft: Math.max(0, prev.seatsLeft - 1),
+    }));
+    setIsSubmitting(false);
+    setIsRegisterModalOpen(false);
+    setIsFastPassModalOpen(true);
   };
 
   const percentageFilled = Math.min(
@@ -337,14 +340,7 @@ export default function EventDetailsClient({ initialEvent }: EventDetailsClientP
                       <p key={idx}>{paragraph}</p>
                     ))
                   ) : (
-                    <>
-                      <p>
-                        The LITS Arena: Figma Showdown 2026 gathers aspiring campus product designers, UX researchers, and software craftsmen in a fast-paced interactive design hackathon. The mission of this year&apos;s arena is solving tactile campus pain-points: from digital queue management at student registrar offices to collaborative student study-hub booking.
-                      </p>
-                      <p>
-                        Participants will receive a design brief revealed at exactly 1:15 PM and must produce an end-to-end interactive component-driven Figma prototype accompanied by a 3-minute lightning walkthrough deck.
-                      </p>
-                    </>
+                    <p>{event.summary || "No description provided for this event."}</p>
                   )}
                 </div>
 
@@ -427,7 +423,9 @@ export default function EventDetailsClient({ initialEvent }: EventDetailsClientP
                 <div className="countdown">
                   <div className="countdown__head">
                     <Clock size={14} className="countdown__icon" />
-                    <span className="eyebrow eyebrow--dark">REGISTRATION CLOSES IN</span>
+                    <span className="eyebrow eyebrow--dark">
+                      {isClosed ? "REGISTRATION CLOSED" : "REGISTRATION CLOSES IN"}
+                    </span>
                   </div>
                   <div className="countdown__cells">
                     <div className="countdown__cell">
@@ -446,14 +444,36 @@ export default function EventDetailsClient({ initialEvent }: EventDetailsClientP
                 </div>
 
                 {/* CTA Button */}
-                <button
-                  type="button"
-                  onClick={handleRegisterClick}
-                  className="cta"
-                >
-                  <span>REGISTER</span>
-                  <ExternalLink size={14} style={{ marginLeft: "4px" }} />
-                </button>
+                {isRegistered ? (
+                  <button
+                    type="button"
+                    onClick={() => setIsFastPassModalOpen(true)}
+                    className="cta"
+                    style={{ background: "#15803d" }}
+                  >
+                    <CheckCircle2 size={14} style={{ marginLeft: "4px" }} />
+                    <span>{registrationStatus === "waitlisted" ? "WAITLISTED" : "REGISTERED"}</span>
+                  </button>
+                ) : isClosed ? (
+                  <button
+                    type="button"
+                    disabled
+                    aria-disabled="true"
+                    className="cta"
+                    style={{ background: "#9ca3af", cursor: "not-allowed" }}
+                  >
+                    <span>REGISTRATION CLOSED</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleRegisterClick}
+                    className="cta"
+                  >
+                    <span>REGISTER</span>
+                    <ExternalLink size={14} style={{ marginLeft: "4px" }} />
+                  </button>
+                )}
 
                 {/* Campus Fast-Pass box */}
                 <div className="rsvp">
@@ -600,10 +620,10 @@ export default function EventDetailsClient({ initialEvent }: EventDetailsClientP
                     onChange={(e) => setFormData({ ...formData, college: e.target.value })}
                     className="w-full px-3.5 py-2 text-sm rounded-lg border border-neutral-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#6c0c28]/30"
                   >
-                    <option value="College of Engineering">College of Engineering</option>
-                    <option value="Lucio Tan College of Computer Studies">Lucio Tan College of Computer Studies</option>
-                    <option value="Tan Yan Kee Business & Accountancy">Tan Yan Kee Business & Accountancy</option>
-                    <option value="College of Arts and Sciences">College of Arts and Sciences</option>
+                    <option value="eng">College of Engineering</option>
+                    <option value="sci">Lucio Tan College of Computer Studies</option>
+                    <option value="biz">Tan Yan Kee Business &amp; Accountancy</option>
+                    <option value="art">College of Arts and Sciences</option>
                   </select>
                 </div>
 
@@ -614,6 +634,10 @@ export default function EventDetailsClient({ initialEvent }: EventDetailsClientP
                     is non-transferable and verified at entrance doors.
                   </span>
                 </div>
+
+                {regError && (
+                  <p className="text-xs text-red-600 font-medium">{regError}</p>
+                )}
 
                 <div className="mt-2 flex items-center justify-end gap-2.5">
                   <button
@@ -675,39 +699,18 @@ export default function EventDetailsClient({ initialEvent }: EventDetailsClientP
               {/* QR Code Pass Body */}
               <div className="p-6 flex flex-col items-center text-center">
                 <div className="p-4 rounded-xl bg-white border-2 border-dashed border-neutral-200 shadow-sm mb-4">
-                  <svg
-                    className="w-44 h-44"
-                    viewBox="0 0 100 100"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <rect width="100" height="100" fill="white" />
-                    <rect x="6" y="6" width="28" height="28" rx="4" fill="#1a1c1e" />
-                    <rect x="10" y="10" width="20" height="20" rx="2" fill="white" />
-                    <rect x="14" y="14" width="12" height="12" rx="1" fill="#6c0c28" />
-
-                    <rect x="66" y="6" width="28" height="28" rx="4" fill="#1a1c1e" />
-                    <rect x="70" y="10" width="20" height="20" rx="2" fill="white" />
-                    <rect x="74" y="14" width="12" height="12" rx="1" fill="#6c0c28" />
-
-                    <rect x="6" y="66" width="28" height="28" rx="4" fill="#1a1c1e" />
-                    <rect x="10" y="70" width="20" height="20" rx="2" fill="white" />
-                    <rect x="14" y="74" width="12" height="12" rx="1" fill="#6c0c28" />
-
-                    <rect x="38" y="10" width="6" height="6" fill="#1a1c1e" />
-                    <rect x="48" y="14" width="8" height="6" fill="#1a1c1e" />
-                    <rect x="40" y="24" width="12" height="6" fill="#1a1c1e" />
-                    <rect x="10" y="40" width="8" height="6" fill="#1a1c1e" />
-                    <rect x="22" y="44" width="6" height="12" fill="#1a1c1e" />
-                    <rect x="38" y="38" width="24" height="24" rx="4" fill="#006d43" />
-                    <circle cx="50" cy="50" r="6" fill="white" />
-                    <rect x="70" y="40" width="18" height="8" fill="#1a1c1e" />
-                    <rect x="66" y="52" width="8" height="8" fill="#1a1c1e" />
-                    <rect x="42" y="70" width="16" height="8" fill="#1a1c1e" />
-                    <rect x="64" y="70" width="12" height="6" fill="#1a1c1e" />
-                    <rect x="46" y="82" width="24" height="6" fill="#1a1c1e" />
-                    <rect x="78" y="82" width="12" height="8" fill="#1a1c1e" />
-                  </svg>
+                  {qrCodeDataUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={qrCodeDataUrl}
+                      alt={`Ticket QR Code for ${ticketCode}`}
+                      className="w-44 h-44 object-contain"
+                    />
+                  ) : (
+                    <div className="w-44 h-44 flex items-center justify-center bg-neutral-100 rounded text-xs text-neutral-400">
+                      Generating QR...
+                    </div>
+                  )}
                 </div>
 
                 <div className="w-full rounded-lg bg-neutral-50 p-3 mb-4 text-left border border-neutral-100 flex flex-col gap-1.5">
@@ -723,8 +726,8 @@ export default function EventDetailsClient({ initialEvent }: EventDetailsClientP
                   </div>
                   <div className="flex justify-between items-center text-xs">
                     <span className="text-neutral-500 font-medium">Status:</span>
-                    <span className="font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full text-[10px]">
-                      VERIFIED SPEED-GATE PASS
+                    <span className={`font-bold px-2 py-0.5 rounded-full text-[10px] ${registrationStatus === "waitlisted" ? "text-amber-700 bg-amber-100" : "text-emerald-700 bg-emerald-100"}`}>
+                      {registrationStatus === "waitlisted" ? "WAITLISTED" : "VERIFIED SPEED-GATE PASS"}
                     </span>
                   </div>
                 </div>
@@ -733,7 +736,11 @@ export default function EventDetailsClient({ initialEvent }: EventDetailsClientP
                   <button
                     type="button"
                     onClick={() => {
-                      alert("Fast-Pass ticket saved! Ready for speed-gate entry.");
+                      if (!qrCodeDataUrl) return;
+                      const a = document.createElement("a");
+                      a.href = qrCodeDataUrl;
+                      a.download = `fast-pass-${ticketCode}.png`;
+                      a.click();
                     }}
                     className="flex-1 py-2.5 px-3 rounded-lg bg-[#6c0c28] text-white font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-[#8b263e] transition"
                   >

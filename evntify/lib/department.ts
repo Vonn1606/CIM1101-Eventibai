@@ -1,19 +1,17 @@
-/** Single source of truth for colleges/departments (sign-up dropdown, filter pills, event data). */
+/** Single source of truth for the 4 colleges (sign-up dropdown, filter pills, event data). */
 export const DEPARTMENTS = [
-    { value: "eng", label: "College of Engineering", short: "Engineering" },
-    { value: "cs", label: "Lucio Tan College of Computer Studies", short: "Computer Studies" },
-    { value: "biz", label: "Tan Yan Kee Business & Accountancy", short: "Business" },
-    { value: "arts", label: "College of Arts and Sciences", short: "Arts & Sciences" },
-    { value: "med", label: "Institute of Health Sciences & Medicine", short: "Health Sciences" },
-    { value: "law", label: "College of Law & Public Administration", short: "Law" },
+  { value: "eng", label: "College of Engineering", short: "Engineering", code: "COE" },
+  { value: "sci", label: "College of Art and Science", short: "Arts & Science", code: "CAS" },
+  { value: "biz", label: "College of Business Administration", short: "Business", code: "CBA" },
+  { value: "art", label: "College of Fine Arts, Architecture and Design", short: "Design", code: "CFAD" },
 ] as const;
 
 export type DepartmentId = (typeof DEPARTMENTS)[number]["value"];
 
 export function isDepartmentId(value: unknown): value is DepartmentId {
-    return DEPARTMENTS.some((d) => d.value === value);
+  return DEPARTMENTS.some((d) => d.value === value);
 }
 
 export function getDepartment(id: DepartmentId) {
-    return DEPARTMENTS.find((d) => d.value === id)!;
+  return DEPARTMENTS.find((d) => d.value === id)!;
 }

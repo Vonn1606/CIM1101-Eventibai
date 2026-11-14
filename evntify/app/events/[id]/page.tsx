@@ -1,20 +1,17 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
-import { getEventDetail, getAllEvents } from "@/lib/events";
+import { notFound } from "next/navigation";
+import { getEventBySlug } from "@/lib/db/events";
 import EventDetailsClient from "./event-details-client";
-
+import { createClient } from "@/lib/supabase/server";
+import type { InitialRegistration } from "./event-details-client";
 interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-export function generateStaticParams() {
-  const events = getAllEvents();
-  return events.map((e) => ({ id: e.id }));
-}
-
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
-  const event = getEventDetail(id);
+  const event = await getEventBySlug(id);
+  if (!event) return { title: "Event Not Found | Eventify UE" };
 
   return {
     title: `${event.title} | Eventify UE`,
@@ -22,22 +19,46 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-async function EventDetailsContent({ params }: PageProps) {
+export default async function EventPage({ params }: PageProps) {
   const { id } = await params;
-  const event = getEventDetail(id);
-  return <EventDetailsClient initialEvent={event} />;
-}
+  const event = await getEventBySlug(id);
 
-export default function EventPage({ params }: PageProps) {
+  if (!event) notFound();
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let initialRegistration: InitialRegistration = {
+    isRegistered: false,
+    ticketCode: "",
+    status: null,
+  };
+
+  if (user) {
+    const targetEventId = event.dbId ?? event.id;
+    const { data } = await supabase
+      .from("registrations")
+      .select("ticket_code, status")
+      .eq("event_id", targetEventId)
+      .eq("user_id", user.id)
+      .neq("status", "cancelled")
+      .maybeSingle();
+
+    if (data) {
+      initialRegistration = {
+        isRegistered: true,
+        ticketCode: data.ticket_code,
+        status: data.status === "waitlisted" ? "waitlisted" : "registered",
+      };
+    }
+  }
+
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-[#f9f9fc] flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#6c0c28] border-t-transparent" />
-        </div>
-      }
-    >
-      <EventDetailsContent params={params} />
-    </Suspense>
+    <EventDetailsClient
+      initialEvent={event}
+      initialRegistration={initialRegistration}
+    />
   );
 }

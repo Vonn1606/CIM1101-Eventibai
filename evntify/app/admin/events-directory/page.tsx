@@ -1,28 +1,32 @@
 import Sidebar from "@/component/admin/Sidebar";
 import Header from "@/component/admin/Header";
 import EdEventsView from "@/component/admin/EdEventsView";
-import { getAdminEvents } from "@/lib/db/admin";
 import { Plus } from "lucide-react";
+import { getEventsDirectory, getAdminProfile, getAdminStats } from "@/lib/db/stats";
 import "../admin.css";
 
 // Admin pages render at request time (auth-protected, user-specific data)
-export const instant = false;
+export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Eventify - Events Directory",
 };
 
 export default async function EventsDirectoryPage() {
-  const events = await getAdminEvents();
+  const [{ items, total }, adminProfile, stats] = await Promise.all([
+    getEventsDirectory(1, 12),
+    getAdminProfile(),
+    getAdminStats(),
+  ]);
 
   return (
     <div className="admin-root ed-root">
       <div className="shell">
-        <Sidebar />
+        <Sidebar pendingApprovals={stats.pendingApprovals} />
         <div className="content">
-          <Header />
+          <Header profile={adminProfile} />
           <main className="main">
-            <EdEventsView initialEvents={events} />
+            <EdEventsView initialEvents={items} total={total} />
           </main>
         </div>
         <button className="fab">
