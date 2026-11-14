@@ -1,7 +1,6 @@
 import Sidebar from "@/component/admin/Sidebar";
 import Header from "@/component/admin/Header";
 import EdEventsView from "@/component/admin/EdEventsView";
-import { Plus } from "lucide-react";
 import { getEventsDirectory, getAdminProfile, getAdminStats } from "@/lib/db/stats";
 import "../admin.css";
 
@@ -29,9 +28,6 @@ export default async function EventsDirectoryPage() {
             <EdEventsView initialEvents={items} total={total} />
           </main>
         </div>
-        <button className="fab">
-          <Plus size={14} /> Add Event
-        </button>
       </div>
     </div>
   );

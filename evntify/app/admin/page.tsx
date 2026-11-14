@@ -4,7 +4,6 @@ import KpiCards from "@/component/admin/KpiCards";
 import FeaturedBanner from "@/component/admin/FeaturedBanner";
 import Calendar from "@/component/admin/Calendar";
 import UpcomingEvents from "@/component/admin/UpcomingEvents";
-import { Plus } from "lucide-react";
 import { getAdminStats, getFeaturedEvent, getUpcomingEvents, getAdminProfile } from "@/lib/db/stats";
 import "./admin.css";
 
@@ -34,15 +33,12 @@ export default async function AdminPage() {
               <KpiCards stats={stats} />
               <FeaturedBanner event={featuredEvent ?? undefined} />
               <section className="grid">
-                <Calendar events={upcomingEvents} featuredEvent={featuredEvent} />
+                <Calendar />
                 <UpcomingEvents events={upcomingEvents} />
               </section>
             </div>
           </main>
         </div>
-        <button className="fab">
-          <Plus size={14} /> Add Event
-        </button>
       </div>
     </div>
   );

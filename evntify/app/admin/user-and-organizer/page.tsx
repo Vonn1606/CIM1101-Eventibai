@@ -2,6 +2,7 @@ import Sidebar from "@/component/admin/Sidebar";
 import Header from "@/component/admin/Header";
 import OrOrganizersView from "@/component/admin/OrOrganizerView";
 import { getOrganizers, getAdminProfile, getAdminStats } from "@/lib/db/stats";
+import { getOrganizerApplications } from "@/app/actions/organizer-application";
 import "../admin.css";
 
 // Admin pages render at request time (auth-protected, user-specific data)
@@ -12,8 +13,9 @@ export const metadata = {
 };
 
 export default async function OrganizersPage() {
-  const [organizers, adminProfile, stats] = await Promise.all([
+  const [organizers, applications, adminProfile, stats] = await Promise.all([
     getOrganizers(),
+    getOrganizerApplications(),
     getAdminProfile(),
     getAdminStats(),
   ]);
@@ -25,7 +27,7 @@ export default async function OrganizersPage() {
         <div className="content">
           <Header profile={adminProfile} />
           <main className="main">
-            <OrOrganizersView initialOrganizers={organizers} />
+            <OrOrganizersView initialOrganizers={organizers} initialApplications={applications} />
           </main>
         </div>
       </div>

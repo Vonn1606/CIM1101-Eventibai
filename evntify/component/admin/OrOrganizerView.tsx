@@ -5,32 +5,66 @@ import {
     Search,
     Users,
     FileClock,
-    UserPlus,
     ChevronDown,
     ChevronLeft,
     ChevronRight,
-    ShieldCheck,
     CheckCircle2,
     X,
     Layers,
+    PlusCircle,
 } from "lucide-react";
 import type { OrganizerItem } from "@/lib/db/stats";
 import OrOrganizerCard from "./OrOrganizerCard";
+import {
+    createOrganizationWithOrganizer,
+    decideOrganizerApplication,
+} from "@/app/actions/organizer-application";
 
 type Sort = "name" | "pending" | "events";
 
 const PAGE_SIZE = 6;
 
-interface OrOrganizersViewProps {
-  initialOrganizers?: OrganizerItem[];
+export interface ApplicationItem {
+    id: string;
+    userId: string;
+    applicantName: string;
+    applicantEmail: string;
+    studentNumber: string;
+    orgName: string;
+    position: string;
+    department: string;
+    reason: string;
+    status: string;
+    createdAt: string;
 }
 
-export default function OrOrganizersView({ initialOrganizers = [] }: OrOrganizersViewProps) {
+interface OrOrganizersViewProps {
+    initialOrganizers?: OrganizerItem[];
+    initialApplications?: ApplicationItem[];
+}
+
+export default function OrOrganizersView({
+    initialOrganizers = [],
+    initialApplications = [],
+}: OrOrganizersViewProps) {
     const [college, setCollege] = useState("ALL");
     const [query, setQuery] = useState("");
     const [sort, setSort] = useState<Sort>("name");
     const [page, setPage] = useState(1);
     const [toast, setToast] = useState<string | null>(null);
+
+    // Modal state for adding new organization & organizer
+    const [addModalOpen, setAddModalOpen] = useState(false);
+    const [newOrgName, setNewOrgName] = useState("");
+    const [newStudentIdentifier, setNewStudentIdentifier] = useState("");
+    const [newPosition, setNewPosition] = useState("Lead Organizer");
+    const [creatingOrg, setCreatingOrg] = useState(false);
+    const [modalError, setModalError] = useState<string | null>(null);
+
+    // Applications state
+    const [applications, setApplications] = useState<ApplicationItem[]>(initialApplications);
+    const [appFilter, setAppFilter] = useState<"pending" | "all">("pending");
+    const [decidingId, setDecidingId] = useState<string | null>(null);
 
     const ORGANIZERS = initialOrganizers;
 
@@ -78,6 +112,45 @@ export default function OrOrganizersView({ initialOrganizers = [] }: OrOrganizer
     }
 
     const activeLabel = collegeTabs.find((t) => t.key === college)?.label ?? "All Colleges";
+
+    const handleCreateOrg = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setModalError(null);
+        setCreatingOrg(true);
+        const res = await createOrganizationWithOrganizer({
+            orgName: newOrgName,
+            studentEmailOrNumber: newStudentIdentifier,
+            position: newPosition,
+        });
+        setCreatingOrg(false);
+
+        if (res.error) {
+            setModalError(res.error);
+        } else {
+            flash(`✓ Organization "${newOrgName}" created and assigned to ${res.studentName || "student"}!`);
+            setAddModalOpen(false);
+            setNewOrgName("");
+            setNewStudentIdentifier("");
+        }
+    };
+
+    const handleApplicationDecision = async (id: string, decision: "approved" | "rejected") => {
+        setDecidingId(id);
+        const res = await decideOrganizerApplication(id, decision);
+        setDecidingId(null);
+
+        if (res.error) {
+            flash(`Failed to update application: ${res.error}`);
+        } else {
+            setApplications((prev) =>
+                prev.map((a) => (a.id === id ? { ...a, status: decision } : a))
+            );
+            flash(`Application marked as ${decision}.`);
+        }
+    };
+
+    const pendingApps = applications.filter((a) => a.status === "pending");
+    const displayedApps = appFilter === "pending" ? pendingApps : applications;
 
     return (
         <div className="or-page">
@@ -142,17 +215,13 @@ export default function OrOrganizersView({ initialOrganizers = [] }: OrOrganizer
                         )}
                     </div>
                     <div className="or-quick">
-                        <span className="or-quick-info">
-                            <ShieldCheck size={14} />
-                            Verified by Student Affairs
-                        </span>
                         <button
                             type="button"
                             className="or-primary"
-                            onClick={() => flash("Invite link copied. Share it with the new organizer.")}
+                            onClick={() => setAddModalOpen(true)}
                         >
-                            <UserPlus size={15} />
-                            Invite Organizer
+                            <PlusCircle size={15} />
+                            Add Organization / Organizer
                         </button>
                     </div>
                 </div>
@@ -177,6 +246,264 @@ export default function OrOrganizersView({ initialOrganizers = [] }: OrOrganizer
                     ))}
                 </div>
             </section>
+
+            {/* Pending Applications Section */}
+            <section className="or-applications ed-card" style={{ padding: "24px", background: "#fff", borderRadius: "12px", border: "1px solid #ECE5DF", marginTop: "24px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "12px" }}>
+                    <div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            <h2 style={{ fontSize: "18px", fontWeight: "700", color: "#1E1B19" }}>
+                                Organizer Applications from Students
+                            </h2>
+                            {pendingApps.length > 0 && (
+                                <span style={{ background: "#FCECEF", color: "#8C233C", fontSize: "11px", fontWeight: "700", padding: "2px 8px", borderRadius: "9999px" }}>
+                                    {pendingApps.length} pending
+                                </span>
+                            )}
+                        </div>
+                        <p style={{ fontSize: "12px", color: "#7A6B68", marginTop: "2px" }}>
+                            Review student requests to establish organizations or be assigned as campus organizers.
+                        </p>
+                    </div>
+
+                    <div style={{ display: "flex", gap: "8px" }}>
+                        <button
+                            type="button"
+                            onClick={() => setAppFilter("pending")}
+                            style={{
+                                padding: "6px 12px",
+                                borderRadius: "6px",
+                                fontSize: "12px",
+                                fontWeight: "600",
+                                background: appFilter === "pending" ? "#651C32" : "#FAF5F2",
+                                color: appFilter === "pending" ? "#fff" : "#7A6B68",
+                                border: "1px solid #ECE2DC",
+                                cursor: "pointer",
+                            }}
+                        >
+                            Pending Only ({pendingApps.length})
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setAppFilter("all")}
+                            style={{
+                                padding: "6px 12px",
+                                borderRadius: "6px",
+                                fontSize: "12px",
+                                fontWeight: "600",
+                                background: appFilter === "all" ? "#651C32" : "#FAF5F2",
+                                color: appFilter === "all" ? "#fff" : "#7A6B68",
+                                border: "1px solid #ECE2DC",
+                                cursor: "pointer",
+                            }}
+                        >
+                            All ({applications.length})
+                        </button>
+                    </div>
+                </div>
+
+                {displayedApps.length > 0 ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                        {displayedApps.map((app) => (
+                            <div
+                                key={app.id}
+                                style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "flex-start",
+                                    padding: "16px",
+                                    borderRadius: "10px",
+                                    background: "#FAF5F2",
+                                    border: "1px solid #ECE2DC",
+                                    gap: "16px",
+                                    flexWrap: "wrap",
+                                }}
+                            >
+                                <div style={{ flex: "1 1 300px" }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                        <b style={{ fontSize: "14px", color: "#1E1B19" }}>{app.applicantName}</b>
+                                        <span style={{ fontSize: "11px", color: "#7A6B68" }}>
+                                            ({app.applicantEmail} · {app.studentNumber})
+                                        </span>
+                                        <span
+                                            style={{
+                                                fontSize: "10px",
+                                                fontWeight: "700",
+                                                padding: "2px 6px",
+                                                borderRadius: "4px",
+                                                textTransform: "uppercase",
+                                                background:
+                                                    app.status === "approved"
+                                                        ? "#D1FAE5"
+                                                        : app.status === "rejected"
+                                                            ? "#FEE2E2"
+                                                            : "#FEF3C7",
+                                                color:
+                                                    app.status === "approved"
+                                                        ? "#065F46"
+                                                        : app.status === "rejected"
+                                                            ? "#991B1B"
+                                                            : "#92400E",
+                                            }}
+                                        >
+                                            {app.status}
+                                        </span>
+                                    </div>
+                                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#651C32", marginTop: "4px" }}>
+                                        {app.orgName} — <span style={{ color: "#1E1B19", fontWeight: "500" }}>{app.position}</span>
+                                        {app.department && <span style={{ color: "#7A6B68", fontWeight: "400" }}> ({app.department})</span>}
+                                    </p>
+                                    <p style={{ fontSize: "12px", color: "#554243", marginTop: "6px", fontStyle: "italic" }}>
+                                        &ldquo;{app.reason}&rdquo;
+                                    </p>
+                                    <span style={{ fontSize: "11px", color: "#8A7B78", marginTop: "4px", display: "inline-block" }}>
+                                        Submitted on {app.createdAt}
+                                    </span>
+                                </div>
+
+                                {app.status === "pending" && (
+                                    <div style={{ display: "flex", gap: "8px", alignItems: "center", flexShrink: 0 }}>
+                                        <button
+                                            type="button"
+                                            disabled={decidingId === app.id}
+                                            onClick={() => handleApplicationDecision(app.id, "rejected")}
+                                            style={{
+                                                padding: "8px 14px",
+                                                borderRadius: "8px",
+                                                border: "1px solid #BA1A1A",
+                                                color: "#BA1A1A",
+                                                background: "#fff",
+                                                fontSize: "12px",
+                                                fontWeight: "600",
+                                                cursor: "pointer",
+                                            }}
+                                        >
+                                            Reject
+                                        </button>
+                                        <button
+                                            type="button"
+                                            disabled={decidingId === app.id}
+                                            onClick={() => handleApplicationDecision(app.id, "approved")}
+                                            style={{
+                                                padding: "8px 16px",
+                                                borderRadius: "8px",
+                                                background: "#0E6245",
+                                                color: "#fff",
+                                                fontSize: "12px",
+                                                fontWeight: "600",
+                                                border: "none",
+                                                cursor: "pointer",
+                                                boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                                            }}
+                                        >
+                                            {decidingId === app.id ? "Processing..." : "Approve & Promote"}
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div style={{ textAlign: "center", padding: "24px", color: "#7A6B68", fontSize: "13px" }}>
+                        {appFilter === "pending"
+                            ? "No pending student organizer applications."
+                            : "No organizer applications recorded."}
+                    </div>
+                )}
+            </section>
+
+            {/* Modal: Add New Organization / Organizer */}
+            {addModalOpen && (
+                <div style={{ position: "fixed", inset: 0, zIndex: 60, display: "grid", placeItems: "center", padding: "16px", background: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)" }}>
+                    <div style={{ position: "relative", width: "100%", maxWidth: "480px", borderRadius: "16px", background: "#fff", padding: "24px", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)", border: "1px solid #ECE2DC" }}>
+                        <button
+                            type="button"
+                            onClick={() => setAddModalOpen(false)}
+                            style={{ position: "absolute", top: "16px", right: "16px", background: "none", border: "none", cursor: "pointer", color: "#7A6B68" }}
+                        >
+                            <X size={18} />
+                        </button>
+
+                        <form onSubmit={handleCreateOrg} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                            <div>
+                                <h3 style={{ fontSize: "18px", fontWeight: "700", color: "#651C32" }}>
+                                    Add New Organization &amp; Organizer
+                                </h3>
+                                <p style={{ fontSize: "12px", color: "#7A6B68", marginTop: "4px" }}>
+                                    Create a new recognized campus organization and immediately assign an active student as its leader.
+                                </p>
+                            </div>
+
+                            {modalError && (
+                                <div style={{ padding: "10px 14px", borderRadius: "8px", background: "#FEE2E2", color: "#991B1B", fontSize: "12px", border: "1px solid #FCA5A5" }}>
+                                    {modalError}
+                                </div>
+                            )}
+
+                            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                                <label style={{ fontSize: "12px", fontWeight: "600", color: "#1E1B19" }}>
+                                    Organization Name *
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    placeholder="e.g. Google Developer Student Clubs"
+                                    value={newOrgName}
+                                    onChange={(e) => setNewOrgName(e.target.value)}
+                                    style={{ padding: "10px 14px", borderRadius: "8px", border: "1px solid #ECE2DC", fontSize: "13px", background: "#FAF5F2" }}
+                                />
+                            </div>
+
+                            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                                <label style={{ fontSize: "12px", fontWeight: "600", color: "#1E1B19" }}>
+                                    Assigned Student (Email or Student Number) *
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    placeholder="e.g. 2022-01928-MN or student@ue.edu.ph"
+                                    value={newStudentIdentifier}
+                                    onChange={(e) => setNewStudentIdentifier(e.target.value)}
+                                    style={{ padding: "10px 14px", borderRadius: "8px", border: "1px solid #ECE2DC", fontSize: "13px", background: "#FAF5F2" }}
+                                />
+                                <small style={{ fontSize: "11px", color: "#7A6B68" }}>
+                                    The student will automatically receive organizer permissions.
+                                </small>
+                            </div>
+
+                            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                                <label style={{ fontSize: "12px", fontWeight: "600", color: "#1E1B19" }}>
+                                    Position Title
+                                </label>
+                                <input
+                                    type="text"
+                                    placeholder="e.g. President / Lead Organizer"
+                                    value={newPosition}
+                                    onChange={(e) => setNewPosition(e.target.value)}
+                                    style={{ padding: "10px 14px", borderRadius: "8px", border: "1px solid #ECE2DC", fontSize: "13px", background: "#FAF5F2" }}
+                                />
+                            </div>
+
+                            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "8px" }}>
+                                <button
+                                    type="button"
+                                    onClick={() => setAddModalOpen(false)}
+                                    style={{ padding: "8px 16px", borderRadius: "8px", border: "1px solid #ECE2DC", background: "#fff", fontSize: "13px", fontWeight: "600", color: "#7A6B68", cursor: "pointer" }}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={creatingOrg}
+                                    style={{ padding: "8px 20px", borderRadius: "8px", border: "none", background: "#651C32", color: "#fff", fontSize: "13px", fontWeight: "600", cursor: "pointer", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}
+                                >
+                                    {creatingOrg ? "Creating..." : "Save & Assign"}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
 
             <section className="or-body">
                 <div className="or-countbar">

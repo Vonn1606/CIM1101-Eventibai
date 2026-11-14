@@ -1,4 +1,4 @@
-import { ListChecks, MapPin, Users, ArrowRight, Wrench } from "lucide-react";
+import { ListChecks, MapPin, ArrowRight, Wrench } from "lucide-react";
 import type { UpcomingEventItem } from "@/lib/db/stats";
 
 // Category colour palette (deterministic fallback)

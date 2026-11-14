@@ -5,21 +5,21 @@ import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+  weight: ["500", "700"],
   variable: "--font-jakarta",
   display: "swap",
 });
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "600", "700"],
   variable: "--font-dm-sans",
   display: "swap",
 });
 
 const newsreader = Newsreader({
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  weight: ["500", "600"],
   style: ["normal", "italic"],
   variable: "--font-newsreader",
   display: "swap",
@@ -27,16 +27,14 @@ const newsreader = Newsreader({
 
 const playfair = Playfair_Display({
   subsets: ["latin"],
-  weight: ["400", "600", "700", "800"],
-  style: ["normal", "italic"],
+  weight: ["600", "700"],
   variable: "--font-playfair",
   display: "swap",
 });
 
 const crimson = Crimson_Text({
   subsets: ["latin"],
-  weight: ["400", "600", "700"],
-  style: ["normal", "italic"],
+  weight: ["600"],
   variable: "--font-crimson",
   display: "swap",
 });

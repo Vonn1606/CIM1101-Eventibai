@@ -68,7 +68,16 @@ export async function submitEvent(
       .maybeSingle();
 
     if (!verifiedMember) {
-      return { error: "You are not an authorized member of the selected organization." };
+      // Check if user is an admin or creator
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+
+      if (profile?.role !== "admin") {
+        return { error: "You are not an authorized member of the selected organization." };
+      }
     }
   } else {
     const { data: memberData } = await supabase
@@ -78,9 +87,42 @@ export async function submitEvent(
       .limit(1)
       .maybeSingle();
 
-    if (!memberData)
-      return { error: "You are not affiliated with any organisation." };
-    orgId = memberData.organization_id;
+    if (memberData) {
+      orgId = memberData.organization_id;
+    } else {
+      // Check if user is an admin or if an organization can be provisioned
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role, full_name")
+        .eq("id", user.id)
+        .single();
+
+      if (profile?.role === "admin" || profile?.role === "organizer") {
+        // Fallback to first available organization in campus
+        const { data: defaultOrg } = await supabase
+          .from("organizations")
+          .select("id")
+          .limit(1)
+          .maybeSingle();
+
+        if (defaultOrg) {
+          orgId = defaultOrg.id;
+          // Associate the organizer so subsequent checks succeed
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (supabase as any).from("organization_members").upsert(
+            { organization_id: orgId, user_id: user.id, position: "Lead Organizer" },
+            { onConflict: "organization_id,user_id" }
+          );
+        } else {
+          return { error: "No organization found on campus. Please contact Student Affairs." };
+        }
+      } else {
+        return {
+          error:
+            "You are not affiliated with any recognized organization yet. Please submit an application under 'Apply as Organizer' in your profile to obtain approval.",
+        };
+      }
+    }
   }
 
   // Resolve venue

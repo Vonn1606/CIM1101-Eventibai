@@ -4,7 +4,6 @@ import { useState, useEffect, useTransition } from "react";
 import { BadgeCheck, CalendarDays, CalendarPlus, CircleCheck, Clock, MapPin, QrCode, Ticket, X } from "lucide-react";
 import type { PastEvent, UpcomingEvent } from "@/app/actions/registration";
 import { cancelRegistration } from "@/app/actions/registration";
-import QRCode from "qrcode";
 
 export function UpcomingCard({ e }: { e: UpcomingEvent }) {
   const [modalOpen, setModalOpen] = useState(false);
@@ -15,11 +14,14 @@ export function UpcomingCard({ e }: { e: UpcomingEvent }) {
 
   useEffect(() => {
     if (e.qrCode) {
-      QRCode.toDataURL(e.qrCode, {
-        width: 256,
-        margin: 1,
-        color: { dark: "#1a1c1e", light: "#ffffff" },
-      })
+      import("qrcode")
+        .then((QRCode) =>
+          QRCode.toDataURL(e.qrCode, {
+            width: 256,
+            margin: 1,
+            color: { dark: "#1a1c1e", light: "#ffffff" },
+          })
+        )
         .then((url) => setQrUrl(url))
         .catch((err) => console.error("Error creating QR:", err));
     }

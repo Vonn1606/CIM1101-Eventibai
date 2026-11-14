@@ -1,9 +1,16 @@
+import { cache } from "react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getEventBySlug } from "@/lib/db/events";
+import { getEventBySlug as fetchEventBySlug } from "@/lib/db/events";
 import EventDetailsClient from "./event-details-client";
 import { createClient } from "@/lib/supabase/server";
 import type { InitialRegistration } from "./event-details-client";
+
+// Deduplicate event fetch across generateMetadata and EventPage
+const getEventBySlug = cache(async (slug: string) => {
+  return fetchEventBySlug(slug);
+});
+
 interface PageProps {
   params: Promise<{ id: string }>;
 }
@@ -21,11 +28,16 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function EventPage({ params }: PageProps) {
   const { id } = await params;
-  const event = await getEventBySlug(id);
+
+  // Run event query and auth check concurrently
+  const supabasePromise = createClient();
+  const [event, supabase] = await Promise.all([
+    getEventBySlug(id),
+    supabasePromise,
+  ]);
 
   if (!event) notFound();
 
-  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

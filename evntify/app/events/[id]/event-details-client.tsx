@@ -29,7 +29,6 @@ import {
 import type { EventDetail } from "@/types/events";
 import { registerForEvent } from "@/app/actions/registration";
 import type { RegistrationResult } from "@/app/actions/registration";
-import QRCode from "qrcode";
 import "./event-details.css";
 
 export type InitialRegistration = {
@@ -92,14 +91,17 @@ export default function EventDetailsClient({ initialEvent, initialRegistration }
 
   useEffect(() => {
     if (ticketCode) {
-      QRCode.toDataURL(ticketCode, {
-        width: 256,
-        margin: 1,
-        color: {
-          dark: "#1a1c1e",
-          light: "#ffffff",
-        },
-      })
+      import("qrcode")
+        .then((QRCode) =>
+          QRCode.toDataURL(ticketCode, {
+            width: 256,
+            margin: 1,
+            color: {
+              dark: "#1a1c1e",
+              light: "#ffffff",
+            },
+          })
+        )
         .then((url) => setQrCodeDataUrl(url))
         .catch((err) => console.error("Error generating QR code:", err));
     }

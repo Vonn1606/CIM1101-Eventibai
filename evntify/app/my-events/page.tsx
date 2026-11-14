@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getMyRegistrations } from "@/app/actions/registration";
 import type { UpcomingEvent, PastEvent } from "@/app/actions/registration";
+import { getUserOrganizerApplication } from "@/app/actions/organizer-application";
+import ApplyOrganizerSection from "@/component/user-profile/ApplyOrganizerSection";
 import Header from "@/component/user-profile/Header";
 import Footer from "@/component/user-profile/Footer";
 import WelcomeBar from "@/component/user-profile/WelcomeBar";
@@ -79,7 +81,13 @@ export default async function MyEventsPage() {
     redirect("/signin?next=/my-events");
   }
 
-  const { upcoming: upcomingRegs, past: pastRegs } = await getMyRegistrations(user.id);
+  const [{ upcoming: upcomingRegs, past: pastRegs }, userApp, userProfileRes] = await Promise.all([
+    getMyRegistrations(user.id),
+    getUserOrganizerApplication(),
+    supabase.from("profiles").select("role").eq("id", user.id).maybeSingle(),
+  ]);
+
+  const userRole = userProfileRes.data?.role ?? "student";
 
   // Map MyRegistration → UpcomingEvent
   const upcomingEvents: UpcomingEvent[] = upcomingRegs.map((r) => ({
@@ -120,6 +128,8 @@ export default async function MyEventsPage() {
       <main className="min-h-[576px] bg-surface">
         <div className="mx-auto flex max-w-[1440px] flex-col gap-8 px-6 lg:px-10 py-8">
           <WelcomeBar upcoming={upcomingEvents.length} past={pastEvents.length} />
+
+          <ApplyOrganizerSection existingApplication={userApp} userRole={userRole} />
 
           <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,488px)_1fr]">
             <aside className="flex flex-col gap-5 lg:sticky lg:top-28">

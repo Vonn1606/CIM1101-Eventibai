@@ -16,7 +16,15 @@ export interface UserProfile {
   email: string;
 }
 
+// Cache active profile in memory to avoid duplicate fetches across hooks
+let cachedProfile: UserProfile | null = null;
+let cachedUserId: string | null = null;
+
 async function fetchProfile(userId: string): Promise<UserProfile | null> {
+  if (cachedUserId === userId && cachedProfile) {
+    return cachedProfile;
+  }
+
   const supabase = createClient();
   const { data } = await supabase
     .from("profiles")
@@ -34,7 +42,7 @@ async function fetchProfile(userId: string): Promise<UserProfile | null> {
     college_id: string | null;
     email: string | null;
   };
-  return {
+  const profile: UserProfile = {
     id: row.id,
     fullName: row.full_name ?? "",
     role: (row.role as UserRole) ?? "student",
@@ -43,37 +51,25 @@ async function fetchProfile(userId: string): Promise<UserProfile | null> {
     collegeId: row.college_id ?? null,
     email: row.email ?? "",
   };
+  cachedUserId = userId;
+  cachedProfile = profile;
+  return profile;
 }
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [role, setRole] = useState<UserRole>("guest");
-  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<UserProfile | null>(cachedProfile);
+  const [role, setRole] = useState<UserRole>(cachedProfile?.role ?? "guest");
+  const [loading, setLoading] = useState(!cachedProfile);
 
   useEffect(() => {
     const supabase = createClient();
 
     async function loadSession() {
+      // getSession() checks local storage/cookies first without an unneeded roundtrip
       const {
-        data: { user: currentUser },
-      } = await supabase.auth.getUser();
-      setUser(currentUser);
-
-      if (currentUser) {
-        const p = await fetchProfile(currentUser.id);
-        setProfile(p);
-        setRole(p?.role ?? "student");
-      } else {
-        setProfile(null);
-        setRole("guest");
-      }
-      setLoading(false);
-    }
-
-    loadSession();
-
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
+        data: { session },
+      } = await supabase.auth.getSession();
       const currentUser = session?.user ?? null;
       setUser(currentUser);
 
@@ -82,6 +78,34 @@ export function useAuth() {
         setProfile(p);
         setRole(p?.role ?? "student");
       } else {
+        cachedProfile = null;
+        cachedUserId = null;
+        setProfile(null);
+        setRole("guest");
+      }
+      setLoading(false);
+    }
+
+    loadSession();
+
+    const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
+      // Skip redundant refetch on INITIAL_SESSION if already loaded
+      if (event === "INITIAL_SESSION" && cachedProfile) return;
+
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+
+      if (currentUser) {
+        if (event === "SIGNED_OUT") {
+          cachedProfile = null;
+          cachedUserId = null;
+        }
+        const p = await fetchProfile(currentUser.id);
+        setProfile(p);
+        setRole(p?.role ?? "student");
+      } else {
+        cachedProfile = null;
+        cachedUserId = null;
         setProfile(null);
         setRole("guest");
       }
