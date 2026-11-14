@@ -10,7 +10,7 @@ import {
   getEventAdminNotes,
 } from "@/app/actions/admin";
 
-export default function EdInspector({
+function InspectorBody({
   event,
   onClose,
 }: {
@@ -26,19 +26,19 @@ export default function EdInspector({
 
   // Reset stale state and reload data whenever the selected event changes.
   // Moved from render body into useEffect to avoid setState-during-render.
+  // Load data for the selected event. State is only set inside the promise
+  // callbacks. The wrapper at the bottom remounts this component per event,
+  // so there is no stale state to reset.
   useEffect(() => {
-    setNotes("");
-    setFeedback(null);
-    setFacilities([]);
-    setSavedNotes([]);
-    if (event?.id) {
-      getEventFacilities(event.id)
-        .then((facs) => setFacilities(facs))
-        .catch(() => setFacilities([]));
-      getEventAdminNotes(event.id)
-        .then((notesList) => setSavedNotes(notesList))
-        .catch(() => setSavedNotes([]));
-    }
+    if (!event?.id) return;
+    let ignore = false;
+    getEventFacilities(event.id)
+      .then((facs) => { if (!ignore) setFacilities(facs); })
+      .catch(() => { if (!ignore) setFacilities([]); });
+    getEventAdminNotes(event.id)
+      .then((list) => { if (!ignore) setSavedNotes(list); })
+      .catch(() => { if (!ignore) setSavedNotes([]); });
+    return () => { ignore = true; };
   }, [event?.id]);
 
   const handleSaveNote = async () => {
@@ -215,5 +215,11 @@ export default function EdInspector({
       </aside>
     </>
   );
+}
+export default function EdInspector(props: {
+  event: EventItem | null;
+  onClose: () => void;
+}) {
+  return <InspectorBody key={props.event?.id ?? "none"} {...props} />;
 }
 
