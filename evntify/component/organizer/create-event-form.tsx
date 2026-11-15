@@ -98,6 +98,7 @@ export default function CreateEventForm({
     date: new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0],
     start: "13:00",
     end: "17:00",
+    registrationDeadline: new Date(Date.now() + 5 * 86400000).toISOString().split("T")[0],
     capacity: venues[0]?.capacity ? Math.min(100, venues[0].capacity) : 100,
   }));
 
@@ -144,6 +145,7 @@ export default function CreateEventForm({
       date: form.date,
       startTime: form.start,
       endTime: form.end,
+      registrationDeadline: form.registrationDeadline || undefined,
       capacity: Number(form.capacity),
     });
 
@@ -378,6 +380,18 @@ export default function CreateEventForm({
                 required
               />
               <small>Building egress cutoff</small>
+            </div>
+
+            <div className="ce-field ce-span-1-3">
+              <CeLabel>Registration Deadline</CeLabel>
+              <input
+                type="date"
+                className="ce-input"
+                value={form.registrationDeadline}
+                onChange={(e) => set("registrationDeadline", e.target.value)}
+                max={form.date}
+              />
+              <small>Cutoff before event starts</small>
             </div>
 
             <div className="ce-field ce-span-half">

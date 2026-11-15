@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
    Shared types used by both the Server Component page and the Client Component
    -------------------------------------------------------------------------- */
 
-export type OrgEventStatus = "live" | "soldout" | "pending" | "returned" | "declined" | "archived";
+export type OrgEventStatus = "live" | "soldout" | "pending" | "returned" | "declined" | "archived" | "cancelled" | "completed";
 
 export interface OrgEvent {
   id: string;          // UUID
@@ -21,6 +21,11 @@ export interface OrgEvent {
   org: string;
   tier: string;
   waitlistCount: number;
+  rawStartsAt?: string;
+  rawDate?: string;
+  rawStartTime?: string;
+  rawEndTime?: string;
+  decisionNote?: string;
 }
 
 export interface OrgRosterStudent {
@@ -98,8 +103,14 @@ function mapEventRow(row: any, stats: Record<string, { registered_count: number;
   const registeredCount = Number(s.registered_count ?? 0);
 
   const dbStatus: string = row.approval ?? row.approval_status ?? "pending";
+  const eventStatus: string = row.status ?? "open";
   let status: OrgEventStatus = "pending";
-  if (dbStatus === "approved") {
+
+  if (eventStatus === "cancelled") {
+    status = "cancelled";
+  } else if (eventStatus === "completed") {
+    status = "completed";
+  } else if (dbStatus === "approved") {
     status = registeredCount >= totalCap && totalCap > 0 ? "soldout" : "live";
   } else if (dbStatus === "returned") {
     status = "returned";
@@ -116,7 +127,17 @@ function mapEventRow(row: any, stats: Record<string, { registered_count: number;
     returned: "Returned for Edits",
     declined: "Declined",
     archived: "Archived",
+    cancelled: "Cancelled",
+    completed: "Completed",
   };
+
+  const rawDate = starts ? starts.toISOString().split("T")[0] : "";
+  const rawStartTime = starts
+    ? starts.toLocaleTimeString("en-US", { timeZone: "Asia/Manila", hour12: false, hour: "2-digit", minute: "2-digit" })
+    : "";
+  const rawEndTime = row.ends_at
+    ? new Date(row.ends_at).toLocaleTimeString("en-US", { timeZone: "Asia/Manila", hour12: false, hour: "2-digit", minute: "2-digit" })
+    : "";
 
   return {
     id: row.id,
@@ -128,13 +149,18 @@ function mapEventRow(row: any, stats: Record<string, { registered_count: number;
       ? starts.toLocaleTimeString("en-US", { timeZone: "Asia/Manila", hour: "2-digit", minute: "2-digit" })
       : "TBD",
     status,
-    badgeLabel: badgeMap[status],
+    badgeLabel: badgeMap[status] ?? "Pending",
     registered: registeredCount,
     cap: totalCap,
     capType: "RSVPs",
     org: row.organizations?.name ?? "—",
     tier: row.access_tier ?? "Free RSVP",
     waitlistCount: Number(s.waitlist_count ?? 0),
+    rawStartsAt: row.starts_at ?? undefined,
+    rawDate,
+    rawStartTime,
+    rawEndTime,
+    decisionNote: row.event_approvals?.[0]?.decision_note ?? undefined,
   };
 }
 
@@ -162,9 +188,10 @@ export async function getOrgEvents(): Promise<OrgEvent[]> {
   const { data, error } = await (supabase as any)
     .from("events")
     .select(`
-      id, title, starts_at, approval, total_capacity, access_tier,
+      id, title, starts_at, ends_at, approval, status, total_capacity, access_tier,
       venues ( name ),
-      organizations ( name )
+      organizations ( name ),
+      event_approvals ( decision_note, decided_at, stage )
     `)
     .eq("organization_id", orgId)
     .order("starts_at", { ascending: false })

@@ -35,11 +35,11 @@ export async function registerForEvent(
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(inputEventId);
 
   // Use separate queries instead of interpolating user input into .or() (filter injection risk)
-  let ev: { id: string; slug: string; registration_deadline: string | null; status: string } | null = null;
+  let ev: { id: string; slug: string; registration_deadline: string | null; status: string; starts_at: string | null } | null = null;
   if (isUuid) {
     const { data } = await supabase
       .from("events")
-      .select("id, slug, registration_deadline, status")
+      .select("id, slug, registration_deadline, status, starts_at")
       .eq("id", inputEventId)
       .maybeSingle();
     ev = data ?? null;
@@ -50,7 +50,7 @@ export async function registerForEvent(
     const safeSlug = inputEventId.replace(/[^a-z0-9-]/gi, "");
     const { data } = await supabase
       .from("events")
-      .select("id, slug, registration_deadline, status")
+      .select("id, slug, registration_deadline, status, starts_at")
       .eq("slug", safeSlug)
       .maybeSingle();
     ev = data ?? null;
@@ -59,14 +59,25 @@ export async function registerForEvent(
   if (!ev) return { error: "Event not found." };
   const eventId = ev.id;
 
-  // Item 6: suspended events cannot take registrations (also enforced in SQL).
+  // Suspended, cancelled, or completed events cannot take registrations
   if (ev.status === "suspended") {
     return { error: "This event has been suspended and is not accepting registrations." };
+  }
+  if (ev.status === "cancelled") {
+    return { error: "This event has been cancelled and is not accepting registrations." };
+  }
+  if (ev.status === "completed") {
+    return { error: "This event has concluded and is no longer accepting registrations." };
+  }
+
+  const nowMs = Date.now();
+  if (ev.starts_at && new Date(ev.starts_at).getTime() <= nowMs) {
+    return { error: "Registration is closed because the event is ongoing or has passed." };
   }
 
   if (
     ev?.registration_deadline &&
-    new Date(ev.registration_deadline).getTime() < Date.now()
+    new Date(ev.registration_deadline).getTime() < nowMs
   ) {
     return { error: "Registration for this event has closed." };
   }

@@ -43,6 +43,12 @@ function rowToEventDetail(row: any, stats: StatsMap = {}): EventDetail {
   const venue = row.venues;
   const college = row.colleges;
 
+  const nowMs = Date.now();
+  const startsAtMs = startsAt ? startsAt.getTime() : 0;
+  const endsAtMs = row.ends_at ? new Date(row.ends_at).getTime() : startsAtMs + 2 * 60 * 60 * 1000;
+  const isOngoing = nowMs >= startsAtMs && nowMs <= endsAtMs;
+  const isConcluded = (row.ends_at && nowMs > endsAtMs) || (row.status === "completed" || row.status === "concluded");
+
   return {
     id: row.slug,
     dbId: row.id,
@@ -59,7 +65,7 @@ function rowToEventDetail(row: any, stats: StatsMap = {}): EventDetail {
     category: row.category ?? "",
     date: dateStr,
     time: timeStr,
-    doorsOpen: "Doors open 30 minutes before start",
+    doorsOpen: row.doors_open_note ?? "Doors open 30 minutes before start",
     venue: venue?.name ?? "",
     venueDetails: venue?.details ?? "",
     summary: row.summary ?? "",
@@ -73,15 +79,17 @@ function rowToEventDetail(row: any, stats: StatsMap = {}): EventDetail {
     status:
       row.status === "suspended"
         ? "SUSPENDED"
-        : row.status === "completed" || row.status === "concluded"
+        : isConcluded
           ? "COMPLETED"
-          : row.status === "open"
-            ? seatsLeft === 0
-              ? "FULL"
-              : seatsLeft <= 10
-                ? "LIMITED"
-                : "OPEN"
-            : "OPEN",
+          : isOngoing
+            ? "OPEN"
+            : row.status === "open"
+              ? seatsLeft === 0
+                ? "FULL"
+                : seatsLeft <= 10
+                  ? "LIMITED"
+                  : "OPEN"
+              : "OPEN",
     coordinator: {
       name: row.coordinator_name ?? "",
       role: org?.dept_label ? `${org.dept_label} Coordinator` : "Event Coordinator",
@@ -115,6 +123,11 @@ function rowToCampusEvent(row: any, stats: StatsMap = {}): CampusEvent {
     : "";
   const venueShort = row.venues?.name ?? "";
 
+  const nowMs = Date.now();
+  const startsAtMs = startsAt ? startsAt.getTime() : 0;
+  const endsAtMs = row.ends_at ? new Date(row.ends_at).getTime() : startsAtMs + 2 * 60 * 60 * 1000;
+  const isConcluded = (row.ends_at && nowMs > endsAtMs) || (row.status === "completed" || row.status === "concluded");
+
   return {
     id: row.slug,
     code: row.code ?? "",
@@ -129,7 +142,7 @@ function rowToCampusEvent(row: any, stats: StatsMap = {}): CampusEvent {
     tag: row.category ?? undefined,
     startsAt: row.starts_at ?? undefined,
     createdAt: row.created_at ?? undefined,
-    status: row.status === "completed" || row.status === "concluded" ? "completed" : "open",
+    status: isConcluded ? "completed" : "open",
   };
 }
 

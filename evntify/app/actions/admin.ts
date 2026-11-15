@@ -199,3 +199,63 @@ export async function getEventAdminNotes(
   }));
 }
 
+export interface SetFeaturedResult {
+  success?: boolean;
+  error?: string;
+}
+
+export async function setFeatured(
+  eventId: string,
+  isFeatured: boolean,
+  rank?: number | null
+): Promise<SetFeaturedResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Authentication required." };
+
+  const adminCheck = await requireAdmin(supabase, user.id);
+  if (!adminCheck.ok) return { error: adminCheck.error };
+
+  let targetEventId = eventId;
+  const isUuid =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      eventId
+    );
+  if (!isUuid) {
+    const { data: ev } = await supabase
+      .from("events")
+      .select("id")
+      .eq("slug", eventId)
+      .single();
+    if (ev) targetEventId = ev.id;
+  }
+
+  const { error } = await supabase
+    .from("events")
+    .update({
+      is_featured: isFeatured,
+      featured_rank: isFeatured ? (rank ?? 1) : null,
+    })
+    .eq("id", targetEventId);
+
+  if (error) return { error: error.message };
+
+  await supabase.from("audit_logs").insert({
+    actor_id: user.id,
+    action: isFeatured ? "event.featured" : "event.unfeatured",
+    entity: "events",
+    entity_id: targetEventId,
+    meta: { isFeatured, rank: isFeatured ? (rank ?? 1) : null },
+  });
+
+  revalidatePath("/admin/events-directory");
+  revalidatePath("/events");
+  revalidatePath("/");
+
+  return { success: true };
+}
+
+

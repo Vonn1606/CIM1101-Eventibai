@@ -22,10 +22,11 @@ export default async function OrganizerDashboardPage() {
   if (p?.role !== "organizer" && p?.role !== "admin") redirect("/my-events");
 
   // Fetch in parallel
-  const [profile, events, roster] = await Promise.all([
+  const [profile, events, roster, venuesRes] = await Promise.all([
     getOrgProfile(),
     getOrgEvents(),
     getOrgRoster(),
+    supabase.from("venues").select("id, name, capacity").order("name"),
   ]);
 
   return (
@@ -34,6 +35,7 @@ export default async function OrganizerDashboardPage() {
       initialRoster={roster}
       organizerName={profile?.fullName ?? "Organizer"}
       orgName={profile?.orgName ?? "My Organisation"}
+      venues={venuesRes.data ?? []}
     />
   );
 }

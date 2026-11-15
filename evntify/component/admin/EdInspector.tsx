@@ -8,6 +8,7 @@ import {
   suspendEvent,
   getEventFacilities,
   getEventAdminNotes,
+  setFeatured,
 } from "@/app/actions/admin";
 
 function InspectorBody({
@@ -20,6 +21,7 @@ function InspectorBody({
   const [notes, setNotes] = useState("");
   const [savingNote, setSavingNote] = useState(false);
   const [suspending, setSuspending] = useState(false);
+  const [featuring, setFeaturing] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [facilities, setFacilities] = useState<Array<{ label: string; value: string }>>([]);
   const [savedNotes, setSavedNotes] = useState<Array<{ id: string; note: string; createdAt: string }>>([]);
@@ -71,6 +73,18 @@ function InspectorBody({
       setTimeout(() => {
         onClose();
       }, 1000);
+    }
+  };
+
+  const handleToggleFeatured = async () => {
+    if (!event) return;
+    setFeaturing(true);
+    const res = await setFeatured(event.id, true, 1);
+    setFeaturing(false);
+    if (res.error) {
+      setFeedback(`Feature failed: ${res.error}`);
+    } else {
+      setFeedback("Event featured on homepage!");
     }
   };
 
@@ -203,6 +217,15 @@ function InspectorBody({
             <footer className="ed-drawer-foot">
               <button className="ed-btn-outline" onClick={onClose}>
                 Dismiss
+              </button>
+              <button
+                type="button"
+                className="ed-btn-outline"
+                style={{ borderColor: "#0050D4", color: "#0050D4" }}
+                onClick={handleToggleFeatured}
+                disabled={featuring}
+              >
+                {featuring ? "Saving..." : "Feature Event"}
               </button>
               <button
                 className="ed-btn-danger"

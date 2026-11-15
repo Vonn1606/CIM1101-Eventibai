@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import RoleGuard from "@/component/auth/role-guard";
+import { redirect } from "next/navigation";
 import CreateEventForm from "@/component/organizer/create-event-form";
 import CreateEventTopbar from "@/component/organizer/create-event-topbar";
 import { createClient } from "@/lib/supabase/server";
@@ -19,15 +19,27 @@ export default async function CreateEventPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
+  if (!user) {
+    redirect("/signin?next=/organizer-dashboard/create-event");
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (profile?.role !== "organizer" && profile?.role !== "admin") {
+    redirect("/my-events");
+  }
+
   const [venuesRes, collegesRes, orgsRes] = await Promise.all([
     supabase.from("venues").select("id, name, capacity, details").order("name"),
     supabase.from("colleges").select("id, name, code").order("name"),
-    user
-      ? supabase
-        .from("organization_members")
-        .select("organization_id, organizations ( id, name, dept_label )")
-        .eq("user_id", user.id)
-      : Promise.resolve({ data: [] }),
+    supabase
+      .from("organization_members")
+      .select("organization_id, organizations ( id, name, dept_label )")
+      .eq("user_id", user.id),
   ]);
 
   const venues = venuesRes.data ?? [];
@@ -42,17 +54,15 @@ export default async function CreateEventPage() {
     );
 
   return (
-    <RoleGuard allowedRole="organizer">
-      <div className="ce-page">
-        <CreateEventTopbar />
-        <main className="ce-main">
-          <CreateEventForm
-            venues={venues}
-            colleges={colleges}
-            organizations={organizations}
-          />
-        </main>
-      </div>
-    </RoleGuard>
+    <div className="ce-page">
+      <CreateEventTopbar />
+      <main className="ce-main">
+        <CreateEventForm
+          venues={venues}
+          colleges={colleges}
+          organizations={organizations}
+        />
+      </main>
+    </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
-import { submitEvent, toggleCheckIn } from "@/app/actions/events";
+import { submitEvent, toggleCheckIn, updateEvent, cancelEvent } from "@/app/actions/events";
 import { sendBroadcast, getBroadcastLogs } from "@/app/actions/broadcasts";
 import type { BroadcastLogItem } from "@/app/actions/broadcasts";
 import type { OrgEvent, OrgRosterStudent } from "@/lib/db/organizer";
@@ -43,9 +43,6 @@ import {
    Data Types & Initial State (matching Figma Mockup)
    ========================================================================== */
 
-// Types are imported from @/lib/db/organizer
-type EventStatus = OrgEvent["status"];
-
 // Local alias for the imported type
 type EventItem = OrgEvent;
 
@@ -84,6 +81,7 @@ interface OrganizerDashboardClientProps {
   initialRoster?: OrgRosterStudent[];
   organizerName?: string;
   orgName?: string;
+  venues?: Array<{ id: string; name: string; capacity: number }>;
 }
 
 export default function OrganizerDashboardClient({
@@ -91,6 +89,7 @@ export default function OrganizerDashboardClient({
   initialRoster = [],
   organizerName = "Organizer",
   orgName = "My Organisation",
+  venues = [],
 }: OrganizerDashboardClientProps) {
   // Navigation & View state
   const [activeTab, setActiveTab] = useState<string>("overview");
@@ -134,6 +133,16 @@ export default function OrganizerDashboardClient({
   const [quickCheckinOpen, setQuickCheckinOpen] = useState(false);
   // const [qrModalEvent, setQrModalEvent] = useState<EventItem | null>(null);
   const [editModalEvent, setEditModalEvent] = useState<EventItem | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editResubmit, setEditResubmit] = useState(false);
+  const [editResubmitMemo, setEditResubmitMemo] = useState("");
+  const [editDate, setEditDate] = useState("");
+  const [editStartTime, setEditStartTime] = useState("");
+  const [editEndTime, setEditEndTime] = useState("");
+  const [cancellingEvent, setCancellingEvent] = useState(false);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
   const [logsModalOpen, setLogsModalOpen] = useState(false);
   const [broadcastLogs, setBroadcastLogs] = useState<BroadcastLogItem[]>([]);
   const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
@@ -894,6 +903,12 @@ export default function OrganizerDashboardClient({
                       <button
                         onClick={() => {
                           setEditModalEvent(evt);
+                          setEditError(null);
+                          setEditDate(evt.rawDate || "");
+                          setEditStartTime(evt.rawStartTime || "");
+                          setEditEndTime(evt.rawEndTime || "");
+                          setEditResubmit(evt.status === "returned");
+                          setEditResubmitMemo("");
                         }}
                         className="flex items-center gap-1 rounded-lg border border-[#E8DFD8] bg-[#FAF5F2] px-2.5 py-1.5 text-xs font-semibold text-[#2C181C] transition hover:bg-[#F2ECE8] cursor-pointer"
                       >
@@ -1505,9 +1520,12 @@ export default function OrganizerDashboardClient({
           ==================================================================== */}
       {editModalEvent && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs">
-          <div className="relative w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl border border-[#ECE5DF]">
+          <div className="relative w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl border border-[#ECE5DF] max-h-[90vh] overflow-y-auto">
             <button
-              onClick={() => setEditModalEvent(null)}
+              onClick={() => {
+                setEditModalEvent(null);
+                setEditError(null);
+              }}
               className="absolute right-4 top-4 rounded-full p-1.5 text-[#8A7B78] hover:bg-[#FAF5F2]"
             >
               <X size={18} />
@@ -1531,6 +1549,18 @@ export default function OrganizerDashboardClient({
                 </p>
               </div>
 
+              {editError && (
+                <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700 font-medium">
+                  {editError}
+                </div>
+              )}
+
+              {editModalEvent.status === "returned" && editModalEvent.decisionNote && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                  <b>SAO Reviewer Note:</b> {editModalEvent.decisionNote}
+                </div>
+              )}
+
               <div className="space-y-3">
                 <div>
                   <label className="text-xs font-semibold text-[#1E1B19]">Title</label>
@@ -1546,21 +1576,74 @@ export default function OrganizerDashboardClient({
 
                 <div>
                   <label className="text-xs font-semibold text-[#1E1B19]">Venue</label>
-                  <input
-                    type="text"
-                    value={editModalEvent.venue}
-                    onChange={(e) =>
-                      setEditModalEvent({ ...editModalEvent, venue: e.target.value })
-                    }
-                    className="w-full rounded-xl border border-[#ECE2DC] bg-[#FAF5F2] px-3.5 py-2 text-xs font-medium text-[#1E1B19]"
-                  />
+                  {venues && venues.length > 0 ? (
+                    <select
+                      value={venues.find((v) => v.name === editModalEvent.venue)?.id || ""}
+                      onChange={(e) => {
+                        const sel = venues.find((v) => v.id === e.target.value);
+                        if (sel) {
+                          setEditModalEvent({ ...editModalEvent, venue: sel.name });
+                        }
+                      }}
+                      className="w-full rounded-xl border border-[#ECE2DC] bg-[#FAF5F2] px-3 py-2 text-xs font-medium text-[#1E1B19]"
+                    >
+                      <option value="">{editModalEvent.venue || "Select a venue..."}</option>
+                      {venues.map((v) => (
+                        <option key={v.id} value={v.id}>
+                          {v.name} (Max {v.capacity} pax)
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      value={editModalEvent.venue}
+                      onChange={(e) =>
+                        setEditModalEvent({ ...editModalEvent, venue: e.target.value })
+                      }
+                      className="w-full rounded-xl border border-[#ECE2DC] bg-[#FAF5F2] px-3.5 py-2 text-xs font-medium text-[#1E1B19]"
+                    />
+                  )}
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-xs font-semibold text-[#1E1B19]">Date</label>
+                    <input
+                      type="date"
+                      value={editDate}
+                      onChange={(e) => setEditDate(e.target.value)}
+                      className="w-full rounded-xl border border-[#ECE2DC] bg-[#FAF5F2] px-2 py-2 text-xs font-medium text-[#1E1B19]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-[#1E1B19]">Start Time</label>
+                    <input
+                      type="time"
+                      value={editStartTime}
+                      onChange={(e) => setEditStartTime(e.target.value)}
+                      className="w-full rounded-xl border border-[#ECE2DC] bg-[#FAF5F2] px-2 py-2 text-xs font-medium text-[#1E1B19]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-[#1E1B19]">End Time</label>
+                    <input
+                      type="time"
+                      value={editEndTime}
+                      onChange={(e) => setEditEndTime(e.target.value)}
+                      className="w-full rounded-xl border border-[#ECE2DC] bg-[#FAF5F2] px-2 py-2 text-xs font-medium text-[#1E1B19]"
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-xs font-semibold text-[#1E1B19]">Capacity</label>
+                    <label className="text-xs font-semibold text-[#1E1B19]">
+                      Capacity (Floor: {editModalEvent.registered})
+                    </label>
                     <input
                       type="number"
+                      min={editModalEvent.registered || 1}
                       value={editModalEvent.cap}
                       onChange={(e) =>
                         setEditModalEvent({
@@ -1573,47 +1656,171 @@ export default function OrganizerDashboardClient({
                   </div>
                   <div>
                     <label className="text-xs font-semibold text-[#1E1B19]">Status</label>
-                    <select
-                      value={editModalEvent.status}
-                      onChange={(e) =>
-                        setEditModalEvent({
-                          ...editModalEvent,
-                          status: e.target.value as EventStatus,
-                        })
-                      }
-                      className="w-full rounded-xl border border-[#ECE2DC] bg-[#FAF5F2] px-3 py-2 text-xs font-medium text-[#1E1B19]"
-                    >
-                      <option value="live">Live • Approved</option>
-                      <option value="soldout">Sold Out • Full</option>
-                      <option value="pending">Pending SAO Clearance</option>
-                      <option value="archived">Archived</option>
-                    </select>
+                    <div className="rounded-xl border border-[#ECE2DC] bg-[#FAF5F2] px-3 py-2 text-xs font-medium text-[#7A6B68]">
+                      {editModalEvent.badgeLabel}
+                    </div>
                   </div>
                 </div>
+
+                {editModalEvent.status === "returned" && (
+                  <div className="space-y-2 border-t border-[#ECE5DF] pt-3">
+                    <label className="flex items-center gap-2 text-xs font-semibold text-[#651C32] cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editResubmit}
+                        onChange={(e) => setEditResubmit(e.target.checked)}
+                        className="rounded accent-[#651C32]"
+                      />
+                      Resubmit to Student Affairs (SAO) for Review
+                    </label>
+                    {editResubmit && (
+                      <textarea
+                        value={editResubmitMemo}
+                        onChange={(e) => setEditResubmitMemo(e.target.value)}
+                        placeholder="Note for reviewer detailing what changes were made..."
+                        className="w-full rounded-xl border border-[#ECE2DC] bg-[#FAF5F2] p-2.5 text-xs text-[#1E1B19]"
+                        rows={2}
+                      />
+                    )}
+                  </div>
+                )}
               </div>
 
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setEditModalEvent(null)}
-                  className="rounded-xl border border-[#ECE2DC] bg-[#FAF5F2] px-4 py-2 text-xs font-semibold text-[#7A6B68] hover:bg-[#ECE5E0]"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEvents((prev) =>
-                      prev.map((e) => (e.id === editModalEvent.id ? editModalEvent : e))
-                    );
-                    setEditModalEvent(null);
-                    showToast("✓ Event changes saved and published to registry.");
-                  }}
-                  className="rounded-xl bg-[#651C32] px-5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-[#521325]"
-                >
-                  Save Changes
-                </button>
+              <div className="flex items-center justify-between gap-2 pt-2 border-t border-[#ECE5DF]">
+                {editModalEvent.status !== "cancelled" && editModalEvent.status !== "completed" ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCancelReason("");
+                      setCancelModalOpen(true);
+                    }}
+                    className="text-xs font-semibold text-red-600 hover:text-red-700 underline"
+                  >
+                    Cancel Event
+                  </button>
+                ) : <span />}
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditModalEvent(null);
+                      setEditError(null);
+                    }}
+                    className="rounded-xl border border-[#ECE2DC] bg-[#FAF5F2] px-4 py-2 text-xs font-semibold text-[#7A6B68] hover:bg-[#ECE5E0]"
+                    disabled={editSaving}
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="button"
+                    disabled={editSaving}
+                    onClick={async () => {
+                      setEditSaving(true);
+                      setEditError(null);
+
+                      const vObj = venues.find((v) => v.name === editModalEvent.venue);
+                      const res = await updateEvent({
+                        eventId: editModalEvent.id,
+                        title: editModalEvent.title,
+                        venueId: vObj?.id,
+                        capacity: editModalEvent.cap,
+                        date: editDate || undefined,
+                        startTime: editStartTime || undefined,
+                        endTime: editEndTime || undefined,
+                        resubmitForReview: editResubmit,
+                        resubmitMemo: editResubmitMemo || undefined,
+                      });
+
+                      setEditSaving(false);
+                      if (res.error) {
+                        setEditError(res.error);
+                      } else {
+                        setEvents((prev) =>
+                          prev.map((e) =>
+                            e.id === editModalEvent.id
+                              ? {
+                                  ...editModalEvent,
+                                  status: editResubmit ? "pending" : editModalEvent.status,
+                                  badgeLabel: editResubmit ? "Pending SAO Clearance" : editModalEvent.badgeLabel,
+                                }
+                              : e
+                          )
+                        );
+                        setEditModalEvent(null);
+                        showToast("✓ Event changes saved successfully.");
+                      }
+                    }}
+                    className="rounded-xl bg-[#651C32] px-5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-[#521325] disabled:opacity-50"
+                  >
+                    {editSaving ? "Saving..." : "Save Changes"}
+                  </button>
+                </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ====================================================================
+          MODAL: Cancel Event Confirmation
+          ==================================================================== */}
+      {cancelModalOpen && editModalEvent && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
+          <div className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-red-200">
+            <h3 className="text-lg font-bold text-red-700">Cancel Event</h3>
+            <p className="mt-1 text-xs text-neutral-600">
+              Are you sure you want to cancel &ldquo;{editModalEvent.title}&rdquo;? All active registrants will be notified, and registered spots will be released.
+            </p>
+            <div className="mt-3">
+              <label className="text-xs font-semibold text-neutral-700">Reason for cancellation:</label>
+              <textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="e.g. Inclement weather / schedule postponement..."
+                className="mt-1 w-full rounded-lg border border-neutral-300 p-2 text-xs text-neutral-900"
+                rows={3}
+              />
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                disabled={cancellingEvent}
+                onClick={() => setCancelModalOpen(false)}
+                className="rounded-lg border border-neutral-200 px-3 py-1.5 text-xs font-semibold text-neutral-600 hover:bg-neutral-50"
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                disabled={cancellingEvent}
+                onClick={async () => {
+                  if (!cancelReason.trim()) {
+                    showToast("Please provide a reason for cancelling the event.");
+                    return;
+                  }
+                  setCancellingEvent(true);
+                  const res = await cancelEvent(editModalEvent.id, cancelReason);
+                  setCancellingEvent(false);
+                  if (res.error) {
+                    showToast(`Error: ${res.error}`);
+                  } else {
+                    setCancelModalOpen(false);
+                    setEditModalEvent(null);
+                    setEvents((prev) =>
+                      prev.map((e) =>
+                        e.id === editModalEvent.id
+                          ? { ...e, status: "cancelled", badgeLabel: "Cancelled" }
+                          : e
+                      )
+                    );
+                    showToast("Event cancelled and registrants notified.");
+                  }
+                }}
+                className="rounded-lg bg-red-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {cancellingEvent ? "Cancelling..." : "Confirm Cancellation"}
+              </button>
             </div>
           </div>
         </div>
