@@ -11,22 +11,29 @@ import { z } from "zod";
 const submitEventSchema = z.object({
   title: z.string().min(2, "Event title is required"),
   venue: z.string().optional(),
-  venueId: z.string().optional(),
-  organizationId: z.string().optional(),
-  collegeId: z.string().optional(),
-  category: z.string().optional(),
-  description: z.string().optional(),
+  venueId: z.string().uuid("Invalid venue ID").optional().or(z.literal("")),
+  organizationId: z.string().uuid("Invalid organization ID").optional().or(z.literal("")),
+  collegeId: z.string().uuid("Invalid college ID").optional().or(z.literal("")),
+  category: z.enum([
+    "Seminar",
+    "Workshop",
+    "Competition",
+    "Symposium",
+    "Social",
+    "General",
+  ]).optional().default("General"),
+  description: z.string().min(5, "Description must be at least 5 characters"),
   date: z.string().min(1, "Date is required"),
-  startTime: z.string().optional(),
-  endTime: z.string().optional(),
-  capacity: z.coerce.number().min(1).max(10000),
+  startTime: z.string().min(1, "Start time is required"),
+  endTime: z.string().min(1, "End time is required"),
+  capacity: z.coerce.number().min(1, "Capacity must be at least 1").max(10000),
   tier: z.string().optional(),
   memo: z.string().optional(),
   registrationDeadline: z.string().optional(),
   qrEnabled: z.boolean().optional(),
   doorsOpenNote: z.string().optional(),
   coordinatorName: z.string().optional(),
-  coordinatorEmail: z.string().optional(),
+  coordinatorEmail: z.string().email("Invalid coordinator email").optional().or(z.literal("")),
   coordinatorPhone: z.string().optional(),
   bannerColor: z.string().optional(),
 });
@@ -142,7 +149,7 @@ export async function submitEvent(
       .maybeSingle();
 
     if (!verifiedMember) {
-      // Check if user is an admin or creator
+      // Check if user is an admin
       const { data: profile } = await supabase
         .from("profiles")
         .select("role")
@@ -164,36 +171,28 @@ export async function submitEvent(
     if (memberData) {
       orgId = memberData.organization_id;
     } else {
-      // Check if user is an admin or if an organization can be provisioned
+      // Check if admin
       const { data: profile } = await supabase
         .from("profiles")
-        .select("role, full_name")
+        .select("role")
         .eq("id", user.id)
         .single();
 
-      if (profile?.role === "admin" || profile?.role === "organizer") {
-        // Fallback to first available organization in campus
+      if (profile?.role === "admin") {
         const { data: defaultOrg } = await supabase
           .from("organizations")
           .select("id")
           .limit(1)
           .maybeSingle();
-
         if (defaultOrg) {
           orgId = defaultOrg.id;
-          // Associate the organizer so subsequent checks succeed
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (supabase as any).from("organization_members").upsert(
-            { organization_id: orgId, user_id: user.id, position: "Lead Organizer" },
-            { onConflict: "organization_id,user_id" }
-          );
         } else {
-          return { error: "No organization found on campus. Please contact Student Affairs." };
+          return { error: "No campus organization found." };
         }
       } else {
         return {
           error:
-            "You are not affiliated with any recognized organization yet. Please submit an application under 'Apply as Organizer' in your profile to obtain approval.",
+            "You are not affiliated with any recognized student organization. Please submit an application under 'Apply as Organizer' to receive approval from Student Affairs.",
         };
       }
     }
@@ -224,6 +223,15 @@ export async function submitEvent(
     if (endTime) {
       const endTimeFormatted = endTime.length === 5 ? `${endTime}:00` : endTime;
       endsAt = new Date(`${date}T${endTimeFormatted}${timeZoneSuffix}`).toISOString();
+
+      if (new Date(endsAt).getTime() <= new Date(startsAt).getTime()) {
+        return { error: "Event end time must be after the start time." };
+      }
+    }
+
+    const nowManilaTime = new Date().getTime();
+    if (new Date(startsAt).getTime() <= nowManilaTime) {
+      return { error: "Event start date/time must be in the future." };
     }
 
     if (registrationDeadline) {
@@ -233,15 +241,31 @@ export async function submitEvent(
       regDeadlineIso = new Date(`${deadlineDateFormatted}${deadlineDateFormatted.includes("+") ? "" : timeZoneSuffix}`).toISOString();
 
       if (new Date(regDeadlineIso).getTime() >= new Date(startsAt).getTime()) {
-        return { error: "Registration deadline must be before the event starts." };
+        return { error: "Registration deadline must be before the event start time." };
       }
     }
   } catch {
     return { error: "Invalid date or time entered. Please enter a valid date." };
   }
 
-  // Check venue availability if venueId is selected
+  // Check venue capacity and availability if venueId is selected
   if (venueId) {
+    const { data: venueRow } = await supabase
+      .from("venues")
+      .select("id, name, capacity")
+      .eq("id", venueId)
+      .maybeSingle();
+
+    if (!venueRow) {
+      return { error: "Selected venue was not found." };
+    }
+
+    if (capacity > venueRow.capacity) {
+      return {
+        error: `Target capacity (${capacity}) exceeds maximum seating for ${venueRow.name} (${venueRow.capacity} seats).`,
+      };
+    }
+
     const effectiveEndsAt = endsAt || new Date(new Date(startsAt).getTime() + 2 * 60 * 60 * 1000).toISOString();
     const venueCheck = await checkVenueAvailability(venueId, startsAt, effectiveEndsAt);
     if (!venueCheck.available) {
@@ -273,85 +297,125 @@ export async function submitEvent(
           ? "tiered_rsvp"
           : "free_rsvp";
 
-  // Build insert payload without undefined / un-migrated columns
+  // Attempt single-transaction RPC submit_event_proposal if available
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const eventInsertPayload: Record<string, any> = {
-    title,
-    slug,
-    organization_id: orgId,
-    college_id: collegeId ?? null,
-    venue_id: venueId,
-    starts_at: startsAt,
-    ends_at: endsAt,
-    registration_deadline: regDeadlineIso,
-    total_capacity: capacity,
-    category: category ?? "General",
-    tier: dbTier,
-    approval: "pending",
-    status: "draft",
-    description: descArray,
-    summary: descText ? descText.slice(0, 160) : "",
-    doors_open_note: doorsOpenNote ?? null,
-    coordinator_name: coordinatorName ?? null,
-    coordinator_email: coordinatorEmail ?? null,
-    coordinator_phone: coordinatorPhone ?? null,
-    banner_color: bannerColor ?? "#6c0c28",
-    created_by: user.id,
-  };
+  const { data: rpcEventId, error: rpcSubmitError } = await (supabase.rpc as any)(
+    "submit_event_proposal",
+    {
+      p_title: title,
+      p_slug: slug,
+      p_org_id: orgId,
+      p_college_id: collegeId ?? null,
+      p_venue_id: venueId,
+      p_starts_at: startsAt,
+      p_ends_at: endsAt,
+      p_reg_deadline: regDeadlineIso,
+      p_capacity: capacity,
+      p_category: category ?? "General",
+      p_tier: dbTier,
+      p_description: descArray,
+      p_summary: descText ? descText.slice(0, 160) : "",
+      p_memo: memo ?? null,
+      p_doors_open_note: doorsOpenNote ?? null,
+      p_coordinator_name: coordinatorName ?? null,
+      p_coordinator_email: coordinatorEmail ?? null,
+      p_coordinator_phone: coordinatorPhone ?? null,
+      p_banner_color: bannerColor ?? "#6c0c28",
+      p_qr_enabled: qrEnabled ?? true,
+    }
+  );
 
-  // Only include qr_enabled if explicitly provided or once migration column is present
-  if (typeof qrEnabled === "boolean") {
-    eventInsertPayload.qr_enabled = qrEnabled;
-  }
+  let newEventId = rpcEventId as string | null;
 
-  // Fallback: If qr_enabled column doesn't exist yet in the Supabase schema cache
-  const firstAttempt = await supabase
-    .from("events")
-    .insert(eventInsertPayload as never)
-    .select("id")
-    .single();
+  if (rpcSubmitError) {
+    const rpcMsg = rpcSubmitError.message || "";
+    // If error is an explicit business rule (capacity, conflict, authorization), fail immediately
+    if (
+      rpcMsg.includes("Target capacity") ||
+      rpcMsg.includes("scheduling conflict") ||
+      rpcMsg.includes("authorized")
+    ) {
+      return { error: rpcMsg };
+    }
 
-  let insertData = firstAttempt.data as { id: string } | null;
-  let insertError = firstAttempt.error;
+    // Fallback direct insert if function not yet applied in schema cache
+    // Build insert payload without undefined / un-migrated columns
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const eventInsertPayload: Record<string, any> = {
+      title,
+      slug,
+      organization_id: orgId,
+      college_id: collegeId ?? null,
+      venue_id: venueId,
+      starts_at: startsAt,
+      ends_at: endsAt,
+      registration_deadline: regDeadlineIso,
+      total_capacity: capacity,
+      category: category ?? "General",
+      tier: dbTier,
+      approval: "pending",
+      status: "draft",
+      description: descArray,
+      summary: descText ? descText.slice(0, 160) : "",
+      doors_open_note: doorsOpenNote ?? null,
+      coordinator_name: coordinatorName ?? null,
+      coordinator_email: coordinatorEmail ?? null,
+      coordinator_phone: coordinatorPhone ?? null,
+      banner_color: bannerColor ?? "#6c0c28",
+      created_by: user.id,
+    };
 
-  if (insertError && insertError.message?.includes("qr_enabled")) {
-    delete eventInsertPayload.qr_enabled;
-    const retryAttempt = await supabase
+    if (typeof qrEnabled === "boolean") {
+      eventInsertPayload.qr_enabled = qrEnabled;
+    }
+
+    const firstAttempt = await supabase
       .from("events")
       .insert(eventInsertPayload as never)
       .select("id")
       .single();
 
-    insertData = retryAttempt.data as { id: string } | null;
-    insertError = retryAttempt.error;
-  }
+    let insertData = firstAttempt.data as { id: string } | null;
+    let insertError = firstAttempt.error;
 
-  if (insertError || !insertData) return { error: insertError?.message ?? "Failed to create event" };
+    if (insertError && insertError.message?.includes("qr_enabled")) {
+      delete eventInsertPayload.qr_enabled;
+      const retryAttempt = await supabase
+        .from("events")
+        .insert(eventInsertPayload as never)
+        .select("id")
+        .single();
 
-  const newEventId = insertData.id;
+      insertData = retryAttempt.data as { id: string } | null;
+      insertError = retryAttempt.error;
+    }
 
-  // Insert into event_approvals queue for admin review (schema column is decision_note)
-  const { error: approvalInsertError } = await supabase
-    .from("event_approvals")
-    .insert({
-      event_id: newEventId,
-      submitted_by: user.id,
-      brief: descText || null,
-      seats_expected: capacity,
-      stage: "Awaiting Review",
-      decision_note: memo ?? null,
-    });
+    if (insertError || !insertData) return { error: insertError?.message ?? "Failed to create event" };
 
-  if (approvalInsertError) {
-    // If approval queue insert fails, do not silently swallow; report error
-    return { error: `Event created but approval submission failed: ${approvalInsertError.message}`, eventId: newEventId };
+    newEventId = insertData.id;
+
+    // Insert into event_approvals queue for admin review (schema column is decision_note)
+    const { error: approvalInsertError } = await supabase
+      .from("event_approvals")
+      .insert({
+        event_id: newEventId,
+        submitted_by: user.id,
+        brief: descText || null,
+        seats_expected: capacity,
+        stage: "Awaiting Review",
+        decision_note: memo ?? null,
+      });
+
+    if (approvalInsertError) {
+      return { error: `Event created but approval submission failed: ${approvalInsertError.message}`, eventId: newEventId };
+    }
   }
 
   revalidatePath("/organizer-dashboard");
   revalidatePath("/admin/approvals");
   revalidatePath("/admin");
 
-  return { eventId: newEventId };
+  return { eventId: newEventId ?? undefined };
 }
 
 /* --------------------------------------------------------------------------

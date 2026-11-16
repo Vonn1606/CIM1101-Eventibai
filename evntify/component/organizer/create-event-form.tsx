@@ -78,6 +78,12 @@ function CeSectionHeader({
   );
 }
 
+function getFutureIsoDate(daysFromNow: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + daysFromNow);
+  return d.toISOString().split("T")[0];
+}
+
 /* ---------- Main component ---------- */
 
 export default function CreateEventForm({
@@ -87,19 +93,29 @@ export default function CreateEventForm({
 }: CreateEventFormProps) {
   const router = useRouter();
 
+  const [minEventDate] = useState(() => getFutureIsoDate(7));
+
   const [form, setForm] = useState(() => ({
     name: "",
-    category: "Seminar",
+    category: "Seminar" as "Seminar" | "Workshop" | "Competition" | "Symposium" | "Social" | "General",
     description: "",
     organizationId: organizations[0]?.id ?? "",
     collegeId: colleges[0]?.id ?? "",
     venueId: venues[0]?.id ?? "",
     venue: venues[0]?.name ?? "",
-    date: new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0],
+    date: getFutureIsoDate(7),
     start: "13:00",
     end: "17:00",
-    registrationDeadline: new Date(Date.now() + 5 * 86400000).toISOString().split("T")[0],
+    registrationDeadline: getFutureIsoDate(5),
     capacity: venues[0]?.capacity ? Math.min(100, venues[0].capacity) : 100,
+    tier: "Free RSVP",
+    memo: "",
+    doorsOpenNote: "Doors open 30 minutes prior to event start. Present digital ticket for entry.",
+    coordinatorName: "",
+    coordinatorEmail: "",
+    coordinatorPhone: "",
+    bannerColor: "#6c0c28",
+    qrEnabled: true,
   }));
 
   const [submitting, setSubmitting] = useState(false);
@@ -110,7 +126,7 @@ export default function CreateEventForm({
   );
   const maxCapacity = selectedVenue?.capacity ?? 500;
 
-  const set = (k: string, v: string | number) =>
+  const set = (k: string, v: string | number | boolean) =>
     setForm((f) => ({ ...f, [k]: v }));
 
   const onVenueChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -134,6 +150,19 @@ export default function CreateEventForm({
     setSubmitting(true);
     setError(null);
 
+    // Client validation
+    if (form.end <= form.start) {
+      setError("Event end time must be after the start time.");
+      setSubmitting(false);
+      return;
+    }
+
+    if (form.registrationDeadline && form.registrationDeadline > form.date) {
+      setError("Registration deadline cannot be after the event date.");
+      setSubmitting(false);
+      return;
+    }
+
     const res = await submitEvent({
       title: form.name,
       category: form.category,
@@ -147,6 +176,14 @@ export default function CreateEventForm({
       endTime: form.end,
       registrationDeadline: form.registrationDeadline || undefined,
       capacity: Number(form.capacity),
+      tier: form.tier,
+      memo: form.memo || undefined,
+      doorsOpenNote: form.doorsOpenNote || undefined,
+      coordinatorName: form.coordinatorName || undefined,
+      coordinatorEmail: form.coordinatorEmail || undefined,
+      coordinatorPhone: form.coordinatorPhone || undefined,
+      bannerColor: form.bannerColor,
+      qrEnabled: form.qrEnabled,
     });
 
     if (res.error) {
@@ -155,7 +192,7 @@ export default function CreateEventForm({
       return;
     }
 
-    router.push("/organizer-dashboard");
+    router.push("/organizer-dashboard?created=true");
   };
 
   const dateMonthStr = (() => {
@@ -352,6 +389,7 @@ export default function CreateEventForm({
                 type="date"
                 className="ce-input"
                 value={form.date}
+                min={minEventDate}
                 onChange={(e) => set("date", e.target.value)}
                 required
               />
@@ -394,6 +432,40 @@ export default function CreateEventForm({
               <small>Cutoff before event starts</small>
             </div>
 
+            <div className="ce-field ce-span-1-3">
+              <CeLabel>Access Tier</CeLabel>
+              <div className="ce-select-wrap">
+                <select
+                  value={form.tier}
+                  onChange={(e) => set("tier", e.target.value)}
+                  required
+                >
+                  <option value="Free RSVP">Free RSVP</option>
+                  <option value="Tiered RSVP">Tiered RSVP</option>
+                  <option value="Ticketed">Ticketed</option>
+                  <option value="VIP Only">VIP Only</option>
+                </select>
+                <ChevronDown size={10} className="ce-chev" />
+              </div>
+              <small>Ticketing / Admission policy</small>
+            </div>
+
+            <div className="ce-field ce-span-1-3">
+              <CeLabel>QR Code Ticketing</CeLabel>
+              <div className="ce-select-wrap">
+                <select
+                  value={form.qrEnabled ? "enabled" : "disabled"}
+                  onChange={(e) => set("qrEnabled", e.target.value === "enabled")}
+                  required
+                >
+                  <option value="enabled">Enabled (Fast-Pass QR)</option>
+                  <option value="disabled">Disabled (Manual list only)</option>
+                </select>
+                <ChevronDown size={10} className="ce-chev" />
+              </div>
+              <small>Generate gate check-in passes</small>
+            </div>
+
             <div className="ce-field ce-span-half">
               <CeLabel>Target Capacity (Attendees)</CeLabel>
               <input
@@ -425,10 +497,90 @@ export default function CreateEventForm({
                 <span>{filled}% filled</span>
               </div>
             </div>
+
+            <div className="ce-field ce-span-all">
+              <div className="ce-label-row">
+                <div className="ce-label">
+                  <span>Doors Open & Entry Instructions</span>
+                </div>
+                <small>Printed on ticket pass</small>
+              </div>
+              <input
+                className="ce-input"
+                placeholder="e.g., Doors open 30 mins before. Bring UE Student ID."
+                value={form.doorsOpenNote}
+                onChange={(e) => set("doorsOpenNote", e.target.value)}
+              />
+            </div>
           </div>
         </section>
 
-        {/* Section 4 — Live Preview Strip */}
+        {/* Section 4 — Coordinator & SAO Memo */}
+        <section className="ce-card">
+          <CeSectionHeader
+            n={4}
+            title="Coordinator & SAO Review Brief"
+            sub="Official contact details and administrative memo"
+            tag="Details"
+            tagTone="green"
+          />
+          <div className="ce-grid">
+            <div className="ce-field ce-span-1-3">
+              <div className="ce-label">
+                <span>Lead Coordinator Name</span>
+              </div>
+              <input
+                className="ce-input"
+                placeholder="e.g. Maria Santos"
+                value={form.coordinatorName}
+                onChange={(e) => set("coordinatorName", e.target.value)}
+              />
+            </div>
+
+            <div className="ce-field ce-span-1-3">
+              <div className="ce-label">
+                <span>Coordinator Email</span>
+              </div>
+              <input
+                type="email"
+                className="ce-input"
+                placeholder="e.g. maria.santos@ue.edu.ph"
+                value={form.coordinatorEmail}
+                onChange={(e) => set("coordinatorEmail", e.target.value)}
+              />
+            </div>
+
+            <div className="ce-field ce-span-1-3">
+              <div className="ce-label">
+                <span>Contact Phone</span>
+              </div>
+              <input
+                className="ce-input"
+                placeholder="e.g. 0917-123-4567"
+                value={form.coordinatorPhone}
+                onChange={(e) => set("coordinatorPhone", e.target.value)}
+              />
+            </div>
+
+            <div className="ce-field ce-span-all">
+              <div className="ce-label-row">
+                <div className="ce-label">
+                  <span>Pitch & Merits for SAO Memo</span>
+                </div>
+                <small>Internal review note for Student Affairs</small>
+              </div>
+              <textarea
+                className="ce-input ce-textarea"
+                rows={3}
+                placeholder="Explain the academic merit, co-curricular alignment, or university impact of this event for Student Affairs evaluation..."
+                value={form.memo}
+                onChange={(e) => set("memo", e.target.value)}
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* Section 5 — Live Preview Strip */}
         <section className="ce-preview">
           <div className="ce-preview-date">
             <span>{dateMonthStr}</span>
@@ -469,11 +621,11 @@ export default function CreateEventForm({
             >
               {submitting ? (
                 <>
-                  <Loader2 size={12} className="animate-spin" /> Submitting...
+                  <Loader2 size={12} className="animate-spin" /> Submitting for Review...
                 </>
               ) : (
                 <>
-                  Submit Event <Send size={12} />
+                  Submit for SAO Review <Send size={12} />
                 </>
               )}
             </button>

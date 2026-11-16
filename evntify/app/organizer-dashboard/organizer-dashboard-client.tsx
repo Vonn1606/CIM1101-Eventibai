@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
-import { submitEvent, toggleCheckIn, updateEvent, cancelEvent } from "@/app/actions/events";
+import { toggleCheckIn, updateEvent, cancelEvent } from "@/app/actions/events";
 import { sendBroadcast, getBroadcastLogs } from "@/app/actions/broadcasts";
 import type { BroadcastLogItem } from "@/app/actions/broadcasts";
 import type { OrgEvent, OrgRosterStudent } from "@/lib/db/organizer";
@@ -15,7 +15,6 @@ import {
   ChevronDown,
   Clock,
   Edit3,
-  ExternalLink,
   FileText,
   LayoutGrid,
   MapPin,
@@ -116,15 +115,6 @@ export default function OrganizerDashboardClient({
   const [rosterSearch, setRosterSearch] = useState("");
   const [headerSearch, setHeaderSearch] = useState("");
 
-  // Form State for "Submit Event for SAO Approval"
-  const [formTitle, setFormTitle] = useState("");
-  const [formHostOrg, setFormHostOrg] = useState("League of Information Tech Students");
-  const [formVenue, setFormVenue] = useState("Tan Yan Kee Conf Hall • 11th Flr");
-  const [formDate, setFormDate] = useState("2026-11-12");
-  const [formCapLimit, setFormCapLimit] = useState("250");
-  const [formTier, setFormTier] = useState("Tiled RSVP");
-  const [formMemo, setFormMemo] = useState("");
-
   // Notification / Toast Feedback
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [nfcSimulating, setNfcSimulating] = useState(false);
@@ -208,55 +198,7 @@ export default function OrganizerDashboardClient({
     }, 600);
   };
 
-  // Handler: Submit Event for SAO Approval
-  const handleSubmitSAO = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formTitle.trim()) {
-      showToast("Please enter an event title.");
-      return;
-    }
 
-    const parsedDate = new Date(formDate);
-    const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
-    const month = months[parsedDate.getMonth()] || "NOV";
-    const day = String(parsedDate.getDate() || 15).padStart(2, "0");
-
-    const res = await submitEvent({
-      title: formTitle.trim(),
-      venue: formVenue,
-      date: formDate,
-      capacity: Number(formCapLimit) || 200,
-      tier: formTier,
-      memo: formMemo,
-    });
-
-    if (res.error) {
-      showToast(`Submission failed: ${res.error}`);
-      return;
-    }
-
-    const newEvent: EventItem = {
-      id: res.eventId ?? String(Date.now()),
-      month,
-      day,
-      title: formTitle.trim(),
-      venue: formVenue,
-      time: "1:00 PM – 5:00 PM PST",
-      status: "pending",
-      badgeLabel: "Pending SAO Clearance",
-      registered: 0,
-      cap: Number(formCapLimit) || 200,
-      capType: "RSVPs",
-      org: formHostOrg,
-      tier: formTier,
-      waitlistCount: 0,
-    };
-
-    setEvents((prev) => [newEvent, ...prev]);
-    showToast(`✓ "${formTitle}" submitted to SAO! Clearance review queued.`);
-    setFormTitle("");
-    setFormMemo("");
-  };
 
   // Handler: Open Delivery Logs Modal
   const handleOpenLogs = async () => {
@@ -989,7 +931,7 @@ export default function OrganizerDashboardClient({
               <div className="flex items-start justify-between">
                 <div>
                   <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[#C4384F]">
-                    <span>FAST-TRACK FILING</span>
+                    <span>OFFICIAL PROPOSAL FILING</span>
                   </div>
                   <h3
                     className="text-[24px] font-bold text-[#651C32] leading-tight"
@@ -1000,135 +942,38 @@ export default function OrganizerDashboardClient({
                     Submit Event for SAO Approval
                   </h3>
                   <p className="text-xs text-[#7A6B68]">
-                    Direct routing to Student Affairs Office. Approvals sync automatically.
+                    Direct routing to Student Affairs Office. Approvals sync automatically with campus calendar.
                   </p>
                 </div>
                 <div className="rounded-xl border border-[#ECE2DC] bg-[#FAF5F2] p-2 text-[#651C32]">
-                  <ExternalLink size={16} />
+                  <Sparkles size={16} />
                 </div>
               </div>
 
-              <form onSubmit={handleSubmitSAO} className="space-y-4">
-                {/* Event Title */}
+              <div className="rounded-xl border border-[#F0E6E1] bg-[#FAF5F2] p-5 space-y-4">
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-[#1E1B19]">
-                    Event Title <span className="text-[#C4384F]">*</span>
-                  </label>
-                  <input
-                    id="event-title-input"
-                    type="text"
-                    required
-                    value={formTitle}
-                    onChange={(e) => setFormTitle(e.target.value)}
-                    placeholder="e.g. AWS Student Community Cloud Day"
-                    className="w-full rounded-xl border border-[#ECE2DC] bg-[#FAF5F2] px-3.5 py-2 text-xs text-[#1E1B19] placeholder:text-[#9A8B88] focus:bg-white focus:border-[#651C32] focus:outline-none transition"
-                  />
+                  <h4 className="text-sm font-semibold text-[#1E1B19]">Standard Event Proposal Portal</h4>
+                  <p className="text-xs text-[#7A6B68] leading-relaxed">
+                    Event proposals require venue clearance, schedule buffers, ticketing tier selection, and SAO administrative review before publishing to the campus directory.
+                  </p>
                 </div>
 
-                {/* Host Org & Campus Venue */}
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-[#1E1B19]">
-                      Host Organization
-                    </label>
-                    <input
-                      type="text"
-                      value={formHostOrg}
-                      onChange={(e) => setFormHostOrg(e.target.value)}
-                      className="w-full rounded-xl border border-[#ECE2DC] bg-[#FAF5F2] px-3.5 py-2 text-xs text-[#1E1B19] font-medium focus:bg-white focus:border-[#651C32] focus:outline-none transition"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-[#1E1B19]">
-                      Campus Venue <span className="text-[#C4384F]">*</span>
-                    </label>
-                    <div className="relative">
-                      <select
-                        value={formVenue}
-                        onChange={(e) => setFormVenue(e.target.value)}
-                        className="w-full appearance-none rounded-xl border border-[#ECE2DC] bg-[#FAF5F2] px-3.5 py-2 pr-8 text-xs font-medium text-[#1E1B19] focus:bg-white focus:border-[#651C32] focus:outline-none transition cursor-pointer"
-                      >
-                        <option value="Tan Yan Kee Conf Hall • 11th Flr">Tan Yan Kee Conf Hall • 11th Flr</option>
-                        <option value="Computer Laboratory 2nd Floor">Computer Laboratory 2nd Floor</option>
-                        <option value="UE Theater Main Stage">UE Theater Main Stage</option>
-                        <option value="Tan Yan Kee Hall A • 11th Flr">Tan Yan Kee Hall A • 11th Flr</option>
-                        <option value="Engineering AVR 3rd Flr">Engineering AVR 3rd Flr</option>
-                      </select>
-                      <ChevronDown size={14} className="pointer-events-none absolute right-3 top-2.5 text-[#8A7B78]" />
-                    </div>
-                  </div>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-1">
+                  <Link
+                    href="/organizer-dashboard/create-event"
+                    className="flex items-center justify-center gap-2 rounded-xl bg-[#651C32] px-5 py-3 text-xs font-semibold text-white shadow-xs transition hover:bg-[#521325] active:scale-95"
+                  >
+                    <Plus size={14} />
+                    <span>Open Full Event Proposal Form</span>
+                    <ArrowRight size={13} />
+                  </Link>
                 </div>
+              </div>
 
-                {/* Date, Cap Limit, Tier */}
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-[#1E1B19]">Date</label>
-                    <input
-                      type="date"
-                      value={formDate}
-                      onChange={(e) => setFormDate(e.target.value)}
-                      className="w-full rounded-xl border border-[#ECE2DC] bg-[#FAF5F2] px-3 py-2 text-xs font-medium text-[#1E1B19] focus:bg-white focus:border-[#651C32] focus:outline-none transition"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-[#1E1B19]">Cap Limit</label>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        min={1}
-                        value={formCapLimit}
-                        onChange={(e) => setFormCapLimit(e.target.value)}
-                        className="w-full rounded-xl border border-[#ECE2DC] bg-[#FAF5F2] px-3 py-2 text-xs font-medium text-[#1E1B19] focus:bg-white focus:border-[#651C32] focus:outline-none transition"
-                      />
-                      <span className="pointer-events-none absolute right-3 top-2 text-[10px] font-bold text-[#8A7B78] uppercase">
-                        pax
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-[#1E1B19]">Tier</label>
-                    <div className="relative">
-                      <select
-                        value={formTier}
-                        onChange={(e) => setFormTier(e.target.value)}
-                        className="w-full appearance-none rounded-xl border border-[#ECE2DC] bg-[#FAF5F2] px-3 py-2 pr-7 text-xs font-medium text-[#1E1B19] focus:bg-white focus:border-[#651C32] focus:outline-none transition cursor-pointer"
-                      >
-                        <option value="Tiled RSVP">Tiled RSVP</option>
-                        <option value="Free RSVP">Free RSVP</option>
-                        <option value="Ticketed">Ticketed</option>
-                        <option value="VIP Only">VIP Only</option>
-                      </select>
-                      <ChevronDown size={14} className="pointer-events-none absolute right-2.5 top-2.5 text-[#8A7B78]" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Short Pitch / Memo Summary */}
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-[#1E1B19]">
-                    Short Pitch / Memo Summary
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={formMemo}
-                    onChange={(e) => setFormMemo(e.target.value)}
-                    placeholder="Provide a brief explanation of academic or extra-curricular merits for the Office of Student Affairs."
-                    className="w-full resize-none rounded-xl border border-[#ECE2DC] bg-[#FAF5F2] p-3 text-xs text-[#1E1B19] placeholder:text-[#9A8B88] focus:bg-white focus:border-[#651C32] focus:outline-none transition"
-                  />
-                </div>
-
-                {/* Submit Button */}
-                <button
-                  type="submit"
-                  className="flex items-center gap-2 rounded-xl bg-[#651C32] px-6 py-3 text-xs font-semibold text-white shadow-xs transition hover:bg-[#521325] active:scale-95 cursor-pointer"
-                >
-                  <span>Submit for SAO Approval</span>
-                  <ArrowRight size={13} />
-                </button>
-              </form>
+              <div className="flex items-center gap-2 text-[11px] text-[#7A6B68]">
+                <Clock size={13} className="text-[#651C32]" />
+                <span>Standard SAO turnaround is 3-5 business days. Submit at least 7 days before event date.</span>
+              </div>
             </div>
 
             {/* RIGHT: Instant Broadcast Composer */}

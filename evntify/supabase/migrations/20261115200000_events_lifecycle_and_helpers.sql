@@ -222,3 +222,132 @@ with check (
     )
   )
 );
+
+-- 7. Submit Event RPC: atomic event creation and approval submission
+-- Single database transaction, enforces capacity check against venue, validates venue conflict
+create or replace function public.submit_event_proposal(
+  p_title text,
+  p_slug text,
+  p_org_id uuid,
+  p_college_id uuid,
+  p_venue_id uuid,
+  p_starts_at timestamptz,
+  p_ends_at timestamptz,
+  p_reg_deadline timestamptz,
+  p_capacity int,
+  p_category text,
+  p_tier public.access_tier,
+  p_description text[],
+  p_summary text,
+  p_memo text,
+  p_doors_open_note text default null,
+  p_coordinator_name text default null,
+  p_coordinator_email text default null,
+  p_coordinator_phone text default null,
+  p_banner_color text default '#6c0c28',
+  p_qr_enabled boolean default true
+) returns uuid language plpgsql security definer set search_path = public as $$
+declare
+  v_event_id uuid;
+  v_venue_cap int;
+  v_conflict_count int;
+begin
+  -- Validate caller is member of org, or admin
+  if not (
+    public.is_admin()
+    or public.current_role_is('admin')
+    or exists (
+      select 1 from public.organization_members
+       where organization_id = p_org_id
+         and user_id = auth.uid()
+    )
+  ) then
+    raise exception 'You are not authorized to create events for this organization';
+  end if;
+
+  -- Validate venue capacity if venue is provided
+  if p_venue_id is not null then
+    select capacity into v_venue_cap from public.venues where id = p_venue_id;
+    if found and p_capacity > v_venue_cap then
+      raise exception 'Target capacity (%) exceeds venue maximum capacity (%)', p_capacity, v_venue_cap;
+    end if;
+
+    -- Validate venue conflicts (overlapping open/scheduled/ongoing events or closures)
+    select count(*) into v_conflict_count
+      from public.check_venue_conflict(p_venue_id, p_starts_at, coalesce(p_ends_at, p_starts_at + interval '2 hours'));
+    if v_conflict_count > 0 then
+      raise exception 'The selected venue has a scheduling conflict during this time';
+    end if;
+  end if;
+
+  -- Insert event
+  insert into public.events (
+    title,
+    slug,
+    organization_id,
+    college_id,
+    venue_id,
+    starts_at,
+    ends_at,
+    registration_deadline,
+    total_capacity,
+    category,
+    tier,
+    approval,
+    status,
+    description,
+    summary,
+    doors_open_note,
+    coordinator_name,
+    coordinator_email,
+    coordinator_phone,
+    banner_color,
+    qr_enabled,
+    created_by
+  ) values (
+    p_title,
+    p_slug,
+    p_org_id,
+    p_college_id,
+    p_venue_id,
+    p_starts_at,
+    p_ends_at,
+    p_reg_deadline,
+    p_capacity,
+    p_category,
+    p_tier,
+    'pending'::public.approval_status,
+    'draft'::public.event_status,
+    p_description,
+    p_summary,
+    p_doors_open_note,
+    p_coordinator_name,
+    p_coordinator_email,
+    p_coordinator_phone,
+    coalesce(p_banner_color, '#6c0c28'),
+    coalesce(p_qr_enabled, true),
+    auth.uid()
+  ) returning id into v_event_id;
+
+  -- Insert into event_approvals queue atomically
+  insert into public.event_approvals (
+    event_id,
+    submitted_by,
+    brief,
+    seats_expected,
+    stage,
+    decision,
+    decision_note
+  ) values (
+    v_event_id,
+    auth.uid(),
+    p_summary,
+    p_capacity,
+    'Awaiting Review',
+    'pending',
+    p_memo
+  );
+
+  return v_event_id;
+end;
+$$;

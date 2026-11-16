@@ -23,6 +23,11 @@ create index if not exists idx_organizer_apps_status on public.organizer_applica
 -- Enable RLS
 alter table public.organizer_applications enable row level security;
 
+-- Grant permissions to authenticated and anon roles
+grant select, insert on public.organizer_applications to authenticated;
+grant update, delete on public.organizer_applications to authenticated;
+grant select, insert, update, delete on public.organizer_applications to service_role;
+
 -- Policies
 create policy "Users can view their own applications"
   on public.organizer_applications for select
