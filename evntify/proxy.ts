@@ -85,6 +85,16 @@ export async function proxy(request: NextRequest) {
     }
   }
 
+  // Guard: /notifications requires any authenticated user
+  if (request.nextUrl.pathname.startsWith("/notifications")) {
+    if (!user) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/signin";
+      url.searchParams.set("next", request.nextUrl.pathname);
+      return NextResponse.redirect(url);
+    }
+  }
+
   return supabaseResponse;
 }
 

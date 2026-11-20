@@ -10,7 +10,6 @@ export default function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -142,18 +141,9 @@ export default function SignInForm() {
         </div>
       </div>
 
-      {/* Remember Me & Forgot Password */}
-      <div className="flex items-center justify-between text-xs text-neutral-600 pt-0.5">
-        <label className="flex items-center gap-2 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={rememberMe}
-            onChange={(e) => setRememberMe(e.target.checked)}
-            className="w-4 h-4 rounded border-neutral-300 text-neutral-800 focus:ring-0 cursor-pointer"
-          />
-          <span className="text-xs text-neutral-600">Remember this device</span>
-        </label>
-        <Link href="#forgot-password" className="text-xs text-neutral-600 hover:text-neutral-900 transition font-normal">
+      {/* Forgot Password */}
+      <div className="flex items-center justify-end text-xs text-neutral-600 pt-0.5">
+        <Link href="/forgot-password" className="text-xs text-neutral-600 hover:text-neutral-900 transition font-normal">
           Forgot Password?
         </Link>
       </div>

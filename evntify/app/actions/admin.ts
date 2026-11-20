@@ -116,12 +116,12 @@ export async function suspendEvent(
 
     if (updateErr) return { error: updateErr.message };
 
-    await supabase.from("audit_logs").insert({
-      actor_id: user.id,
-      action: "event_suspended",
-      entity: "events",
-      entity_id: targetEventId,
-      meta: { reason: reason || "Administrative suspension via Inspector drawer" },
+    // Use log_audit RPC — direct insert is blocked by RLS
+    await supabase.rpc("log_audit", {
+      p_action: "event.suspend",
+      p_entity: "event",
+      p_entity_id: targetEventId,
+      p_meta: { reason: reason || "Administrative suspension via Inspector drawer" },
     });
   }
 
@@ -243,12 +243,12 @@ export async function setFeatured(
 
   if (error) return { error: error.message };
 
-  await supabase.from("audit_logs").insert({
-    actor_id: user.id,
-    action: isFeatured ? "event.featured" : "event.unfeatured",
-    entity: "events",
-    entity_id: targetEventId,
-    meta: { isFeatured, rank: isFeatured ? (rank ?? 1) : null },
+  // Use log_audit RPC — direct insert is blocked by RLS
+  await supabase.rpc("log_audit", {
+    p_action: isFeatured ? "event.featured" : "event.unfeatured",
+    p_entity: "event",
+    p_entity_id: targetEventId,
+    p_meta: { isFeatured, rank: isFeatured ? (rank ?? 1) : null },
   });
 
   revalidatePath("/admin/events-directory");

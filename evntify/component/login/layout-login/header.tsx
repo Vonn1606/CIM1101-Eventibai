@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 export default function Header() {
@@ -8,9 +9,11 @@ export default function Header() {
         href="/"
         className="flex items-center gap-2.5 group focus:outline-none"
       >
-        <img
+        <Image
           src="/eventifytxt-cropped.svg"
           alt="Eventify"
+          width={120}
+          height={36}
           className="h-9  w-auto object-contain transition transform group-hover:scale-105"
         />
       </Link>

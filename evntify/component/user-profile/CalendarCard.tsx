@@ -9,6 +9,8 @@ interface CalendarCardProps {
   days: number;
   featured: number;
   registered: number[];
+  selectedDay?: number | null;
+  onDayClick?: (day: number) => void;
 }
 
 export default function CalendarCard({
@@ -17,6 +19,8 @@ export default function CalendarCard({
   days: totalDays,
   featured,
   registered,
+  selectedDay,
+  onDayClick,
 }: CalendarCardProps) {
   const days = Array.from({ length: totalDays }, (_, i) => i + 1);
   return (
@@ -59,20 +63,20 @@ export default function CalendarCard({
           const base = "relative flex h-[60px] flex-col items-center justify-center rounded-lg text-[13px] transition cursor-pointer";
           if (isFeatured)
             return (
-              <button key={d} className={`${base} gap-0.5 rounded-xl bg-maroon font-bold text-[15px] text-white shadow-md`}>
+              <button key={d} className={`${base} gap-0.5 rounded-xl bg-maroon font-bold text-[15px] text-white shadow-md`} onClick={() => onDayClick?.(d)}>
                 {d}
                 <span className="size-1.5 rounded-full bg-mint" />
               </button>
             );
           if (reg)
             return (
-              <button key={d} className={`${base} gap-0.5 rounded-xl bg-maroon-tint font-bold text-[15px] text-maroon-ink shadow-sm`}>
+              <button key={d} className={`${base} gap-0.5 rounded-xl ${selectedDay === d ? "ring-2 ring-maroon bg-maroon-tint" : "bg-maroon-tint"} font-bold text-[15px] text-maroon-ink shadow-sm`} onClick={() => onDayClick?.(d)}>
                 {d}
                 <span className="size-1.5 rounded-full bg-maroon" />
               </button>
             );
           return (
-            <button key={d} className={`${base} hover:bg-surface-low`}>
+            <button key={d} className={`${base} ${selectedDay === d ? "ring-2 ring-maroon bg-surface-low" : "hover:bg-surface-low"}`} onClick={() => onDayClick?.(d)}>
               {d}
             </button>
           );

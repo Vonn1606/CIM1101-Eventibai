@@ -8,8 +8,7 @@ import ApplyOrganizerSection from "@/component/user-profile/ApplyOrganizerSectio
 import Header from "@/component/user-profile/Header";
 import Footer from "@/component/user-profile/Footer";
 import WelcomeBar from "@/component/user-profile/WelcomeBar";
-import CalendarCard from "@/component/user-profile/CalendarCard";
-import SelectedDayPreview from "@/component/user-profile/SelectedDayPreview";
+import CalendarSidebar from "@/component/user-profile/CalendarSidebar";
 import { PastCard, UpcomingCard } from "@/component/user-profile/EventCards";
 
 export const metadata: Metadata = {
@@ -122,6 +121,25 @@ export default async function MyEventsPage() {
     ...pastRegs,
   ]);
 
+  // Build a map of day-of-month → event info for the SelectedDayPreview
+  const dayEvents: Record<number, { date: string; title: string; time: string; venue: string; ticketCode: string }> = {};
+  for (const r of upcomingRegs) {
+    if (!r.event.starts_at) continue;
+    const d = new Date(r.event.starts_at);
+    if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()) {
+      const day = d.getDate();
+      if (!dayEvents[day]) {
+        dayEvents[day] = {
+          date: formatDate(r.event.starts_at),
+          title: r.event.title,
+          time: formatTime(r.event.starts_at),
+          venue: r.event.venue ?? "",
+          ticketCode: r.ticket_code ?? "",
+        };
+      }
+    }
+  }
+
   return (
     <>
       <Header />
@@ -133,14 +151,14 @@ export default async function MyEventsPage() {
 
           <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,488px)_1fr]">
             <aside className="flex flex-col gap-5 lg:sticky lg:top-28">
-              <CalendarCard
+              <CalendarSidebar
                 monthLabel={calendarData.monthLabel}
                 prevTail={calendarData.prevTail}
                 days={calendarData.days}
                 featured={calendarData.featured}
                 registered={calendarData.registered}
+                dayEvents={dayEvents}
               />
-              <SelectedDayPreview />
             </aside>
 
             <div className="flex flex-col gap-8">

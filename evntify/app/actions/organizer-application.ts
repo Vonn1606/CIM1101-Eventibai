@@ -183,7 +183,7 @@ export async function decideOrganizerApplication(
     // 3. Link user in organization_members
     if (orgId) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabase as any).from("organization_members").upsert(
+      const { error: memberUpsertErr } = await (supabase as any).from("organization_members").upsert(
         {
           organization_id: orgId,
           user_id: appRow.user_id,
@@ -191,6 +191,12 @@ export async function decideOrganizerApplication(
         },
         { onConflict: "organization_id,user_id" }
       );
+      if (memberUpsertErr) {
+        console.error("[decideOrganizerApplication] Failed to insert organization member:", memberUpsertErr);
+        return { error: `Approved role, but failed to link organization: ${memberUpsertErr.message}` };
+      }
+    } else {
+      return { error: "Approved role, but could not resolve target organization ID." };
     }
   }
 

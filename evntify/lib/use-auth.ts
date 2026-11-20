@@ -100,6 +100,12 @@ export function useAuth() {
           cachedProfile = null;
           cachedUserId = null;
         }
+        // On SIGNED_IN (role change after admin promotes user), bust the cache
+        // so fetchProfile re-reads the updated role from the DB
+        if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+          cachedProfile = null;
+          cachedUserId = null;
+        }
         const p = await fetchProfile(currentUser.id);
         setProfile(p);
         setRole(p?.role ?? "student");

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { Bell, User } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -44,9 +45,11 @@ export default function Header() {
     <header className="sticky top-0 z-20 h-20 bg-white/90 shadow-[0_1px_8px_rgba(0,0,0,0.04)] backdrop-blur-md">
       <div className="mx-auto flex h-full max-w-[1440px] items-center justify-between gap-6 px-6 lg:px-10">
         <Link href="/my-events" className="flex items-center gap-2.5 group focus:outline-none shrink-0">
-          <img
+          <Image
             src="/eventifytxt-cropped.svg"
             alt="Eventify"
+            width={120}
+            height={36}
             className="h-9 w-auto object-contain transition transform group-hover:scale-105"
           />
         </Link>

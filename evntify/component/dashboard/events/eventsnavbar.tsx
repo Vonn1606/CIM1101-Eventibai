@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 import { useAuth } from "@/lib/use-auth";
 import React, { useState } from "react";
 import Link from "next/link";
@@ -48,9 +49,11 @@ export default function EventsNavbar({
             <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#6c0c28] text-white font-extrabold text-sm">
               E
             </span>
-            <img
+            <Image
               src="/eventifytxt4.svg"
               alt="Eventify"
+              width={120}
+              height={80}
               className="h-20  w-auto object-contain transition transform group-hover:scale-105"
             />
           </Link>

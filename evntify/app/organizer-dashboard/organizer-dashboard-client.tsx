@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { toggleCheckIn, updateEvent, cancelEvent } from "@/app/actions/events";
 import { sendBroadcast, getBroadcastLogs } from "@/app/actions/broadcasts";
@@ -33,8 +34,6 @@ import {
   ArrowRight,
   ArrowLeft,
   Smartphone,
-  MessageSquare,
-  Bot,
   Zap,
 } from "lucide-react";
 
@@ -316,9 +315,11 @@ export default function OrganizerDashboardClient({
               href="/organizer-dashboard"
               className="flex items-center gap-2 group transition focus:outline-none"
             >
-              <img
+              <Image
                 src="/eventifytxt-cropped.svg"
                 alt="eventify."
+                width={120}
+                height={34}
                 className="h-8.5 w-auto object-contain transition transform group-hover:scale-105"
                 style={{ height: "34px", width: "auto" }}
               />
@@ -1029,10 +1030,10 @@ export default function OrganizerDashboardClient({
                   </div>
                 </div>
 
-                {/* Delivery Channels */}
+                {/* Delivery Channels — only In-App Push is implemented */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-[#1E1B19]">Delivery Channels</label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 gap-2">
                     <button
                       type="button"
                       onClick={() =>
@@ -1045,34 +1046,6 @@ export default function OrganizerDashboardClient({
                     >
                       <Smartphone size={13} />
                       <span>In-App Push</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setActiveChannels((p) => ({ ...p, sms: !p.sms }))
-                      }
-                      className={`flex items-center justify-center gap-1.5 rounded-xl border py-2 text-xs font-semibold transition ${activeChannels.sms
-                        ? "border-[#651C32] bg-[#FCECEF] text-[#651C32]"
-                        : "border-[#ECE2DC] bg-[#FAF5F2] text-[#7A6B68]"
-                        }`}
-                    >
-                      <MessageSquare size={13} />
-                      <span>SMS Blast</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setActiveChannels((p) => ({ ...p, discord: !p.discord }))
-                      }
-                      className={`flex items-center justify-center gap-1.5 rounded-xl border py-2 text-xs font-semibold transition ${activeChannels.discord
-                        ? "border-[#651C32] bg-[#FCECEF] text-[#651C32]"
-                        : "border-[#ECE2DC] bg-[#FAF5F2] text-[#7A6B68]"
-                        }`}
-                    >
-                      <Bot size={13} />
-                      <span>Discord Bot</span>
                     </button>
                   </div>
                 </div>

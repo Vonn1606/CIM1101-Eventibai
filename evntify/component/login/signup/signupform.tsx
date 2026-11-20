@@ -2,7 +2,6 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { signUp } from "@/app/actions/auth";
 
 const inputClass =
@@ -28,7 +27,6 @@ function getStrength(password: string) {
 }
 
 export default function SignUpForm({ colleges }: { colleges: CollegeOption[] }) {
-  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -38,6 +36,7 @@ export default function SignUpForm({ colleges }: { colleges: CollegeOption[] }) 
   const [agree, setAgree] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
 
   const strength = useMemo(() => getStrength(password), [password]);
 
@@ -60,8 +59,9 @@ export default function SignUpForm({ colleges }: { colleges: CollegeOption[] }) 
       return;
     }
 
-    // Success — redirect to sign-in to confirm email
-    router.push("/signin?registered=1");
+    // Show email confirmation message instead of silently redirecting
+    setEmailSent(true);
+    setLoading(false);
   }
 
   return (
@@ -70,6 +70,17 @@ export default function SignUpForm({ colleges }: { colleges: CollegeOption[] }) 
       {error && (
         <div className="rounded-lg bg-rose-50 border border-rose-200 px-4 py-2.5 text-xs text-rose-700 font-medium">
           {error}
+        </div>
+      )}
+
+      {emailSent && (
+        <div
+          className="rounded-xl bg-green-50 border border-green-200 px-4 py-4 text-sm text-green-800 font-medium"
+          role="status"
+          aria-live="polite"
+        >
+          ✓ Account created! Check your <strong>UE email</strong> to confirm
+          your account before signing in.
         </div>
       )}
 

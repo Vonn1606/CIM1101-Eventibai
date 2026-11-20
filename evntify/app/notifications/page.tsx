@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
@@ -448,9 +449,11 @@ export default function NotificationsPage() {
           <div className="max-w-[1200px] mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-[#554243]">
             <div className="flex flex-col sm:flex-row items-center gap-3 text-center sm:text-left">
               <Link href="/my-events">
-                <img
+                <Image
                   src="/eventifytxt-cropped.svg"
                   alt="Eventify"
+                  width={100}
+                  height={28}
                   className="h-7 w-auto object-contain"
                 />
               </Link>

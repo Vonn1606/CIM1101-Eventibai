@@ -33,6 +33,22 @@ export default async function CreateEventPage() {
     redirect("/my-events");
   }
 
+  // Guard: organizer must have a linked organization
+  const { data: memberRows, error: memberErr } = await supabase
+    .from("organization_members")
+    .select("organization_id")
+    .eq("user_id", user.id);
+
+  if (memberErr) {
+    console.error("[CreateEventPage] Error fetching organization membership:", memberErr.message);
+  }
+
+  const hasLinkedOrg = Array.isArray(memberRows) && memberRows.length > 0;
+
+  if (profile?.role === "organizer" && !hasLinkedOrg) {
+    redirect("/organizer-dashboard?error=no-org");
+  }
+
   const [venuesRes, collegesRes, orgsRes] = await Promise.all([
     supabase.from("venues").select("id, name, capacity, details").order("name"),
     supabase.from("colleges").select("id, name, code").order("name"),
