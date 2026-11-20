@@ -76,6 +76,7 @@ function rowToEventDetail(row: any, stats: StatsMap = {}): EventDetail {
     seatsLeft,
     registrationDeadline: row.registration_deadline ?? "",
     bannerColor: row.banner_color ?? "#1e2022",
+    qrEnabled: row.qr_enabled ?? true,
     status:
       row.status === "suspended"
         ? "SUSPENDED"

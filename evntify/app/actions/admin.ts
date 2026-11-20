@@ -29,6 +29,28 @@ export async function requireAdmin(
   return { ok: true };
 }
 
+/**
+ * Resolves an event parameter that might be either a UUID or a slug to its canonical UUID.
+ */
+async function resolveEventId(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  idOrSlug: string
+): Promise<string> {
+  const isUuid =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      idOrSlug
+    );
+  if (isUuid) return idOrSlug;
+
+  const { data: ev } = await supabase
+    .from("events")
+    .select("id")
+    .eq("slug", idOrSlug)
+    .single();
+
+  return ev?.id ?? idOrSlug;
+}
+
 export async function saveAdminNote(
   eventId: string,
   note: string
@@ -46,20 +68,7 @@ export async function saveAdminNote(
   const trimmed = note.trim();
   if (!trimmed) return { error: "Note cannot be empty." };
 
-  // Resolve event UUID if slug was passed
-  let targetEventId = eventId;
-  const isUuid =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-      eventId
-    );
-  if (!isUuid) {
-    const { data: ev } = await supabase
-      .from("events")
-      .select("id")
-      .eq("slug", eventId)
-      .single();
-    if (ev) targetEventId = ev.id;
-  }
+  const targetEventId = await resolveEventId(supabase, eventId);
 
   const { error } = await supabase.from("admin_notes").insert({
     event_id: targetEventId,
@@ -87,19 +96,7 @@ export async function suspendEvent(
   const adminCheck = await requireAdmin(supabase, user.id);
   if (!adminCheck.ok) return { error: adminCheck.error };
 
-  let targetEventId = eventId;
-  const isUuid =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-      eventId
-    );
-  if (!isUuid) {
-    const { data: ev } = await supabase
-      .from("events")
-      .select("id")
-      .eq("slug", eventId)
-      .single();
-    if (ev) targetEventId = ev.id;
-  }
+  const targetEventId = await resolveEventId(supabase, eventId);
 
   // Update status and audit log via RPC
   const { error: rpcErr } = await supabase.rpc("suspend_event", {
@@ -136,20 +133,7 @@ export async function getEventFacilities(
   eventId: string
 ): Promise<Array<{ label: string; value: string }>> {
   const supabase = await createClient();
-
-  let targetEventId = eventId;
-  const isUuid =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-      eventId
-    );
-  if (!isUuid) {
-    const { data: ev } = await supabase
-      .from("events")
-      .select("id")
-      .eq("slug", eventId)
-      .single();
-    if (ev) targetEventId = ev.id;
-  }
+  const targetEventId = await resolveEventId(supabase, eventId);
 
   const { data, error } = await supabase
     .from("event_facilities")
@@ -164,20 +148,7 @@ export async function getEventAdminNotes(
   eventId: string
 ): Promise<Array<{ id: string; note: string; createdAt: string }>> {
   const supabase = await createClient();
-
-  let targetEventId = eventId;
-  const isUuid =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-      eventId
-    );
-  if (!isUuid) {
-    const { data: ev } = await supabase
-      .from("events")
-      .select("id")
-      .eq("slug", eventId)
-      .single();
-    if (ev) targetEventId = ev.id;
-  }
+  const targetEventId = await resolveEventId(supabase, eventId);
 
   const { data, error } = await supabase
     .from("admin_notes")
@@ -219,19 +190,7 @@ export async function setFeatured(
   const adminCheck = await requireAdmin(supabase, user.id);
   if (!adminCheck.ok) return { error: adminCheck.error };
 
-  let targetEventId = eventId;
-  const isUuid =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-      eventId
-    );
-  if (!isUuid) {
-    const { data: ev } = await supabase
-      .from("events")
-      .select("id")
-      .eq("slug", eventId)
-      .single();
-    if (ev) targetEventId = ev.id;
-  }
+  const targetEventId = await resolveEventId(supabase, eventId);
 
   const { error } = await supabase
     .from("events")

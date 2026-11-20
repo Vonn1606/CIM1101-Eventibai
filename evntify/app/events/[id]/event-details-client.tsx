@@ -480,23 +480,25 @@ export default function EventDetailsClient({ initialEvent, initialRegistration }
                   </button>
                 )}
 
-                {/* Campus Fast-Pass box */}
-                <div className="rsvp">
-                  <div className="rsvp__head">
-                    <span className="rsvp__title">Campus Fast-Pass</span>
-                    <QrCode size={18} className="rsvp__icon" />
+                {/* Campus Fast-Pass box (only shown if QR passes are enabled) */}
+                {event.qrEnabled !== false && (
+                  <div className="rsvp">
+                    <div className="rsvp__head">
+                      <span className="rsvp__title">Campus Fast-Pass</span>
+                      <QrCode size={18} className="rsvp__icon" />
+                    </div>
+                    <p className="rsvp__body">
+                      Already registered via academic department? Claim your quick digital ticket badge for speed-gate entry.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => (user ? setIsFastPassModalOpen(true) : setIsAuthPromptOpen(true))}
+                      className="rsvp__btn"
+                    >
+                      View Digital Pass Preview
+                    </button>
                   </div>
-                  <p className="rsvp__body">
-                    Already registered via academic department? Claim your quick digital ticket badge for speed-gate entry.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => (user ? setIsFastPassModalOpen(true) : setIsAuthPromptOpen(true))}
-                    className="rsvp__btn"
-                  >
-                    View Digital Pass Preview
-                  </button>
-                </div>
+                )}
               </article>
 
               {/* Card 2: Need Assistance / Coordinator Card */}

@@ -62,6 +62,7 @@ export type EventDetail = {
     seatsLeft: number;
     registrationDeadline: string;
     bannerColor: string;
+    qrEnabled?: boolean;
     status: "OPEN" | "LIMITED" | "CLOSING SOON" | "FULL" | "COMPLETED" | "SUSPENDED";
     coordinator: {
         name: string;
