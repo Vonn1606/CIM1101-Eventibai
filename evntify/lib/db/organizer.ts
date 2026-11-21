@@ -154,7 +154,7 @@ function mapEventRow(row: any, stats: Record<string, { registered_count: number;
     cap: totalCap,
     capType: "RSVPs",
     org: row.organizations?.name ?? "—",
-    tier: row.access_tier ?? "Free RSVP",
+    tier: row.tier ?? "free_rsvp",
     waitlistCount: Number(s.waitlist_count ?? 0),
     rawStartsAt: row.starts_at ?? undefined,
     rawDate,
@@ -188,7 +188,7 @@ export async function getOrgEvents(): Promise<OrgEvent[]> {
   const { data, error } = await (supabase as any)
     .from("events")
     .select(`
-      id, title, starts_at, ends_at, approval, status, total_capacity, access_tier,
+      id, title, starts_at, ends_at, approval, status, total_capacity, tier,
       venues ( name ),
       organizations ( name ),
       event_approvals ( decision_note, decided_at, stage )
@@ -306,20 +306,20 @@ export async function getOrgRoster(eventId?: string): Promise<OrgRosterStudent[]
       eventTrack: row.events?.category ?? "General",
       registeredAt: row.registered_at
         ? new Date(row.registered_at).toLocaleString("en-US", {
-            timeZone: "Asia/Manila",
-            month: "short",
-            day: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-          })
+          timeZone: "Asia/Manila",
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
         : "—",
       checkedIn: !!checkin,
       checkedInTime: checkedInAt
         ? new Date(checkedInAt).toLocaleTimeString("en-US", {
-            timeZone: "Asia/Manila",
-            hour: "2-digit",
-            minute: "2-digit",
-          })
+          timeZone: "Asia/Manila",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
         : undefined,
     };
   });

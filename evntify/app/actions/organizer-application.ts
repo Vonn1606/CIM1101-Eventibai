@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { requireAdmin } from "@/app/actions/admin";
 
 export interface SubmitOrganizerAppInput {
   organizationId?: string;
@@ -130,6 +131,9 @@ export async function decideOrganizerApplication(
 
   if (!user) return { error: "Authentication required." };
 
+  const adminCheck = await requireAdmin(supabase, user.id);
+  if (!adminCheck.ok) return { error: adminCheck.error };
+
   // Fetch application
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: appRow, error: fetchErr } = await (supabase as any)
@@ -157,7 +161,11 @@ export async function decideOrganizerApplication(
   // If approved:
   if (decision === "approved") {
     // 1. Promote profile role to organizer
-    await supabase.from("profiles").update({ role: "organizer" }).eq("id", appRow.user_id);
+    const { error: roleErr } = await supabase
+      .from("profiles")
+      .update({ role: "organizer" })
+      .eq("id", appRow.user_id);
+    if (roleErr) return { error: `Could not promote user: ${roleErr.message}` };
 
     // 2. Resolve or create organization
     let orgId = appRow.organization_id;
@@ -217,6 +225,9 @@ export async function createOrganizationWithOrganizer(input: {
   } = await supabase.auth.getUser();
 
   if (!user) return { error: "Authentication required." };
+
+  const adminCheck = await requireAdmin(supabase, user.id);
+  if (!adminCheck.ok) return { error: adminCheck.error };
 
   // 1. Find profile by email or student number
   const term = input.studentEmailOrNumber.trim();

@@ -54,7 +54,9 @@ export default function EventsNavbar({
               alt="Eventify"
               width={120}
               height={80}
-              className="h-20  w-auto object-contain transition transform group-hover:scale-105"
+              priority
+              style={{ width: "auto" }}
+              className="h-20 w-auto object-contain transition transform group-hover:scale-105"
             />
           </Link>
         </div>
