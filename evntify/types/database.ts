@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -11,6 +11,31 @@ export type Database = {
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.18"
+  }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
@@ -516,6 +541,7 @@ export type Database = {
           id: string
           is_featured: boolean
           organization_id: string
+          qr_enabled: boolean
           registration_deadline: string | null
           slug: string
           starts_at: string
@@ -548,6 +574,7 @@ export type Database = {
           id?: string
           is_featured?: boolean
           organization_id: string
+          qr_enabled?: boolean
           registration_deadline?: string | null
           slug: string
           starts_at: string
@@ -580,6 +607,7 @@ export type Database = {
           id?: string
           is_featured?: boolean
           organization_id?: string
+          qr_enabled?: boolean
           registration_deadline?: string | null
           slug?: string
           starts_at?: string
@@ -760,6 +788,73 @@ export type Database = {
             columns: ["college_id"]
             isOneToOne: false
             referencedRelation: "colleges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organizer_applications: {
+        Row: {
+          admin_notes: string | null
+          created_at: string
+          department: string | null
+          id: string
+          org_name: string
+          organization_id: string | null
+          position: string
+          reason: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["application_status"]
+          user_id: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          created_at?: string
+          department?: string | null
+          id?: string
+          org_name: string
+          organization_id?: string | null
+          position: string
+          reason: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["application_status"]
+          user_id: string
+        }
+        Update: {
+          admin_notes?: string | null
+          created_at?: string
+          department?: string | null
+          id?: string
+          org_name?: string
+          organization_id?: string | null
+          position?: string
+          reason?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["application_status"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organizer_applications_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organizer_applications_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organizer_applications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -950,6 +1045,24 @@ export type Database = {
       }
     }
     Functions: {
+      cancel_event: {
+        Args: { p_event: string; p_reason: string }
+        Returns: undefined
+      }
+      check_venue_conflict: {
+        Args: {
+          p_ends_at: string
+          p_exclude_event_id?: string
+          p_starts_at: string
+          p_venue_id: string
+        }
+        Returns: {
+          conflict_title: string
+          conflict_type: string
+          ends_at: string
+          starts_at: string
+        }[]
+      }
       current_role_is: {
         Args: { r: Database["public"]["Enums"]["user_role"] }
         Returns: boolean
@@ -958,18 +1071,28 @@ export type Database = {
         Args: {
           p_approval: string
           p_decision: Database["public"]["Enums"]["approval_status"]
-          p_note: string | null
+          p_note: string
         }
         Returns: undefined
       }
+      is_admin: { Args: never; Returns: boolean }
       log_audit: {
         Args: {
           p_action: string
           p_entity: string
           p_entity_id: string
-          p_meta?: Json | null
+          p_meta?: Json
         }
         Returns: undefined
+      }
+      notify_event_registrants: {
+        Args: {
+          p_body: string
+          p_event: string
+          p_link?: string
+          p_title: string
+        }
+        Returns: number
       }
       register_for_event: {
         Args: { p_college: string; p_event: string; p_student_number: string }
@@ -1003,21 +1126,14 @@ export type Database = {
         Returns: string
       }
       suspend_event: {
-        Args: {
-          p_event: string
-          p_reason: string
-        }
+        Args: { p_event: string; p_reason: string }
         Returns: undefined
       }
-      user_owns_event: {
-        Args: {
-          p_event: string
-        }
-        Returns: boolean
-      }
+      user_owns_event: { Args: { p_event: string }; Returns: boolean }
     }
     Enums: {
       access_tier: "free_rsvp" | "tiered_rsvp" | "ticketed" | "vip_only"
+      application_status: "pending" | "approved" | "rejected"
       approval_status: "pending" | "returned" | "approved" | "declined"
       broadcast_channel: "push" | "sms" | "discord"
       checkin_method: "qr" | "nfc" | "manual"
@@ -1159,9 +1275,13 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       access_tier: ["free_rsvp", "tiered_rsvp", "ticketed", "vip_only"],
+      application_status: ["pending", "approved", "rejected"],
       approval_status: ["pending", "returned", "approved", "declined"],
       broadcast_channel: ["push", "sms", "discord"],
       checkin_method: ["qr", "nfc", "manual"],
