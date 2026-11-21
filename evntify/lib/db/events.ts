@@ -199,7 +199,7 @@ export async function getEvents(): Promise<CampusEvent[]> {
     .from("events")
     .select(EVENT_SELECT)
     .eq("approval", "approved")
-    .not("status", "in", "(draft,suspended)")
+    .not("status", "in", "(draft,suspended,cancelled)")
     .order("starts_at", { ascending: true });
 
   if (error) {

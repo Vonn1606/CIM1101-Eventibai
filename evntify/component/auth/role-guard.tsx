@@ -5,12 +5,12 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/use-auth";
 
 interface RoleGuardProps {
-  allowedRole?: "organizer" | "user" | "admin";
+  allowedRole?: "organizer" | "user" | "admin" | "any";
   children: React.ReactNode;
 }
 
-export default function RoleGuard({ allowedRole, children }: RoleGuardProps) {
-  const { user, loading, isOrganizer } = useAuth();
+export default function RoleGuard({ allowedRole = "any", children }: RoleGuardProps) {
+  const { user, loading, isOrganizer, isAdmin } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -22,7 +22,7 @@ export default function RoleGuard({ allowedRole, children }: RoleGuardProps) {
       return;
     }
 
-    if (allowedRole === "organizer" && !isOrganizer) {
+    if (allowedRole === "organizer" && !isOrganizer && !isAdmin) {
       router.replace("/my-events");
       return;
     }
@@ -31,7 +31,7 @@ export default function RoleGuard({ allowedRole, children }: RoleGuardProps) {
       router.replace("/organizer-dashboard");
       return;
     }
-  }, [user, loading, isOrganizer, allowedRole, router]);
+  }, [user, loading, isOrganizer, isAdmin, allowedRole, router]);
 
   if (loading) {
     return (
@@ -46,7 +46,7 @@ export default function RoleGuard({ allowedRole, children }: RoleGuardProps) {
 
   if (!user) return null;
 
-  if (allowedRole === "organizer" && !isOrganizer) return null;
+  if (allowedRole === "organizer" && !isOrganizer && !isAdmin) return null;
   if (allowedRole === "user" && isOrganizer) return null;
 
   return <>{children}</>;

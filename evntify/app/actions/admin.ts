@@ -122,6 +122,71 @@ export async function suspendEvent(
     });
   }
 
+  // Notify registrants of the suspension
+  try {
+    const { data: ev } = await supabase
+      .from("events")
+      .select("title, slug")
+      .eq("id", targetEventId)
+      .maybeSingle();
+
+    const { data: attendees } = await supabase
+      .from("registrations")
+      .select("user_id")
+      .eq("event_id", targetEventId)
+      .in("status", ["registered", "waitlisted"]);
+
+    if (attendees && attendees.length > 0 && ev) {
+      const notifs = attendees.map((a) => ({
+        user_id: a.user_id,
+        title: `Event Suspended: ${ev.title}`,
+        body: reason ? `Administrative notice: ${reason}` : "This event has been temporarily suspended by university administration.",
+        link: `/events/${ev.slug}`,
+      }));
+      await supabase.from("notifications").insert(notifs);
+    }
+  } catch {
+    // non-blocking
+  }
+
+  revalidatePath("/admin/events-directory");
+  revalidatePath("/events");
+  revalidatePath("/organizer-dashboard");
+
+  return { success: true };
+}
+
+export async function liftSuspension(
+  eventId: string
+): Promise<SuspendEventResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Authentication required." };
+
+  const adminCheck = await requireAdmin(supabase, user.id);
+  if (!adminCheck.ok) return { error: adminCheck.error };
+
+  const targetEventId = await resolveEventId(supabase, eventId);
+
+  // Restore to scheduled or open
+  const { error: updateErr } = await supabase
+    .from("events")
+    .update({ status: "open" })
+    .eq("id", targetEventId)
+    .eq("status", "suspended");
+
+  if (updateErr) return { error: updateErr.message };
+
+  await supabase.rpc("log_audit", {
+    p_action: "event.unsuspend",
+    p_entity: "event",
+    p_entity_id: targetEventId,
+    p_meta: { liftedBy: user.id },
+  });
+
   revalidatePath("/admin/events-directory");
   revalidatePath("/events");
   revalidatePath("/organizer-dashboard");
@@ -133,6 +198,15 @@ export async function getEventFacilities(
   eventId: string
 ): Promise<Array<{ label: string; value: string }>> {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return [];
+
+  const adminCheck = await requireAdmin(supabase, user.id);
+  if (!adminCheck.ok) return [];
+
   const targetEventId = await resolveEventId(supabase, eventId);
 
   const { data, error } = await supabase
@@ -148,6 +222,15 @@ export async function getEventAdminNotes(
   eventId: string
 ): Promise<Array<{ id: string; note: string; createdAt: string }>> {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return [];
+
+  const adminCheck = await requireAdmin(supabase, user.id);
+  if (!adminCheck.ok) return [];
+
   const targetEventId = await resolveEventId(supabase, eventId);
 
   const { data, error } = await supabase

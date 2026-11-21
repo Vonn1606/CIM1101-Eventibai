@@ -189,7 +189,11 @@ export async function getEventsDirectory(
     .order("starts_at", { ascending: false })
     .range(from, to);
 
-  if (error || !data || data.length === 0) return { items: [], total: 0 };
+  if (error) {
+    console.error("[getEventsDirectory] Failed to fetch events:", error.message);
+    throw new Error(`Failed to load events directory: ${error.message}`);
+  }
+  if (!data || data.length === 0) return { items: [], total: 0 };
 
   const eventIds = ((data ?? []) as Array<{ id: string }>).map((e) => e.id);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

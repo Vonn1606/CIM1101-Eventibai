@@ -146,7 +146,7 @@ export async function cancelRegistration(
   // 2. Verify ownership — only the registrant can cancel their own registration
   const { data: reg, error: fetchErr } = await supabase
     .from("registrations")
-    .select("id, user_id, status, events ( slug )")
+    .select("id, user_id, status, event_id, events ( slug )")
     .eq("id", registrationId)
     .maybeSingle();
 
@@ -166,7 +166,17 @@ export async function cancelRegistration(
 
   if (updateErr) return { error: updateErr.message };
 
-  // 4. Revalidate
+  // 4. If cancelled registration was active 'registered', promote the next waitlisted student
+  if (regRow.status === "registered" && regRow.event_id) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase.rpc as any)("promote_next_waitlisted", { p_event: regRow.event_id });
+    } catch {
+      // Non-blocking if RPC is not yet deployed or waitlist is empty
+    }
+  }
+
+  // 5. Revalidate
   revalidatePath("/my-events");
   const slug = regRow.events?.slug;
   if (slug) revalidatePath(`/events/${slug}`);
@@ -187,6 +197,8 @@ export type UpcomingEvent = {
   qrCode: string;
   venue: string;
   meta: string;
+  status?: "registered" | "waitlisted" | "cancelled";
+  isWaitlisted?: boolean;
 };
 
 export type PastEvent = {
@@ -228,6 +240,8 @@ type DbRegistrationRow = {
     slug: string;
     title: string;
     starts_at: string | null;
+    ends_at: string | null;
+    status: string | null;
     category: string | null;
     venues: { name: string } | null;
   } | null;
@@ -244,7 +258,7 @@ export async function getMyRegistrations(userId: string): Promise<{
     .from("registrations")
     .select(`
       id, ticket_code, status, registered_at,
-      events ( id, slug, title, starts_at, category, venues ( name ) ),
+      events ( id, slug, title, starts_at, ends_at, status, category, venues ( name ) ),
       check_ins ( id )
     `)
     .eq("user_id", userId)
@@ -254,6 +268,7 @@ export async function getMyRegistrations(userId: string): Promise<{
   if (error || !data) return { upcoming: [], past: [] };
 
   const now = new Date();
+  const nowMs = now.getTime();
   const rows = (data as unknown) as DbRegistrationRow[];
 
   const mapped: MyRegistration[] = rows.map((row) => {
@@ -275,12 +290,25 @@ export async function getMyRegistrations(userId: string): Promise<{
     };
   });
 
-  const upcoming = mapped.filter(
-    (r) => !r.event.starts_at || new Date(r.event.starts_at) >= now
-  );
-  const past = mapped.filter(
-    (r) => r.event.starts_at && new Date(r.event.starts_at) < now
-  );
+  // H4 & H13: Event is upcoming/ongoing if ends_at has not passed (or starts_at + 2hrs if ends_at not set),
+  // and event itself is not concluded/completed
+  const upcoming = mapped.filter((r) => {
+    const ev = rows.find((row) => row.id === r.id)?.events;
+    if (ev?.status === "completed") return false;
+    if (!r.event.starts_at) return true;
+    const startsAtMs = new Date(r.event.starts_at).getTime();
+    const endsAtMs = ev?.ends_at ? new Date(ev.ends_at).getTime() : startsAtMs + 2 * 60 * 60 * 1000;
+    return nowMs <= endsAtMs;
+  });
+
+  const past = mapped.filter((r) => {
+    const ev = rows.find((row) => row.id === r.id)?.events;
+    if (ev?.status === "completed") return true;
+    if (!r.event.starts_at) return false;
+    const startsAtMs = new Date(r.event.starts_at).getTime();
+    const endsAtMs = ev?.ends_at ? new Date(ev.ends_at).getTime() : startsAtMs + 2 * 60 * 60 * 1000;
+    return nowMs > endsAtMs;
+  });
 
   return { upcoming, past };
 }

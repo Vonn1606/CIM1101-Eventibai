@@ -89,18 +89,23 @@ export default async function MyEventsPage() {
   const userRole = userProfileRes.data?.role ?? "student";
 
   // Map MyRegistration → UpcomingEvent
-  const upcomingEvents: UpcomingEvent[] = upcomingRegs.map((r) => ({
-    id: r.id,
-    headerLabel: "Registered event",
-    headerColor: "bg-charcoal",
-    featured: false,
-    date: formatDate(r.event.starts_at),
-    title: r.event.title,
-    description: r.event.category ?? "",
-    qrCode: r.ticket_code,
-    venue: r.event.venue,
-    meta: formatTime(r.event.starts_at),
-  }));
+  const upcomingEvents: UpcomingEvent[] = upcomingRegs.map((r) => {
+    const isWaitlisted = r.status === "waitlisted";
+    return {
+      id: r.id,
+      headerLabel: isWaitlisted ? "Waitlisted in queue" : "Registered event",
+      headerColor: isWaitlisted ? "bg-amber-700" : "bg-charcoal",
+      featured: false,
+      date: formatDate(r.event.starts_at),
+      title: r.event.title,
+      description: r.event.category ?? "",
+      qrCode: isWaitlisted ? "" : r.ticket_code,
+      venue: r.event.venue,
+      meta: formatTime(r.event.starts_at),
+      status: r.status,
+      isWaitlisted,
+    };
+  });
 
   // Map MyRegistration → PastEvent
   const pastEvents: PastEvent[] = pastRegs.map((r) => ({

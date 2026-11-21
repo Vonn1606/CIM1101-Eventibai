@@ -61,7 +61,8 @@ export default async function EventPage({ params }: PageProps) {
     if (data) {
       initialRegistration = {
         isRegistered: true,
-        ticketCode: data.ticket_code,
+        // Waitlisted users do NOT get a QR ticket code — they have no confirmed seat.
+        ticketCode: data.status === "waitlisted" ? "" : data.ticket_code,
         status: data.status === "waitlisted" ? "waitlisted" : "registered",
       };
     }

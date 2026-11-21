@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { toggleCheckIn, updateEvent, cancelEvent } from "@/app/actions/events";
+import { toggleCheckIn, updateEvent, cancelEvent, checkInByTicketCode } from "@/app/actions/events";
 import { sendBroadcast, getBroadcastLogs } from "@/app/actions/broadcasts";
 import type { BroadcastLogItem } from "@/app/actions/broadcasts";
 import type { OrgEvent, OrgRosterStudent } from "@/lib/db/organizer";
@@ -92,6 +92,9 @@ export default function OrganizerDashboardClient({
   // Navigation & View state
   const [activeTab, setActiveTab] = useState<string>("overview");
   const [registryFilter, setRegistryFilter] = useState<string>("all");
+  const [ticketInputCode, setTicketInputCode] = useState("");
+  const [ticketScanResult, setTicketScanResult] = useState<{ success?: boolean; message?: string } | null>(null);
+  const [ticketScanning, setTicketScanning] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // App Data
@@ -246,11 +249,13 @@ export default function OrganizerDashboardClient({
   const filteredEvents = useMemo(() => {
     let list = events;
     if (registryFilter === "active") {
-      list = list.filter((e) => e.status === "live");
+      list = list.filter((e) => e.status === "live" || e.status === "soldout");
+    } else if (registryFilter === "needs_action") {
+      list = list.filter((e) => e.status === "returned");
     } else if (registryFilter === "sao") {
       list = list.filter((e) => e.status === "pending");
     } else if (registryFilter === "archived") {
-      list = list.filter((e) => e.status === "archived");
+      list = list.filter((e) => e.status === "archived" || e.status === "completed" || e.status === "cancelled" || e.status === "declined");
     }
 
     if (headerSearch.trim()) {
@@ -731,6 +736,15 @@ export default function OrganizerDashboardClient({
                   Active ({events.filter((e) => e.status === "live" || e.status === "soldout").length})
                 </button>
                 <button
+                  onClick={() => setRegistryFilter("needs_action")}
+                  className={`rounded-full px-3.5 py-1 text-xs font-semibold transition ${registryFilter === "needs_action"
+                    ? "bg-[#D97706] text-white shadow-2xs"
+                    : "text-[#B45309] hover:text-[#78350F]"
+                    }`}
+                >
+                  Needs Attention ({events.filter((e) => e.status === "returned").length})
+                </button>
+                <button
                   onClick={() => setRegistryFilter("sao")}
                   className={`rounded-full px-3.5 py-1 text-xs font-semibold transition ${registryFilter === "sao"
                     ? "bg-[#651C32] text-white shadow-2xs"
@@ -746,7 +760,7 @@ export default function OrganizerDashboardClient({
                     : "text-[#6A5A57] hover:text-[#1E1B19]"
                     }`}
                 >
-                  Archived ({events.filter((e) => e.status === "archived").length})
+                  Archived ({events.filter((e) => e.status === "archived" || e.status === "completed" || e.status === "cancelled" || e.status === "declined").length})
                 </button>
               </div>
             </div>
@@ -754,7 +768,7 @@ export default function OrganizerDashboardClient({
             {/* Event Cards Grid */}
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
               {filteredEvents.map((evt) => {
-                const percent = Math.min(100, Math.round((evt.registered / evt.cap) * 100));
+                const percent = Math.min(100, Math.round((evt.registered / (evt.cap > 0 ? evt.cap : 1)) * 100));
 
                 return (
                   <div
@@ -778,7 +792,7 @@ export default function OrganizerDashboardClient({
                           </span>
                         </div>
 
-                        {/* Status Badge */}
+                        {/* Status Badges */}
                         {evt.status === "live" && (
                           <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E5F7F0] px-2.5 py-1 text-[10px] font-bold text-[#0E6245]">
                             <span className="size-1.5 rounded-full bg-[#0E6245]" />
@@ -797,6 +811,30 @@ export default function OrganizerDashboardClient({
                             {evt.badgeLabel}
                           </span>
                         )}
+                        {evt.status === "returned" && (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FEF3C7] px-2.5 py-1 text-[10px] font-bold text-[#D97706]">
+                            <span className="size-1.5 rounded-full bg-[#D97706]" />
+                            {evt.badgeLabel}
+                          </span>
+                        )}
+                        {evt.status === "declined" && (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FEE2E2] px-2.5 py-1 text-[10px] font-bold text-[#DC2626]">
+                            <span className="size-1.5 rounded-full bg-[#DC2626]" />
+                            {evt.badgeLabel}
+                          </span>
+                        )}
+                        {evt.status === "cancelled" && (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F3F4F6] px-2.5 py-1 text-[10px] font-bold text-[#4B5563]">
+                            <span className="size-1.5 rounded-full bg-[#4B5563]" />
+                            {evt.badgeLabel}
+                          </span>
+                        )}
+                        {(evt.status === "completed" || evt.status === "archived") && (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F5EFEB] px-2.5 py-1 text-[10px] font-bold text-[#7A6B68]">
+                            <span className="size-1.5 rounded-full bg-[#7A6B68]" />
+                            {evt.badgeLabel}
+                          </span>
+                        )}
                       </div>
 
                       {/* Title */}
@@ -808,6 +846,16 @@ export default function OrganizerDashboardClient({
                       >
                         {evt.title}
                       </h3>
+
+                      {/* Reviewer Note for Returned proposals */}
+                      {evt.status === "returned" && evt.decisionNote && (
+                        <div className="rounded-xl border border-[#FDE68A] bg-[#FFFBEB] p-2.5 text-xs text-[#92400E]">
+                          <p className="font-semibold text-[11px] uppercase tracking-wider text-[#B45309] mb-0.5">
+                            SAO Reviewer Note:
+                          </p>
+                          <p className="leading-relaxed">{evt.decisionNote}</p>
+                        </div>
+                      )}
 
                       {/* Location & Time */}
                       <div className="space-y-1 text-xs text-[#7A6B68]">
@@ -1311,18 +1359,73 @@ export default function OrganizerDashboardClient({
               </div>
 
               {/* Action Buttons */}
-              <div className="w-full space-y-2">
+              <div className="w-full space-y-3">
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (!ticketInputCode.trim()) return;
+                    setTicketScanning(true);
+                    setTicketScanResult(null);
+
+                    // Pick active or first event
+                    const targetEvent = events.find((ev) => ev.status === "live" || ev.status === "soldout") ?? events[0];
+                    if (!targetEvent) {
+                      setTicketScanResult({ success: false, message: "No event found to check into." });
+                      setTicketScanning(false);
+                      return;
+                    }
+
+                    const res = await checkInByTicketCode(ticketInputCode.trim(), targetEvent.id);
+                    setTicketScanning(false);
+                    if (res.error) {
+                      setTicketScanResult({ success: false, message: res.error });
+                    } else {
+                      setTicketScanResult({
+                        success: true,
+                        message: `Checked in ${res.studentName ?? "student"} (${res.studentNumber ?? "ID"}) at ${res.checkedInTime}`,
+                      });
+                      setTicketInputCode("");
+                    }
+                  }}
+                  className="space-y-2 text-left"
+                >
+                  <label className="block text-xs font-semibold text-[#5A4B48]">
+                    Scan or Enter Ticket Code
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={ticketInputCode}
+                      onChange={(e) => setTicketInputCode(e.target.value.toUpperCase())}
+                      placeholder="e.g. EVT-ABCD-1234"
+                      className="flex-1 rounded-xl border border-[#E4D9D2] bg-white px-3 py-2 text-xs font-mono font-semibold uppercase text-[#1E1B19] focus:outline-none focus:border-[#651C32]"
+                    />
+                    <button
+                      type="submit"
+                      disabled={ticketScanning || !ticketInputCode.trim()}
+                      className="rounded-xl bg-[#651C32] px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-[#521325] disabled:opacity-50 cursor-pointer"
+                    >
+                      {ticketScanning ? "Checking..." : "Verify & Check In"}
+                    </button>
+                  </div>
+                </form>
+
+                {ticketScanResult && (
+                  <div
+                    className={`rounded-xl p-2.5 text-xs font-medium text-left ${ticketScanResult.success
+                      ? "border border-emerald-200 bg-emerald-50 text-emerald-800"
+                      : "border border-rose-200 bg-rose-50 text-rose-800"
+                      }`}
+                  >
+                    {ticketScanResult.message}
+                  </div>
+                )}
+
                 <button
                   onClick={() => {
-                    handleSimulateNfcTap();
                     setQuickCheckinOpen(false);
+                    setTicketScanResult(null);
                   }}
-                  className="w-full rounded-xl bg-[#651C32] py-2.5 text-xs font-semibold text-white shadow-xs transition hover:bg-[#521325] cursor-pointer"
-                >
-                  Scan Attendee Pass (Instant Tap)
-                </button>
-                <button
-                  onClick={() => setQuickCheckinOpen(false)}
                   className="w-full rounded-xl border border-[#ECE2DC] bg-[#FAF5F2] py-2 text-xs font-semibold text-[#7A6B68] hover:bg-[#ECE5E0] cursor-pointer"
                 >
                   Done / Close

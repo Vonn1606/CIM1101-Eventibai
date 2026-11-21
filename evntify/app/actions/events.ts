@@ -35,7 +35,10 @@ const submitEventSchema = z.object({
   coordinatorName: z.string().optional(),
   coordinatorEmail: z.string().email("Invalid coordinator email").optional().or(z.literal("")),
   coordinatorPhone: z.string().optional(),
-  bannerColor: z.string().optional(),
+  bannerColor: z
+    .string()
+    .regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, "Invalid banner hex color")
+    .optional(),
 });
 
 export type SubmitEventInput = z.infer<typeof submitEventSchema>;
@@ -497,6 +500,127 @@ export async function toggleCheckIn(
 }
 
 /* --------------------------------------------------------------------------
+   checkInByTicketCode – validates ticket code, gate status, and logs attendance
+   -------------------------------------------------------------------------- */
+
+export interface TicketCheckInResult {
+  error?: string;
+  success?: boolean;
+  studentName?: string;
+  studentNumber?: string;
+  checkedInTime?: string;
+}
+
+export async function checkInByTicketCode(
+  ticketCode: string,
+  eventId: string
+): Promise<TicketCheckInResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+  if (authError || !user) return { error: "Not authenticated." };
+
+  if (!ticketCode || !ticketCode.trim()) {
+    return { error: "Please enter or scan a valid ticket code." };
+  }
+
+  // 1. Verify caller owns or administers this event
+  const { data: owns, error: ownsErr } = await supabase.rpc(
+    "user_owns_event",
+    { p_event: eventId }
+  );
+  if (ownsErr || !owns) {
+    return { error: "You do not have permission to manage check-ins for this event." };
+  }
+
+  // 2. Fetch event to verify lifecycle (cannot check into cancelled or suspended events)
+  const { data: evRow, error: evErr } = await supabase
+    .from("events")
+    .select("id, status, approval")
+    .eq("id", eventId)
+    .single();
+
+  if (evErr || !evRow) return { error: "Event not found." };
+  if (evRow.status === "cancelled" || evRow.status === "suspended") {
+    return { error: `Event is currently ${evRow.status}. Check-ins are disabled.` };
+  }
+
+  // 3. Find registration matching ticket code and event
+  const { data: reg, error: regErr } = await supabase
+    .from("registrations")
+    .select(`
+      id, status, student_number,
+      profiles ( full_name ),
+      check_ins ( checked_in_at )
+    `)
+    .eq("event_id", eventId)
+    .eq("ticket_code", ticketCode.trim())
+    .maybeSingle();
+
+  if (regErr || !reg) {
+    return { error: "Invalid ticket code. No registration found for this event." };
+  }
+
+  // C4 Gate Integrity: reject waitlisted or cancelled registrations
+  if (reg.status === "waitlisted") {
+    return { error: "Attendee is currently on the waitlist and has not been granted an active seat." };
+  }
+  if (reg.status === "cancelled") {
+    return { error: "This registration has been cancelled." };
+  }
+  if (reg.status !== "registered") {
+    return { error: `Registration status is "${reg.status}". Check-in is not permitted.` };
+  }
+
+  // Check if already checked in
+  const checkinRecord = Array.isArray(reg.check_ins) ? reg.check_ins[0] : reg.check_ins;
+  if (checkinRecord?.checked_in_at) {
+    const existingTime = new Date(checkinRecord.checked_in_at).toLocaleTimeString("en-US", {
+      timeZone: "Asia/Manila",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    return {
+      error: `Attendee was already checked in at ${existingTime}.`,
+      studentName: (reg.profiles as { full_name?: string } | null)?.full_name ?? "Student",
+      studentNumber: reg.student_number ?? undefined,
+      checkedInTime: existingTime,
+    };
+  }
+
+  // Upsert check-in record
+  const now = new Date().toISOString();
+  const { error: insErr } = await supabase.from("check_ins").upsert(
+    {
+      registration_id: reg.id,
+      event_id: eventId,
+      checked_in_by: user.id,
+      checked_in_at: now,
+    },
+    { onConflict: "registration_id" }
+  );
+
+  if (insErr) return { error: insErr.message };
+
+  revalidatePath("/organizer-dashboard");
+
+  const formattedTime = new Date(now).toLocaleTimeString("en-US", {
+    timeZone: "Asia/Manila",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  return {
+    success: true,
+    studentName: (reg.profiles as { full_name?: string } | null)?.full_name ?? "Student",
+    studentNumber: reg.student_number ?? undefined,
+    checkedInTime: formattedTime,
+  };
+}
+
+/* --------------------------------------------------------------------------
    updateEvent – updates draft or returned events, allowing resubmission for review
    -------------------------------------------------------------------------- */
 
@@ -566,16 +690,29 @@ export async function updateEvent(
   const startsAtMs = existingEvent.starts_at ? new Date(existingEvent.starts_at).getTime() : 0;
   const isApproved = existingEvent.approval === "approved";
 
-  // Check ongoing, completed, cancelled
+  // Check state guardrails (C3)
   if (
     existingEvent.status === "ongoing" ||
     existingEvent.status === "completed" ||
     existingEvent.status === "cancelled" ||
+    existingEvent.status === "suspended" ||
     startsAtMs <= nowMs
   ) {
     return {
-      error: "Ongoing, completed, cancelled, or past events cannot be edited.",
+      error: "Ongoing, completed, cancelled, suspended, or past events cannot be edited.",
     };
+  }
+
+  if (existingEvent.approval === "declined") {
+    return { error: "Declined events cannot be edited or resubmitted." };
+  }
+
+  if (existingEvent.approval === "pending") {
+    return { error: "Event is currently under review by SAO and cannot be edited until decided." };
+  }
+
+  if (resubmitForReview && existingEvent.approval !== "returned") {
+    return { error: "Only returned events can be resubmitted for review." };
   }
 
   // E3.2 Capacity Floor Check: ensure new capacity is not less than already-registered count
@@ -639,6 +776,17 @@ export async function updateEvent(
   if (resubmitForReview) {
     updates.approval = "pending";
     updates.status = "draft";
+  } else if (isApproved) {
+    // Material change check: if venue, date/time, or capacity increase occurs on an approved event,
+    // re-trigger approval workflow so changes are cleared by SAO
+    const isVenueChanged = venueId && venueId !== existingEvent.venue_id;
+    const isDateChanged = date && updates.starts_at !== existingEvent.starts_at;
+    const isCapIncreased = capacity !== undefined && capacity > (existingEvent.total_capacity ?? 0);
+
+    if (isVenueChanged || isDateChanged || isCapIncreased) {
+      updates.approval = "pending";
+      updates.status = "draft";
+    }
   }
 
   const { error: updateErr } = await supabase

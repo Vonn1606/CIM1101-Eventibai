@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   X,
   CalendarDays,
@@ -29,11 +29,25 @@ export default function ApReviewModal({
 }: {
   p: Proposal;
   onClose: () => void;
-  onDecide: (id: string, d: Act) => void;
+  onDecide: (id: string, d: Act, notes?: string) => void;
 }) {
   const closeRef = useRef<HTMLButtonElement>(null);
+  const [decisionNotes, setDecisionNotes] = useState("");
+  const [validationError, setValidationError] = useState<string | null>(null);
+
   const t = TONES[p.tone];
   const pct = Math.round((p.seatsExpected / p.seatsTotal) * 100);
+
+  const handleAction = (d: Act) => {
+    if ((d === "returned" || d === "declined") && !decisionNotes.trim()) {
+      setValidationError(
+        `A review note is required when ${d === "returned" ? "returning for edits" : "declining"}.`
+      );
+      return;
+    }
+    setValidationError(null);
+    onDecide(p.id, d, decisionNotes.trim() ? decisionNotes.trim() : undefined);
+  };
 
   useEffect(() => {
     const prevFocus = document.activeElement as HTMLElement | null;
@@ -174,32 +188,51 @@ export default function ApReviewModal({
         </div>
 
         <footer className="rv-mf">
-          <button type="button" className="rv-back" onClick={onClose}>
-            <ArrowLeft size={12} /> Back to proposals
-          </button>
-          <div className="rv-acts">
-            <button
-              type="button"
-              className="rv-amber"
-              onClick={() => onDecide(p.id, "returned")}
-            >
-              <Undo2 size={15} color="#D97706" /> Return for edits
+          <div className="w-full mb-3">
+            <label className="block text-xs font-semibold text-[#5A4B48] mb-1">
+              Reviewer Notes / Feedback {p.status === "pending" ? "(Required for return or decline)" : ""}
+            </label>
+            <textarea
+              value={decisionNotes}
+              onChange={(e) => {
+                setDecisionNotes(e.target.value);
+                if (validationError) setValidationError(null);
+              }}
+              placeholder="Add feedback, required corrections, or reasons for decision..."
+              className="w-full text-xs p-2.5 rounded-lg border border-[#E4D9D2] bg-white focus:outline-none focus:border-[#651C32] text-[#1E1B19] resize-none h-16"
+            />
+            {validationError && (
+              <p className="text-xs text-rose-600 mt-1 font-medium">{validationError}</p>
+            )}
+          </div>
+          <div className="flex items-center justify-between w-full">
+            <button type="button" className="rv-back" onClick={onClose}>
+              <ArrowLeft size={12} /> Back to proposals
             </button>
-            <button
-              type="button"
-              className="rv-decline"
-              onClick={() => onDecide(p.id, "declined")}
-            >
-              <Ban size={15} /> Decline event
-            </button>
-            <button
-              type="button"
-              className="rv-approve"
-              style={{ outlineColor: t.fg }}
-              onClick={() => onDecide(p.id, "approved")}
-            >
-              <CheckCircle2 size={15} /> Approve &amp; issue permit
-            </button>
+            <div className="rv-acts">
+              <button
+                type="button"
+                className="rv-amber"
+                onClick={() => handleAction("returned")}
+              >
+                <Undo2 size={15} color="#D97706" /> Return for edits
+              </button>
+              <button
+                type="button"
+                className="rv-decline"
+                onClick={() => handleAction("declined")}
+              >
+                <Ban size={15} /> Decline event
+              </button>
+              <button
+                type="button"
+                className="rv-approve"
+                style={{ outlineColor: t.fg }}
+                onClick={() => handleAction("approved")}
+              >
+                <CheckCircle2 size={15} /> Approve &amp; issue permit
+              </button>
+            </div>
           </div>
         </footer>
       </div>

@@ -66,15 +66,27 @@ export function UpcomingCard({ e }: { e: UpcomingEvent }) {
             <p className="mt-[3px] text-[11px] leading-4 text-body">{e.description}</p>
           </div>
           <div className="flex h-[98px] w-[84px] shrink-0 flex-col items-center rounded-xl bg-surface-low p-2">
-            <div className="grid size-16 place-items-center rounded-lg bg-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)] overflow-hidden">
-              {qrUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={qrUrl} alt="QR" className="size-14 object-contain" />
-              ) : (
-                <QrCode className="size-9 text-neutral-400" />
-              )}
-            </div>
-            <span className="pt-1 font-mono text-[9px] text-muted truncate max-w-[76px]">{e.qrCode}</span>
+            {e.isWaitlisted ? (
+              <div className="grid size-16 place-items-center rounded-lg border border-dashed border-amber-300 bg-amber-50 p-1 text-center shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)]">
+                <span className="text-[10px] font-bold text-amber-800 uppercase tracking-tight">Waitlist</span>
+                <span className="text-[9px] text-amber-600 leading-tight">In queue</span>
+              </div>
+            ) : (
+              <div
+                onClick={() => setModalOpen(true)}
+                className="grid size-16 place-items-center rounded-lg bg-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)] overflow-hidden cursor-pointer hover:opacity-90"
+              >
+                {qrUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={qrUrl} alt="QR" className="size-14 object-contain" />
+                ) : (
+                  <QrCode className="size-9 text-neutral-400" />
+                )}
+              </div>
+            )}
+            <span className="pt-1 font-mono text-[9px] text-muted truncate max-w-[76px]">
+              {e.isWaitlisted ? "No Pass" : e.qrCode}
+            </span>
           </div>
         </div>
         <div className="-mx-5 flex flex-wrap gap-x-5 gap-y-2 bg-surface-low/60 px-5 pb-2 pt-1 text-[11px] text-body">

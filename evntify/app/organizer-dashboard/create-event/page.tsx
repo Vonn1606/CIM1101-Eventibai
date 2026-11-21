@@ -33,10 +33,11 @@ export default async function CreateEventPage() {
     redirect("/my-events");
   }
 
-  // Guard: organizer must have a linked organization
+  // Fetch org membership with org details in a single query.
+  // This is used both for the guard check and to populate the org selector.
   const { data: memberRows, error: memberErr } = await supabase
     .from("organization_members")
-    .select("organization_id")
+    .select("organization_id, organizations ( id, name, dept_label )")
     .eq("user_id", user.id);
 
   if (memberErr) {
@@ -49,18 +50,14 @@ export default async function CreateEventPage() {
     redirect("/organizer-dashboard?error=no-org");
   }
 
-  const [venuesRes, collegesRes, orgsRes] = await Promise.all([
+  const [venuesRes, collegesRes] = await Promise.all([
     supabase.from("venues").select("id, name, capacity, details").order("name"),
     supabase.from("colleges").select("id, name, code").order("name"),
-    supabase
-      .from("organization_members")
-      .select("organization_id, organizations ( id, name, dept_label )")
-      .eq("user_id", user.id),
   ]);
 
   const venues = venuesRes.data ?? [];
   const colleges = collegesRes.data ?? [];
-  const organizations = ((orgsRes.data ?? []) as Array<{
+  const organizations = ((memberRows ?? []) as Array<{
     organizations: { id: string; name: string; dept_label: string | null } | null;
   }>)
     .map((m) => m.organizations)

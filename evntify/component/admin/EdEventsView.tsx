@@ -37,9 +37,13 @@ const COLLEGE_CHIPS = [
 function toEventItem(d: EventDirectoryItem): EventItem {
   const statusMap: Record<string, EventItem["status"]> = {
     open: "ongoing",
+    ongoing: "ongoing",
+    scheduled: "scheduled",
     draft: "scheduled",
-    closed: "completed",
+    completed: "completed",
     concluded: "completed",
+    closed: "completed",
+    cancelled: "cancelled" as EventItem["status"],
     suspended: "suspended",
   };
   return {
@@ -81,8 +85,8 @@ export default function EdEventsView({
   const allMapped = useMemo(() => initialEvents.map(toEventItem), [initialEvents]);
 
   const counts = {
-    active: allMapped.filter((e) => e.status !== "completed" && e.status !== "suspended").length,
-    completed: allMapped.filter((e) => e.status === "completed").length,
+    active: allMapped.filter((e) => e.status !== "completed" && e.status !== "suspended" && e.status !== "cancelled").length,
+    completed: allMapped.filter((e) => e.status === "completed" || e.status === "cancelled").length,
     suspended: allMapped.filter((e) => e.status === "suspended").length,
   };
 
@@ -94,10 +98,10 @@ export default function EdEventsView({
     return allMapped
       .filter((e) =>
         tab === "completed"
-          ? e.status === "completed"
+          ? e.status === "completed" || e.status === "cancelled"
           : tab === "suspended"
             ? e.status === "suspended"
-            : e.status !== "completed" && e.status !== "suspended"
+            : e.status !== "completed" && e.status !== "suspended" && e.status !== "cancelled"
       )
       .filter((e) => college === COLLEGE_CHIPS[0] || e.dept.includes(college))
       .filter(

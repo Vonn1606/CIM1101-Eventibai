@@ -42,7 +42,7 @@ export const TONES: Record<Tone, { bg: string; fg: string; stripe: string }> = {
   green: { bg: "#D1FAE5", fg: "#065F46", stripe: "#059669" },
 };
 
-export type EventDirStatus = "ongoing" | "upcoming" | "scheduled" | "completed" | "suspended";
+export type EventDirStatus = "ongoing" | "upcoming" | "scheduled" | "completed" | "suspended" | "cancelled";
 
 export interface EventItem {
   id: string;
@@ -67,6 +67,7 @@ export const STATUS_LABEL: Record<EventDirStatus, string> = {
   scheduled: "Scheduled",
   completed: "Completed",
   suspended: "Suspended",
+  cancelled: "Cancelled",
 };
 
 export const STATUS_COLOR: Record<EventDirStatus, string> = {
@@ -75,6 +76,7 @@ export const STATUS_COLOR: Record<EventDirStatus, string> = {
   scheduled: "#565E74",
   completed: "#D5E3FD",
   suspended: "#F59E0B",
+  cancelled: "#9CA3AF",
 };
 
 export const pct = (e: { registered: number; capacity: number } | number, cap?: number) => {

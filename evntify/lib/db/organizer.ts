@@ -131,7 +131,9 @@ function mapEventRow(row: any, stats: Record<string, { registered_count: number;
     completed: "Completed",
   };
 
-  const rawDate = starts ? starts.toISOString().split("T")[0] : "";
+  const rawDate = starts
+    ? starts.toLocaleDateString("en-CA", { timeZone: "Asia/Manila" })
+    : "";
   const rawStartTime = starts
     ? starts.toLocaleTimeString("en-US", { timeZone: "Asia/Manila", hour12: false, hour: "2-digit", minute: "2-digit" })
     : "";
@@ -274,7 +276,7 @@ export async function getOrgRoster(eventId?: string): Promise<OrgRosterStudent[]
       check_ins ( checked_in_at )
     `)
     .eq("event_id", resolvedEventId)
-    .neq("status", "cancelled")
+    .eq("status", "registered")
     .order("registered_at", { ascending: true })
     .limit(100);
 

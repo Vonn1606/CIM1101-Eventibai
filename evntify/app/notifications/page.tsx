@@ -298,7 +298,7 @@ export default function NotificationsPage() {
     "U";
 
   return (
-    <RoleGuard allowedRole="user">
+    <RoleGuard allowedRole="any">
       <div className="min-h-screen flex flex-col bg-white text-[#1E1B19] font-sans">
         <Header />
 
@@ -458,7 +458,7 @@ export default function NotificationsPage() {
                 />
               </Link>
               <span className="text-[#887272]">
-                © 2025 Eventify Campus Inc. All rights reserved. Connecting university life & student culture.
+                © 2026 Eventify Campus Inc. All rights reserved. Connecting university life & student culture.
               </span>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-6 text-[#554243] font-medium">

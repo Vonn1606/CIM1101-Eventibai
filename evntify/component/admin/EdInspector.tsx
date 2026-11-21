@@ -6,6 +6,7 @@ import { EventItem } from "@/types/admin";
 import {
   saveAdminNote,
   suspendEvent,
+  liftSuspension,
   getEventFacilities,
   getEventAdminNotes,
   setFeatured,
@@ -58,21 +59,39 @@ function InspectorBody({
     }
   };
 
+  const isSuspended = event?.status === "suspended";
+
   const handleSuspend = async () => {
     if (!event) return;
-    const confirm = window.confirm(`Are you sure you want to suspend "${event.title}"?`);
-    if (!confirm) return;
-
-    setSuspending(true);
-    const res = await suspendEvent(event.id, notes || undefined);
-    setSuspending(false);
-    if (res.error) {
-      setFeedback(`Suspension failed: ${res.error}`);
+    if (isSuspended) {
+      const confirm = window.confirm(`Lift suspension and restore "${event.title}"?`);
+      if (!confirm) return;
+      setSuspending(true);
+      const res = await liftSuspension(event.id);
+      setSuspending(false);
+      if (res.error) {
+        setFeedback(`Failed to restore event: ${res.error}`);
+      } else {
+        setFeedback("Suspension lifted. Event is restored.");
+        setTimeout(() => {
+          onClose();
+        }, 1000);
+      }
     } else {
-      setFeedback("Event suspended.");
-      setTimeout(() => {
-        onClose();
-      }, 1000);
+      const confirm = window.confirm(`Are you sure you want to suspend "${event.title}"?`);
+      if (!confirm) return;
+
+      setSuspending(true);
+      const res = await suspendEvent(event.id, notes || undefined);
+      setSuspending(false);
+      if (res.error) {
+        setFeedback(`Suspension failed: ${res.error}`);
+      } else {
+        setFeedback("Event suspended.");
+        setTimeout(() => {
+          onClose();
+        }, 1000);
+      }
     }
   };
 
@@ -228,11 +247,11 @@ function InspectorBody({
                 {featuring ? "Saving..." : "Feature Event"}
               </button>
               <button
-                className="ed-btn-danger"
+                className={isSuspended ? "ed-btn-outline" : "ed-btn-danger"}
                 onClick={handleSuspend}
                 disabled={suspending}
               >
-                {suspending ? "Suspending..." : "Suspend"}
+                {suspending ? "Processing..." : isSuspended ? "Lift Suspension" : "Suspend"}
               </button>
             </footer>
           </>

@@ -140,7 +140,7 @@ export default function ApApprovalsView({
 
   const open = items.find((i) => i.id === openId) ?? null;
 
-  function decide(id: string, d: "approved" | "returned" | "declined") {
+  function decide(id: string, d: "approved" | "returned" | "declined", notes?: string) {
     const previous = items;
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, status: d } : i)));
     setOpenId(null);
@@ -152,6 +152,7 @@ export default function ApApprovalsView({
         const res = await decideApproval({
           approvalId,
           decision: d,
+          notes,
         });
         if (res.error) {
           // Revert optimistic update on error

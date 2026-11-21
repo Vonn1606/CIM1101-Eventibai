@@ -88,6 +88,15 @@ export async function getUserOrganizerApplication() {
 
 export async function getOrganizerApplications() {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return [];
+
+  const adminCheck = await requireAdmin(supabase, user.id);
+  if (!adminCheck.ok) return [];
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
     .from("organizer_applications")
@@ -206,6 +215,23 @@ export async function decideOrganizerApplication(
     } else {
       return { error: "Approved role, but could not resolve target organization ID." };
     }
+  }
+
+  // Notify the applicant of the decision (non-blocking)
+  try {
+    const isApproved = decision === "approved";
+    await supabase.from("notifications").insert({
+      user_id: appRow.user_id,
+      title: isApproved
+        ? "Organizer Application Approved 🎉"
+        : "Organizer Application Rejected",
+      body: isApproved
+        ? `Your application to organize events has been approved. You can now create events on Eventify.${adminNotes ? ` Note: ${adminNotes}` : ""}`
+        : `Your organizer application was not approved at this time.${adminNotes ? ` Reason: ${adminNotes}` : ""}`,
+      link: isApproved ? "/organizer-dashboard" : "/my-events",
+    });
+  } catch {
+    // non-blocking: failure here does not roll back the decision
   }
 
   revalidatePath("/admin/user-and-organizer");
