@@ -39,7 +39,7 @@ export async function decideApproval(
   const { error } = await supabase.rpc("decide_approval", {
     p_approval: approvalId,
     p_decision: dbDecision,
-    p_note: notes ?? null,
+    p_note: notes ?? "",
   });
 
   if (error) {
