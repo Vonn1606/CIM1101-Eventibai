@@ -5,10 +5,13 @@
 -- may not be active on the live DB. We replace it with a scoped self-read policy PLUS
 -- an admin-read-all policy, which is more secure and ensures organizers see their own membership.
 
--- Drop any conflicting existing policies
+-- Drop any conflicting existing policies (idempotent)
 drop policy if exists "read organization_members"           on public.organization_members;
 drop policy if exists "admin manages organization_members"  on public.organization_members;
 drop policy if exists "admin can manage org members"        on public.organization_members;
+drop policy if exists "members can read own rows"           on public.organization_members;
+drop policy if exists "admin can read all org members"      on public.organization_members;
+drop policy if exists "admin can write org members"         on public.organization_members;
 
 -- Users can read their own membership rows
 create policy "members can read own rows"
