@@ -11,7 +11,7 @@ import ProfileDropdown from "@/component/auth/profile-dropdown";
 export default function Header() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [hasUnread, setHasUnread] = useState(false);
-  const { user, profile } = useAuth();
+  const { user, profile, isOrganizer, isAdmin } = useAuth();
 
   /* Derive display name and role label from Supabase user, fallback to student profile */
   const displayName =
@@ -55,6 +55,22 @@ export default function Header() {
         </Link>
 
         <div className="flex items-center gap-3 shrink-0">
+          {isAdmin ? (
+            <Link
+              href="/admin"
+              className="hidden sm:inline-flex items-center rounded-full border border-[#ECE2DC] bg-[#FAF5F2] px-3.5 py-1.5 text-[12px] font-bold text-neutral-800 shadow-xs hover:bg-[#F3ECE7] transition"
+            >
+              Admin Portal
+            </Link>
+          ) : isOrganizer ? (
+            <Link
+              href="/organizer-dashboard"
+              className="hidden sm:inline-flex items-center rounded-full border border-[#ECE2DC] bg-[#FAF5F2] px-3.5 py-1.5 text-[12px] font-bold text-neutral-800 shadow-xs hover:bg-[#F3ECE7] transition"
+            >
+              Organizer Dashboard
+            </Link>
+          ) : null}
+
           <Link
             href="/events"
             className="flex items-center rounded-full bg-maroon px-4 py-1.5 text-[12px] font-bold tracking-wide text-white shadow-xs hover:bg-maroon-light transition"

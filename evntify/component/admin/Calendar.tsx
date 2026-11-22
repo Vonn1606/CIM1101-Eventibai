@@ -3,39 +3,32 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, CalendarDays, Clock, MapPin, Users, Info } from "lucide-react";
-import type { CalendarEventItem, FeaturedEventItem } from "@/lib/db/stats";
+import type { CalendarEventItem } from "@/lib/db/stats";
 
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 interface CalendarProps {
   events?: CalendarEventItem[];
-  featuredEvent?: FeaturedEventItem | null;
   year?: number;
   month?: number;
 }
 
 export default function Calendar({
   events = [],
-  featuredEvent,
   year: propYear,
   month: propMonth,
 }: CalendarProps) {
   const router = useRouter();
-  const currentNow = new Date();
+  const currentNow = useMemo(() => new Date(), []);
   const year = propYear ?? currentNow.getFullYear();
   const month = propMonth ?? currentNow.getMonth();
+  const viewKey = `${year}-${month}`;
 
   const isCurrentMonth = year === currentNow.getFullYear() && month === currentNow.getMonth();
-  const [userSelectedDay, setUserSelectedDay] = useState<number | null>(null);
-  const [prevView, setPrevView] = useState({ year, month });
-
-  if (prevView.year !== year || prevView.month !== month) {
-    setPrevView({ year, month });
-    setUserSelectedDay(null);
-  }
-
-  const selectedDay = userSelectedDay ?? (isCurrentMonth ? currentNow.getDate() : 1);
-  const setSelectedDay = setUserSelectedDay;
+  const [selection, setSelection] = useState<{ key: string; day: number | null }>({
+    key: viewKey,
+    day: null,
+  });
 
   const monthLabel = useMemo(() => {
     return new Date(year, month, 1).toLocaleDateString("en-US", {
@@ -86,6 +79,12 @@ export default function Calendar({
     };
   }, [year, month, events]);
 
+  const todayDay = currentNow.getDate();
+  const todayHasEvents = isCurrentMonth && (dayEventsMap.get(todayDay)?.length ?? 0) > 0;
+  const userSelectedDay = selection.key === viewKey ? selection.day : null;
+  const selectedDay = userSelectedDay ?? (todayHasEvents ? todayDay : null);
+  const setSelectedDay = (day: number | null) => setSelection({ key: viewKey, day });
+
   const handlePrevMonth = () => {
     const prevDate = new Date(year, month - 1, 1);
     const m = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, "0")}`;
@@ -102,25 +101,9 @@ export default function Calendar({
     router.push("/admin");
   };
 
-  // Determine active spotlight event (first on selected day)
-  const selectedDayEvents = dayEventsMap.get(selectedDay) ?? [];
-  const selectedEvent = selectedDayEvents[0] ?? null;
-  const spotlightTitle = selectedEvent?.title || featuredEvent?.title || null;
-  const spotlightVenue = selectedEvent?.venue || featuredEvent?.venue || "Campus Venue";
-  const spotlightCategory = selectedEvent?.category || "Campus Event";
-  const spotlightTime = selectedEvent?.starts_at
-    ? new Date(selectedEvent.starts_at).toLocaleTimeString("en-US", {
-      timeZone: "Asia/Manila",
-      hour: "numeric",
-      minute: "2-digit",
-    })
-    : featuredEvent?.starts_at
-      ? new Date(featuredEvent.starts_at).toLocaleTimeString("en-US", {
-        timeZone: "Asia/Manila",
-        hour: "numeric",
-        minute: "2-digit",
-      })
-      : "TBD";
+  // Determine active spotlight events (only if selected day has scheduled events)
+  const selectedDayEvents = selectedDay !== null ? (dayEventsMap.get(selectedDay) ?? []) : [];
+  const hasSpotlight = selectedDayEvents.length > 0;
 
   const isWeekend = (dayNum: number) => {
     const d = new Date(year, month, dayNum);
@@ -206,74 +189,89 @@ export default function Calendar({
         </div>
       </div>
 
-      <div className="card spotlight">
-        <div className="spot-head">
-          <div className="spot-left">
-            <div className="date-chip">
-              <small>
-                {new Date(year, month, 1).toLocaleDateString("en-US", { month: "short" })}
-              </small>
-              <b>{selectedDay}</b>
+      {hasSpotlight && selectedDay !== null && (
+        <div className="card spotlight">
+          <div className="spot-head">
+            <div className="spot-left">
+              <div className="date-chip">
+                <small>
+                  {new Date(year, month, 1).toLocaleDateString("en-US", { month: "short" })}
+                </small>
+                <b>{selectedDay}</b>
+              </div>
+              <div>
+                <div className="chips">
+                  <span className="chip" style={{ background: "#DAE2FD", color: "#131B2E" }}>
+                    {selectedDayEvents[0]?.category || "Campus Event"}
+                  </span>
+                  <span className="chip" style={{ background: "#FFDADA", color: "#40000C" }}>
+                    Confirmed
+                  </span>
+                </div>
+                <h4>
+                  {selectedDayEvents[0]?.title}
+                  {selectedDayEvents.length > 1 ? ` (+${selectedDayEvents.length - 1} more)` : ""}
+                </h4>
+              </div>
             </div>
+            <button type="button" className="ghost-btn" aria-label="Details">
+              <Info size={15} />
+            </button>
+          </div>
+
+          <div className="space-y-3 pt-2">
+            {selectedDayEvents.map((ev, idx) => {
+              const timeStr = ev.starts_at
+                ? new Date(ev.starts_at).toLocaleTimeString("en-US", {
+                    timeZone: "Asia/Manila",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })
+                : "TBD";
+              return (
+                <div key={ev.id || idx} className={idx > 0 ? "pt-3 border-t border-neutral-100" : ""}>
+                  {idx > 0 && (
+                    <h5 className="font-semibold text-xs text-neutral-800 mb-1.5">{ev.title}</h5>
+                  )}
+                  <div className="spot-meta">
+                    <div>
+                      <Clock size={15} color="#B80035" />
+                      <div>
+                        <span className="label-sm">Time</span>
+                        <p>{timeStr}</p>
+                      </div>
+                    </div>
+                    <div>
+                      <MapPin size={15} color="#B80035" />
+                      <div>
+                        <span className="label-sm">Venue</span>
+                        <p>{ev.venue || "Campus Venue"}</p>
+                      </div>
+                    </div>
+                    <div>
+                      <Users size={15} color="#B80035" />
+                      <div>
+                        <span className="label-sm">Status</span>
+                        <p>Open for attendance</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="spot-foot">
             <div>
-              <div className="chips">
-                <span className="chip" style={{ background: "#DAE2FD", color: "#131B2E" }}>
-                  {spotlightCategory}
-                </span>
-                <span className="chip" style={{ background: "#FFDADA", color: "#40000C" }}>
-                  {selectedEvent || featuredEvent ? "Confirmed" : "Open"}
-                </span>
-              </div>
-              <h4>{spotlightTitle || "No scheduled events for this date"}{selectedDayEvents.length > 1 ? ` (+${selectedDayEvents.length - 1} more)` : ""}</h4>
+              <Info size={15} color="#0050D4" />
+              <span className="t-12 muted">Managed via Student Affairs &amp; Council.</span>
             </div>
+            <a href="/admin/events-directory" className="soft-btn">
+              View in Directory <ChevronRight size={8} />
+            </a>
           </div>
-          <button type="button" className="ghost-btn" aria-label="Details">
-            <Info size={15} />
-          </button>
         </div>
-
-        {spotlightTitle ? (
-          <>
-            <div className="spot-meta">
-              <div>
-                <Clock size={15} color="#B80035" />
-                <div>
-                  <span className="label-sm">Time</span>
-                  <p>{spotlightTime}</p>
-                </div>
-              </div>
-              <div>
-                <MapPin size={15} color="#B80035" />
-                <div>
-                  <span className="label-sm">Venue</span>
-                  <p>{spotlightVenue}</p>
-                </div>
-              </div>
-              <div>
-                <Users size={15} color="#B80035" />
-                <div>
-                  <span className="label-sm">Status</span>
-                  <p>Open for attendance</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="spot-foot">
-              <div>
-                <Info size={15} color="#0050D4" />
-                <span className="t-12 muted">Managed via Student Affairs &amp; Council.</span>
-              </div>
-              <a href="/admin/events-directory" className="soft-btn">
-                View in Directory <ChevronRight size={8} />
-              </a>
-            </div>
-          </>
-        ) : (
-          <div className="py-4 text-center text-xs text-neutral-400">
-            Select another calendar date or view the events directory.
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }

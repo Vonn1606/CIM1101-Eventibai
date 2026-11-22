@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useTransition } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toggleCheckIn, updateEvent, cancelEvent, checkInByTicketCode } from "@/app/actions/events";
+import { setActiveOrganization } from "@/app/actions/organization";
 import { sendBroadcast, getBroadcastLogs } from "@/app/actions/broadcasts";
 import type { BroadcastLogItem } from "@/app/actions/broadcasts";
 import type { OrgEvent, OrgRosterStudent } from "@/lib/db/organizer";
@@ -75,12 +76,20 @@ const QUICK_PRESETS = [
    Main Component
    ========================================================================== */
 
+export type UserOrganization = {
+  id: string;
+  name: string;
+  position?: string | null;
+};
+
 interface OrganizerDashboardClientProps {
   initialEvents?: OrgEvent[];
   initialRoster?: OrgRosterStudent[];
   organizerName?: string;
   orgName?: string;
   venues?: Array<{ id: string; name: string; capacity: number }>;
+  organizations?: UserOrganization[];
+  activeOrgId?: string;
 }
 
 export default function OrganizerDashboardClient({
@@ -89,14 +98,24 @@ export default function OrganizerDashboardClient({
   organizerName = "Organizer",
   orgName = "My Organisation",
   venues = [],
+  organizations = [],
+  activeOrgId,
 }: OrganizerDashboardClientProps) {
   // Navigation & View state
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<string>("overview");
   const [registryFilter, setRegistryFilter] = useState<string>("all");
   const [ticketInputCode, setTicketInputCode] = useState("");
   const [ticketScanResult, setTicketScanResult] = useState<{ success?: boolean; message?: string } | null>(null);
   const [ticketScanning, setTicketScanning] = useState(false);
+  const [selectedCheckinEventId, setSelectedCheckinEventId] = useState<string>("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [orgDropdownOpen, setOrgDropdownOpen] = useState(false);
+  const [isPendingOrg, startOrgTransition] = useTransition();
+
+  const currentActiveOrg = organizations.find((o) => o.id === activeOrgId) ?? organizations[0];
+  const displayOrgName = currentActiveOrg?.name ?? orgName;
+  const displayOrgRole = currentActiveOrg?.position ?? "Officer";
 
   // App Data
   const [events, setEvents] = useState<OrgEvent[]>(initialEvents);
@@ -123,7 +142,6 @@ export default function OrganizerDashboardClient({
   const [nfcSimulating, setNfcSimulating] = useState(false);
 
   // Modal State
-  const router = useRouter();
   const [quickCheckinOpen, setQuickCheckinOpen] = useState(false);
   // const [qrModalEvent, setQrModalEvent] = useState<EventItem | null>(null);
   const [editModalEvent, setEditModalEvent] = useState<EventItem | null>(null);
@@ -342,22 +360,85 @@ export default function OrganizerDashboardClient({
           </div>
 
           {/* Org Profile Pill / Badge (Figma look) */}
-          <div className="flex items-center justify-between rounded-2xl border border-[#EFE4DE] bg-[#F8EFEA] p-3">
-            <div className="flex items-center gap-2.5">
-              <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#651C32] font-mono text-[11px] font-bold text-white shadow-2xs">
-                &lt;/&gt;
+          <div className="relative">
+            {organizations && organizations.length > 1 ? (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setOrgDropdownOpen((prev) => !prev)}
+                  className="w-full flex items-center justify-between rounded-2xl border border-[#EFE4DE] bg-[#F8EFEA] p-3 hover:bg-[#F2E8E2] transition cursor-pointer text-left"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#651C32] font-mono text-[11px] font-bold text-white shadow-2xs">
+                      &lt;/&gt;
+                    </div>
+                    <div className="flex flex-col text-left leading-tight min-w-0">
+                      <span className="flex items-center gap-1.5 text-xs font-bold text-[#1E1B19] truncate">
+                        {displayOrgName}
+                        <span className="size-1 rounded-full bg-[#1E1B19] shrink-0" />
+                      </span>
+                      <span className="text-[11px] font-medium text-[#7E6E6A] truncate">
+                        {displayOrgRole}
+                      </span>
+                    </div>
+                  </div>
+                  <ChevronDown
+                    size={14}
+                    className={`text-[#8A7B78] shrink-0 transition-transform ${orgDropdownOpen ? "rotate-180" : ""}`}
+                  />
+                </button>
+
+                {orgDropdownOpen && (
+                  <div className="absolute left-0 right-0 top-full mt-1 z-30 rounded-2xl border border-[#EFE4DE] bg-white p-1.5 shadow-lg space-y-1">
+                    <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#7E6E6A]">
+                      Switch Organization
+                    </div>
+                    {organizations.map((org) => {
+                      const isCurrent = org.id === (activeOrgId ?? currentActiveOrg?.id);
+                      return (
+                        <button
+                          key={org.id}
+                          type="button"
+                          disabled={isPendingOrg || isCurrent}
+                          onClick={() => {
+                            setOrgDropdownOpen(false);
+                            startOrgTransition(async () => {
+                              await setActiveOrganization(org.id);
+                              router.refresh();
+                            });
+                          }}
+                          className={`w-full flex items-center justify-between rounded-xl px-2.5 py-2 text-xs font-medium transition cursor-pointer text-left ${
+                            isCurrent
+                              ? "bg-[#F8EFEA] text-[#651C32] font-semibold"
+                              : "text-[#1E1B19] hover:bg-[#FAF5F2]"
+                          }`}
+                        >
+                          <span className="truncate">{org.name}</span>
+                          {isCurrent && <span className="size-1.5 rounded-full bg-[#651C32]" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-              <div className="flex flex-col text-left leading-tight">
-                <span className="flex items-center gap-1.5 text-xs font-bold text-[#1E1B19]">
-                  {orgName}
-                  <span className="size-1 rounded-full bg-[#1E1B19]" />
-                </span>
-                <span className="text-[11px] font-medium text-[#7E6E6A]">
-                  Information Technology
-                </span>
+            ) : (
+              <div className="flex items-center justify-between rounded-2xl border border-[#EFE4DE] bg-[#F8EFEA] p-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#651C32] font-mono text-[11px] font-bold text-white shadow-2xs">
+                    &lt;/&gt;
+                  </div>
+                  <div className="flex flex-col text-left leading-tight">
+                    <span className="flex items-center gap-1.5 text-xs font-bold text-[#1E1B19]">
+                      {displayOrgName}
+                      <span className="size-1 rounded-full bg-[#1E1B19]" />
+                    </span>
+                    <span className="text-[11px] font-medium text-[#7E6E6A]">
+                      {displayOrgRole}
+                    </span>
+                  </div>
+                </div>
               </div>
-            </div>
-            <ChevronDown size={14} className="text-[#8A7B78]" />
+            )}
           </div>
 
           {/* Navigation Menu */}
@@ -419,7 +500,7 @@ export default function OrganizerDashboardClient({
         {/* Bottom Utility Navigation */}
         <div className="flex flex-col gap-2 border-t border-[#ECE5DF] pt-4">
           <Link
-            href="/user-dashboard"
+            href="/my-events"
             className="flex items-center justify-between rounded-xl border border-[#E8DFD8] bg-[#FAF5F2] px-3.5 py-2.5 text-xs font-semibold text-[#651C32] transition hover:bg-[#F2ECE8]"
           >
             <span className="flex items-center gap-2">
@@ -1372,8 +1453,9 @@ export default function OrganizerDashboardClient({
                     setTicketScanning(true);
                     setTicketScanResult(null);
 
-                    // Pick active or first event
-                    const targetEvent = events.find((ev) => ev.status === "live" || ev.status === "soldout") ?? events[0];
+                    // Pick selected or active event
+                    const fallbackEvent = events.find((ev) => ev.status === "live" || ev.status === "soldout") ?? events[0];
+                    const targetEvent = events.find((ev) => ev.id === selectedCheckinEventId) ?? fallbackEvent;
                     if (!targetEvent) {
                       setTicketScanResult({ success: false, message: "No event found to check into." });
                       setTicketScanning(false);
@@ -1392,26 +1474,47 @@ export default function OrganizerDashboardClient({
                       setTicketInputCode("");
                     }
                   }}
-                  className="space-y-2 text-left"
+                  className="space-y-3 text-left"
                 >
-                  <label className="block text-xs font-semibold text-[#5A4B48]">
-                    Scan or Enter Ticket Code
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={ticketInputCode}
-                      onChange={(e) => setTicketInputCode(e.target.value.toUpperCase())}
-                      placeholder="e.g. EVT-ABCD-1234"
-                      className="flex-1 rounded-xl border border-[#E4D9D2] bg-white px-3 py-2 text-xs font-mono font-semibold uppercase text-[#1E1B19] focus:outline-none focus:border-[#651C32]"
-                    />
-                    <button
-                      type="submit"
-                      disabled={ticketScanning || !ticketInputCode.trim()}
-                      className="rounded-xl bg-[#651C32] px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-[#521325] disabled:opacity-50 cursor-pointer"
-                    >
-                      {ticketScanning ? "Checking..." : "Verify & Check In"}
-                    </button>
+                  {events.length > 0 && (
+                    <div className="space-y-1">
+                      <label className="block text-xs font-semibold text-[#5A4B48]">
+                        Check-in Event
+                      </label>
+                      <select
+                        value={selectedCheckinEventId || (events.find((ev) => ev.status === "live" || ev.status === "soldout") ?? events[0])?.id}
+                        onChange={(e) => setSelectedCheckinEventId(e.target.value)}
+                        className="w-full rounded-xl border border-[#E4D9D2] bg-white px-3 py-2 text-xs font-medium text-[#1E1B19] focus:outline-none focus:border-[#651C32]"
+                      >
+                        {events.map((ev) => (
+                          <option key={ev.id} value={ev.id}>
+                            {ev.title} ({ev.badgeLabel})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <div className="space-y-1">
+                    <label className="block text-xs font-semibold text-[#5A4B48]">
+                      Scan or Enter Ticket Code
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={ticketInputCode}
+                        onChange={(e) => setTicketInputCode(e.target.value)}
+                        placeholder="e.g. EVT-ABCD-1234"
+                        className="flex-1 rounded-xl border border-[#E4D9D2] bg-white px-3 py-2 text-xs font-mono font-semibold uppercase text-[#1E1B19] focus:outline-none focus:border-[#651C32]"
+                      />
+                      <button
+                        type="submit"
+                        disabled={ticketScanning || !ticketInputCode.trim()}
+                        className="rounded-xl bg-[#651C32] px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-[#521325] disabled:opacity-50 cursor-pointer"
+                      >
+                        {ticketScanning ? "Checking..." : "Verify & Check In"}
+                      </button>
+                    </div>
                   </div>
                 </form>
 

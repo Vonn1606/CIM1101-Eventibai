@@ -51,7 +51,7 @@ export interface OrgProfile {
 /* --------------------------------------------------------------------------
    getOrgProfile – logged-in organizer's name + organisation
    -------------------------------------------------------------------------- */
-export async function getOrgProfile(): Promise<OrgProfile | null> {
+export async function getOrgProfile(orgId?: string): Promise<OrgProfile | null> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -61,14 +61,18 @@ export async function getOrgProfile(): Promise<OrgProfile | null> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data } = await (supabase as any)
     .from("profiles")
-    .select(`full_name, organization_members ( organizations ( name ) )`)
+    .select(`full_name, organization_members ( organization_id, organizations ( name ) )`)
     .eq("id", user.id)
-    .limit(1)
     .maybeSingle();
 
   if (!data) return null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const orgName = (data as any).organization_members?.[0]?.organizations?.name ?? "My Organisation";
+  const members = (data as any).organization_members ?? [];
+   
+  const targetMember = orgId
+    ? members.find((m: { organization_id?: string }) => m.organization_id === orgId) ?? members[0]
+    : members[0];
+  const orgName = targetMember?.organizations?.name ?? "My Organisation";
 
   return {
     id: user.id,

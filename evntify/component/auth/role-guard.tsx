@@ -37,8 +37,13 @@ export default function RoleGuard({ allowedRole = "any", children }: RoleGuardPr
       return;
     }
 
+<<<<<<< Updated upstream
     if (allowedRole === "user" && (isOrganizer || isAdmin)) {
       router.replace(isAdmin ? "/admin" : "/organizer-dashboard");
+=======
+    if (allowedRole === "admin" && !isAdmin) {
+      router.replace("/my-events");
+>>>>>>> Stashed changes
       return;
     }
   }, [user, loading, isOrganizer, isAdmin, allowedRole, router]);
@@ -58,7 +63,11 @@ export default function RoleGuard({ allowedRole = "any", children }: RoleGuardPr
 
   if (allowedRole === "admin" && !isAdmin) return null;
   if (allowedRole === "organizer" && !isOrganizer && !isAdmin) return null;
+<<<<<<< Updated upstream
   if (allowedRole === "user" && (isOrganizer || isAdmin)) return null;
+=======
+  if (allowedRole === "admin" && !isAdmin) return null;
+>>>>>>> Stashed changes
 
   return <>{children}</>;
 }

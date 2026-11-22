@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import SignInPrompt from "@/component/dashboard/events/signinprompt";
+import ProfileDropdown from "@/component/auth/profile-dropdown";
 import { useAuth } from "@/lib/use-auth";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
@@ -11,10 +12,8 @@ import {
   Share2,
   Mail,
   Phone,
-  Search,
   Bell,
   User,
-  ChevronDown,
   ExternalLink,
   QrCode,
   Home,
@@ -188,8 +187,26 @@ export default function EventDetailsClient({ initialEvent, initialRegistration, 
     Math.round((event.registeredCount / event.totalCapacity) * 100)
   );
 
-  const { user } = useAuth();
+  const { user, profile, loading: authLoading, isAdmin, isOrganizer } = useAuth();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isAuthPromptOpen, setIsAuthPromptOpen] = useState(false);
+
+  const displayName =
+    profile?.fullName ||
+    user?.user_metadata?.full_name ||
+    user?.user_metadata?.name ||
+    (user?.email ? user.email.split("@")[0] : "Student");
+
+  const roleLabel =
+    isAdmin
+      ? "ADMIN"
+      : isOrganizer
+        ? "ORGANIZER"
+        : profile?.department
+          ? `STUDENT • ${profile.department}`
+          : user?.user_metadata?.department
+            ? `STUDENT • ${user.user_metadata.department}`
+            : "STUDENT";
 
   const handleRegisterClick = () => {
     if (!user) return setIsAuthPromptOpen(true);
@@ -215,41 +232,55 @@ export default function EventDetailsClient({ initialEvent, initialRegistration, 
             />
           </Link>
 
-          {/* Search bar */}
-          <form role="search" action="/events" method="GET" className="search">
-            <div className="search__field">
-              <Search className="search__icon" size={14} />
-              <input
-                type="search"
-                name="q"
-                placeholder="Search campus events, venues, clubs..."
-                className="search__input"
-                aria-label="Search campus events"
-              />
-              <button type="submit" className="search__submit">
-                GO
-              </button>
-            </div>
-          </form>
-
           {/* Header Actions */}
           <div className="header__actions">
-            <button type="button" className="nav__btn">
-              <span>Departments</span>
-              <ChevronDown size={14} className="text-neutral-500" />
-            </button>
+            {authLoading ? (
+              <div className="h-8 w-16 rounded-lg bg-neutral-100 animate-pulse" />
+            ) : user ? (
+              <>
+                <Link
+                  href={isAdmin ? "/admin" : isOrganizer ? "/organizer-dashboard" : "/my-events"}
+                  className="hidden sm:inline-flex h-8 items-center px-3 rounded-lg text-xs font-bold text-neutral-700 hover:bg-neutral-100 transition"
+                >
+                  {isAdmin ? "Admin Portal" : isOrganizer ? "Organizer Dashboard" : "My Events"}
+                </Link>
 
-            <button type="button" className="icon-btn" aria-label="Notifications">
-              <Bell size={18} />
-              <span className="icon-btn__dot" />
-            </button>
+                <Link
+                  href="/notifications"
+                  className="icon-btn"
+                  aria-label="Notifications"
+                >
+                  <Bell size={18} />
+                </Link>
 
-            <div className="profile-btn">
-              <div className="profile-btn__avatar">
-                <User size={16} />
-              </div>
-              <ChevronDown size={13} className="text-neutral-400" />
-            </div>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setDropdownOpen((o) => !o)}
+                    className="flex h-8 w-8 items-center justify-center rounded-full bg-[#4D0011] text-white transition hover:opacity-95 cursor-pointer"
+                    aria-label="Account menu"
+                    aria-expanded={dropdownOpen}
+                  >
+                    <User size={15} strokeWidth={2.2} />
+                  </button>
+
+                  {dropdownOpen && (
+                    <ProfileDropdown
+                      name={displayName}
+                      role={roleLabel}
+                      onClose={() => setDropdownOpen(false)}
+                    />
+                  )}
+                </div>
+              </>
+            ) : (
+              <Link
+                href={`/signin?next=/events/${event.id}`}
+                className="inline-flex h-8 items-center rounded-lg bg-[#6c0c28] px-4 text-xs font-bold text-white transition hover:bg-[#8b263e]"
+              >
+                Sign In
+              </Link>
+            )}
           </div>
         </div>
       </header>

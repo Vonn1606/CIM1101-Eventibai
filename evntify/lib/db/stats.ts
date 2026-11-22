@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentProfile } from "@/lib/auth/server";
 
 export type AdminStats = {
   totalStudents: number;
@@ -27,6 +28,7 @@ export const getAdminStats = cache(async (): Promise<AdminStats> => {
       .from("events")
       .select("id", { count: "exact", head: true })
       .eq("approval", "approved")
+      .not("status", "in", '("draft","suspended","cancelled","completed")')
       .gte("starts_at", now.toISOString())
       .lte("starts_at", in30Days.toISOString()),
     supabase
@@ -129,7 +131,7 @@ export const getApprovals = cache(async (): Promise<ApprovalItem[]> => {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   return rawList.map((row) => {
     const ev = row.events;
     const startsAt = ev?.starts_at ? new Date(ev.starts_at) : null;
@@ -245,21 +247,20 @@ export const getEventsDirectory = cache(async (
 
   const eventIds = ((data ?? []) as Array<{ id: string }>).map((e) => e.id);
 
-  // Fix #1: Replace heavy event_stats view with a direct indexed query on registrations
-  const { data: regRows } = await supabase
-    .from("registrations")
-    .select("event_id")
-    .in("event_id", eventIds)
-    .eq("status", "registered");
+  // Read registered_count directly from event_stats view for exact counts without fetching registration rows
+  const { data: statsRows } = await supabase
+    .from("event_stats")
+    .select("event_id, registered_count")
+    .in("event_id", eventIds);
 
   const regCounts: Record<string, number> = {};
-  if (regRows) {
-    (regRows as Array<{ event_id: string }>).forEach((r) => {
-      regCounts[r.event_id] = (regCounts[r.event_id] ?? 0) + 1;
+  if (statsRows) {
+    (statsRows as Array<{ event_id: string; registered_count: number | null }>).forEach((s) => {
+      regCounts[s.event_id] = Number(s.registered_count ?? 0);
     });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const items: EventDirectoryItem[] = (data as any[]).map((row) => {
     const collegeName: string = row.colleges?.name ?? "";
     const collegeSlug: string = row.colleges?.slug ?? "";
@@ -322,7 +323,7 @@ export type OrganizerItem = {
 export const getOrganizers = cache(async (): Promise<OrganizerItem[]> => {
   const supabase = await createClient();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const { data, error } = await (supabase as any)
     .from("profiles")
     .select(`
@@ -336,7 +337,7 @@ export const getOrganizers = cache(async (): Promise<OrganizerItem[]> => {
 
   // Collect all org IDs so we can batch-query pending + active counts
   const orgIds = new Set<string>();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   (data as any[]).forEach((p) => {
     const members = Array.isArray(p.organization_members) ? p.organization_members : [];
     members.forEach((m: { organization_id?: string }) => {
@@ -350,7 +351,7 @@ export const getOrganizers = cache(async (): Promise<OrganizerItem[]> => {
   if (orgIds.size > 0) {
     const ids = Array.from(orgIds);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const [pendingRes, activeRes] = await Promise.all([
       (supabase as any)
         .from("event_approvals")
@@ -366,14 +367,14 @@ export const getOrganizers = cache(async (): Promise<OrganizerItem[]> => {
     ]);
 
     if (pendingRes.data) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       (pendingRes.data as any[]).forEach((r) => {
         const oid = r.events?.organization_id as string | undefined;
         if (oid) pendingByOrg[oid] = (pendingByOrg[oid] ?? 0) + 1;
       });
     }
     if (activeRes.data) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       (activeRes.data as any[]).forEach((r) => {
         const oid = r.organization_id as string;
         activeByOrg[oid] = (activeByOrg[oid] ?? 0) + 1;
@@ -381,7 +382,7 @@ export const getOrganizers = cache(async (): Promise<OrganizerItem[]> => {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   return (data as any[]).map((p) => {
     const member = Array.isArray(p.organization_members) ? p.organization_members[0] : null;
     const orgId = member?.organization_id as string | undefined;
@@ -410,11 +411,12 @@ export const getFeaturedEvent = cache(async (): Promise<FeaturedEventItem | null
   const supabase = await createClient();
 
   // Query explicitly featured events that are approved and upcoming
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const { data, error } = await (supabase as any)
     .from("events")
     .select(`title, starts_at, status, summary, description, is_featured, venues ( name )`)
     .eq("approval", "approved")
+    .not("status", "in", '("draft","suspended","cancelled","completed")')
     .eq("is_featured", true)
     .gte("starts_at", new Date().toISOString())
     .order("starts_at", { ascending: true })
@@ -443,18 +445,19 @@ export type UpcomingEventItem = {
 export const getUpcomingEvents = cache(async (limit = 4): Promise<UpcomingEventItem[]> => {
   const supabase = await createClient();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const { data, error } = await (supabase as any)
     .from("events")
     .select(`id, title, starts_at, category, venues ( name )`)
     .eq("approval", "approved")
+    .not("status", "in", '("draft","suspended","cancelled","completed")')
     .gte("starts_at", new Date().toISOString())
     .order("starts_at", { ascending: true })
     .limit(limit);
 
   if (error || !data) return [];
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   return (data as any[]).map((row) => ({
     id: row.id,
     title: row.title ?? "Untitled",
@@ -465,24 +468,9 @@ export const getUpcomingEvents = cache(async (limit = 4): Promise<UpcomingEventI
 });
 
 export const getAdminProfile = cache(async (): Promise<{ name: string; role: string }> => {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { name: "Admin Office", role: "Student Affairs" };
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data } = await (supabase as any)
-    .from("profiles")
-    .select("full_name, role")
-    .eq("id", user.id)
-    .single();
-
+  const profile = await getCurrentProfile();
   return {
-    name: ((data as unknown) as { full_name?: string | null } | null)?.full_name ?? "Admin Office",
+    name: profile?.fullName ?? "Admin Office",
     role: "Office of Student Affairs",
   };
 });
@@ -512,19 +500,19 @@ export const getCalendarEvents = cache(async (
   const monthStart = new Date(Date.UTC(year, month, 1) - manilaOffsetMs).toISOString();
   const monthEnd = new Date(Date.UTC(year, month + 1, 1) - manilaOffsetMs).toISOString();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const { data, error } = await (supabase as any)
     .from("events")
     .select(`id, title, starts_at, ends_at, category, slug, venues ( name )`)
     .eq("approval", "approved")
-    .not("status", "in", '("cancelled","suspended")')
+    .not("status", "in", '("draft","suspended","cancelled","completed")')
     .gte("starts_at", monthStart)
     .lt("starts_at", monthEnd)
     .order("starts_at", { ascending: true });
 
   if (error || !data) return [];
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   return (data as any[]).map((row) => ({
     id: row.id,
     title: row.title ?? "Untitled",

@@ -38,6 +38,7 @@ interface CreateEventFormProps {
   venues?: VenueOption[];
   colleges?: CollegeOption[];
   organizations?: OrgOption[];
+  defaultOrganizationId?: string;
 }
 
 /* ---------- Sub-components ---------- */
@@ -90,6 +91,7 @@ export default function CreateEventForm({
   venues = [],
   colleges = [],
   organizations = [],
+  defaultOrganizationId,
 }: CreateEventFormProps) {
   const router = useRouter();
 
@@ -99,7 +101,7 @@ export default function CreateEventForm({
     name: "",
     category: "Seminar" as "Seminar" | "Workshop" | "Competition" | "Symposium" | "Social" | "General",
     description: "",
-    organizationId: organizations[0]?.id ?? "",
+    organizationId: defaultOrganizationId ?? organizations[0]?.id ?? "",
     collegeId: colleges[0]?.id ?? "",
     venueId: venues[0]?.id ?? "",
     venue: venues[0]?.name ?? "",

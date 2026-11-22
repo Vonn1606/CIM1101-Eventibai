@@ -26,34 +26,49 @@ async function fetchProfile(userId: string): Promise<UserProfile | null> {
   }
 
   const supabase = createClient();
-  const { data } = await supabase
-    .from("profiles")
-    .select("id, full_name, role, department, student_number, college_id, email")
-    .eq("id", userId)
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, full_name, role, department, student_number, college_id, email")
+      .eq("id", userId)
+      .maybeSingle();
 
-  if (!data) return null;
-  const row = data as {
-    id: string;
-    full_name: string | null;
-    role: string | null;
-    department: string | null;
-    student_number: string | null;
-    college_id: string | null;
-    email: string | null;
-  };
-  const profile: UserProfile = {
-    id: row.id,
-    fullName: row.full_name ?? "",
-    role: (row.role as UserRole) ?? "student",
-    department: row.department ?? null,
-    studentNumber: row.student_number ?? null,
-    collegeId: row.college_id ?? null,
-    email: row.email ?? "",
-  };
-  cachedUserId = userId;
-  cachedProfile = profile;
-  return profile;
+    if (error) {
+      console.warn("[useAuth] Failed to fetch profile (transient error):", error.message);
+      // If we already have a cached profile for this user, do NOT wipe it out
+      if (cachedUserId === userId && cachedProfile) {
+        return cachedProfile;
+      }
+      return null;
+    }
+
+    if (!data) return null;
+    const row = data as {
+      id: string;
+      full_name: string | null;
+      role: string | null;
+      department: string | null;
+      student_number: string | null;
+      college_id: string | null;
+      email: string | null;
+    };
+    const profile: UserProfile = {
+      id: row.id,
+      fullName: row.full_name ?? "",
+      role: (row.role as UserRole) ?? "student",
+      department: row.department ?? null,
+      studentNumber: row.student_number ?? null,
+      collegeId: row.college_id ?? null,
+      email: row.email ?? "",
+    };
+    cachedUserId = userId;
+    cachedProfile = profile;
+    return profile;
+  } catch (err) {
+    console.warn("[useAuth] Unexpected profile fetch error:", err);
+    if (cachedUserId === userId && cachedProfile) return cachedProfile;
+    return null;
+  }
 }
 
 export function useAuth() {
@@ -75,8 +90,10 @@ export function useAuth() {
 
       if (currentUser) {
         const p = await fetchProfile(currentUser.id);
-        setProfile(p);
-        setRole(p?.role ?? "student");
+        if (p) {
+          setProfile(p);
+          setRole(p.role);
+        }
       } else {
         cachedProfile = null;
         cachedUserId = null;
@@ -89,8 +106,10 @@ export function useAuth() {
     loadSession();
 
     const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
-      // Skip redundant refetch on INITIAL_SESSION if already loaded
-      if (event === "INITIAL_SESSION" && cachedProfile) return;
+      // Skip redundant refetch on INITIAL_SESSION or TOKEN_REFRESHED if profile already active
+      if ((event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED") && cachedProfile) {
+        return;
+      }
 
       const currentUser = session?.user ?? null;
       setUser(currentUser);
@@ -99,16 +118,23 @@ export function useAuth() {
         if (event === "SIGNED_OUT") {
           cachedProfile = null;
           cachedUserId = null;
+          setProfile(null);
+          setRole("guest");
+          setLoading(false);
+          return;
         }
-        // On SIGNED_IN (role change after admin promotes user), bust the cache
-        // so fetchProfile re-reads the updated role from the DB
-        if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+
+        // On SIGNED_IN (new session or login), invalidate stale memory cache
+        if (event === "SIGNED_IN") {
           cachedProfile = null;
           cachedUserId = null;
         }
+
         const p = await fetchProfile(currentUser.id);
-        setProfile(p);
-        setRole(p?.role ?? "student");
+        if (p) {
+          setProfile(p);
+          setRole(p.role);
+        }
       } else {
         cachedProfile = null;
         cachedUserId = null;

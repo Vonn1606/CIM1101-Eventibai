@@ -131,7 +131,7 @@ export default function ApplyOrganizerSection({
           <div className="relative w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl border border-[#ECE5DF]">
             <button
               onClick={() => setModalOpen(false)}
-              className="absolute right-4 top-4 rounded-full p-1.5 text-[#8A7B78] hover:bg-[#FAF5F2]"
+              className="absolute right-4 top-4 rounded-full p-1.5 text-[#8A7B78] hover:bg-[#FAF5F2] cursor-pointer"
             >
               <X size={18} />
             </button>
@@ -203,7 +203,7 @@ export default function ApplyOrganizerSection({
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
-                  className="rounded-xl border border-[#ECE2DC] px-4 py-2 text-xs font-semibold text-[#7A6B68] hover:bg-[#FAF5F2]"
+                  className="rounded-xl border border-[#ECE2DC] px-4 py-2 text-xs font-semibold text-[#7A6B68] hover:bg-[#FAF5F2] cursor-pointer"
                 >
                   Cancel
                 </button>

@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { getActiveOrgId } from "@/lib/db/active-org";
 
 /* --------------------------------------------------------------------------
    submitEvent – inserts a new event into the events table for SAO review
@@ -164,39 +165,44 @@ export async function submitEvent(
       }
     }
   } else {
-    const { data: memberData } = await supabase
-      .from("organization_members")
-      .select("organization_id")
-      .eq("user_id", user.id)
-      .limit(1)
-      .maybeSingle();
-
-    if (memberData) {
-      orgId = memberData.organization_id;
+    const active = await getActiveOrgId(supabase, user.id);
+    if (active) {
+      orgId = active;
     } else {
-      // Check if admin
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single();
+      const { data: memberData } = await supabase
+        .from("organization_members")
+        .select("organization_id")
+        .eq("user_id", user.id)
+        .limit(1)
+        .maybeSingle();
 
-      if (profile?.role === "admin") {
-        const { data: defaultOrg } = await supabase
-          .from("organizations")
-          .select("id")
-          .limit(1)
-          .maybeSingle();
-        if (defaultOrg) {
-          orgId = defaultOrg.id;
-        } else {
-          return { error: "No campus organization found." };
-        }
+      if (memberData) {
+        orgId = memberData.organization_id;
       } else {
-        return {
-          error:
-            "You are not affiliated with any recognized student organization. Please submit an application under 'Apply as Organizer' to receive approval from Student Affairs.",
-        };
+        // Check if admin
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .single();
+
+        if (profile?.role === "admin") {
+          const { data: defaultOrg } = await supabase
+            .from("organizations")
+            .select("id")
+            .limit(1)
+            .maybeSingle();
+          if (defaultOrg) {
+            orgId = defaultOrg.id;
+          } else {
+            return { error: "No campus organization found." };
+          }
+        } else {
+          return {
+            error:
+              "You are not affiliated with any recognized student organization. Please submit an application under 'Apply as Organizer' to receive approval from Student Affairs.",
+          };
+        }
       }
     }
   }
@@ -522,47 +528,87 @@ export async function checkInByTicketCode(
     data: { user },
     error: authError,
   } = await supabase.auth.getUser();
-  if (authError || !user) return { error: "Not authenticated." };
+  if (authError || !user) return { error: "Not authenticated. Please sign in again." };
 
   if (!ticketCode || !ticketCode.trim()) {
     return { error: "Please enter or scan a valid ticket code." };
   }
 
-  // 1. Verify caller owns or administers this event
+  // Strip all internal whitespace, zero-width spaces, and invisible noise
+  const cleanCode = ticketCode.replace(/[\s\u200B-\u200D\uFEFF]/g, "");
+  if (!cleanCode) {
+    return { error: "Invalid ticket code. Code cannot be empty." };
+  }
+  const escapedCode = cleanCode.replace(/[%_\\]/g, "\\$&");
+
+  const targetEventId = eventId;
+
+  // 1. Check if the ticket code exists for the specified event (case-insensitive)
+  const { data: reg, error: regErr } = await supabase
+    .from("registrations")
+    .select(`
+      id, event_id, status, student_number,
+      profiles ( full_name ),
+      check_ins ( checked_in_at )
+    `)
+    .eq("event_id", targetEventId)
+    .ilike("ticket_code", escapedCode)
+    .maybeSingle();
+
+  // If not found for the specified event, check if it belongs to another event
+  if (!reg) {
+    const { data: globalReg, error: globalErr } = await supabase
+      .from("registrations")
+      .select(`
+        id, event_id, status, student_number,
+        events ( id, title, status ),
+        profiles ( full_name ),
+        check_ins ( checked_in_at )
+      `)
+      .ilike("ticket_code", escapedCode)
+      .maybeSingle();
+
+    if (globalErr) {
+      console.error("[checkInByTicketCode] Global lookup error:", globalErr.message);
+      return { error: "Database error during ticket lookup. Please retry." };
+    }
+
+    if (globalReg) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const ev = (globalReg as any).events as { id?: string; title?: string; status?: string } | null;
+      const otherTitle = ev?.title ?? "another event";
+      return {
+        error: `Ticket belongs to "${otherTitle}". Please switch the check-in event to "${otherTitle}".`,
+      };
+    }
+
+    if (regErr) {
+      console.error("[checkInByTicketCode] Registration lookup error:", regErr.message);
+      return { error: "Database error during ticket lookup. Please retry." };
+    }
+
+    return { error: "No registration found with this ticket code." };
+  }
+
+  // 2. Verify caller owns or administers this target event
   const { data: owns, error: ownsErr } = await supabase.rpc(
     "user_owns_event",
-    { p_event: eventId }
+    { p_event: targetEventId }
   );
   if (ownsErr || !owns) {
     return { error: "You do not have permission to manage check-ins for this event." };
   }
 
-  // 2. Fetch event to verify lifecycle (cannot check into cancelled or suspended events)
+  // 3. Fetch event to verify lifecycle (cannot check into cancelled or suspended events)
   const { data: evRow, error: evErr } = await supabase
     .from("events")
     .select("id, status, approval")
-    .eq("id", eventId)
+    .eq("id", targetEventId)
     .single();
 
-  if (evErr || !evRow) return { error: "Event not found." };
+  if (evErr || !evRow) return { error: "Target event could not be verified." };
   if (evRow.status === "cancelled" || evRow.status === "suspended") {
     return { error: `Event is currently ${evRow.status}. Check-ins are disabled.` };
-  }
-
-  // 3. Find registration matching ticket code and event
-  const { data: reg, error: regErr } = await supabase
-    .from("registrations")
-    .select(`
-      id, status, student_number,
-      profiles ( full_name ),
-      check_ins ( checked_in_at )
-    `)
-    .eq("event_id", eventId)
-    .eq("ticket_code", ticketCode.trim())
-    .maybeSingle();
-
-  if (regErr || !reg) {
-    return { error: "Invalid ticket code. No registration found for this event." };
   }
 
   // C4 Gate Integrity: reject waitlisted or cancelled registrations
@@ -597,7 +643,7 @@ export async function checkInByTicketCode(
   const { error: insErr } = await supabase.from("check_ins").upsert(
     {
       registration_id: reg.id,
-      event_id: eventId,
+      event_id: targetEventId,
       checked_in_by: user.id,
       checked_in_at: now,
     },

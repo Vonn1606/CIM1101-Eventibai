@@ -1,9 +1,8 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/component/admin/Sidebar";
 import Header from "@/component/admin/Header";
 import EdEventsView from "@/component/admin/EdEventsView";
 import { getEventsDirectory, getPendingApprovalsCount } from "@/lib/db/stats";
+import { getCurrentProfile } from "@/lib/auth/server";
 import "../admin.css";
 
 // Admin pages render at request time (auth-protected, user-specific data)
@@ -14,31 +13,14 @@ export const metadata = {
 };
 
 export default async function EventsDirectoryPage() {
-  const supabase = await createClient();
-
-  // Auth + data in parallel; getEventsDirectory is safe (returns [] on error)
-  const [authRes, eventsRes, pendingApprovals] = await Promise.all([
-    supabase.auth.getUser(),
+  const [profile, eventsRes, pendingApprovals] = await Promise.all([
+    getCurrentProfile(),
     getEventsDirectory(1, 12),
     getPendingApprovalsCount(),
   ]);
 
-  const user = authRes.data.user;
-  if (!user) redirect("/signin");
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: profile } = await (supabase as any)
-    .from("profiles")
-    .select("full_name, role")
-    .eq("id", user.id)
-    .single();
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if ((profile as any)?.role !== "admin") redirect("/my-events");
-
   const adminProfile = {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    name: (profile as any)?.full_name ?? "Admin Office",
+    name: profile?.fullName ?? "Admin Office",
     role: "Office of Student Affairs",
   };
 

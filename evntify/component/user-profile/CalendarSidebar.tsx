@@ -14,8 +14,8 @@ interface CalendarSidebarProps {
   prevHref?: string;
   nextHref?: string;
   todayHref?: string;
-  /** Map of day-of-month → event info for the preview */
-  dayEvents: Record<number, SelectedDayEventItem>;
+  /** Map of day-of-month → event info list for the preview */
+  dayEvents: Record<number, SelectedDayEventItem[] | SelectedDayEventItem>;
 }
 
 export default function CalendarSidebar({
@@ -39,7 +39,12 @@ export default function CalendarSidebar({
     setSelectedDay(null);
   }
 
-  const selectedEvent = selectedDay != null ? (dayEvents[selectedDay] ?? null) : null;
+  const raw = selectedDay != null ? (dayEvents[selectedDay] ?? null) : null;
+  const selectedEvents: SelectedDayEventItem[] = Array.isArray(raw)
+    ? raw
+    : raw
+      ? [raw]
+      : [];
 
   return (
     <>
@@ -56,7 +61,7 @@ export default function CalendarSidebar({
         nextHref={nextHref}
         todayHref={todayHref}
       />
-      <SelectedDayPreview event={selectedEvent} />
+      <SelectedDayPreview events={selectedEvents} />
     </>
   );
 }

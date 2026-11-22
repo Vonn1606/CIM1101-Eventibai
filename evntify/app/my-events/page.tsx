@@ -5,7 +5,9 @@ import { getMyRegistrations } from "@/app/actions/registration";
 import type { UpcomingEvent, PastEvent } from "@/app/actions/registration";
 import { getUserOrganizerApplication } from "@/app/actions/organizer-application";
 import { getCalendarEvents } from "@/lib/db/stats";
+import { getMyOrganizations, getActiveOrgId } from "@/lib/db/active-org";
 import ApplyOrganizerSection from "@/component/user-profile/ApplyOrganizerSection";
+import OrganizationSwitcher from "@/component/user-profile/OrganizationSwitcher";
 import Header from "@/component/user-profile/Header";
 import Footer from "@/component/user-profile/Footer";
 import WelcomeBar from "@/component/user-profile/WelcomeBar";
@@ -130,11 +132,20 @@ export default async function MyEventsPage({ searchParams }: MyEventsPageProps) 
     }
   }
 
-  const [{ upcoming: upcomingRegs, past: pastRegs }, userApp, userProfileRes, monthEvents] = await Promise.all([
+  const [
+    { upcoming: upcomingRegs, past: pastRegs },
+    userApp,
+    userProfileRes,
+    monthEvents,
+    userOrgs,
+    activeOrgId,
+  ] = await Promise.all([
     getMyRegistrations(user.id),
     getUserOrganizerApplication(),
     supabase.from("profiles").select("role").eq("id", user.id).maybeSingle(),
     getCalendarEvents(manilaYear, manilaMonth),
+    getMyOrganizations(supabase, user.id),
+    getActiveOrgId(supabase, user.id),
   ]);
 
   const userRole = userProfileRes.data?.role ?? "student";
@@ -184,8 +195,8 @@ export default async function MyEventsPage({ searchParams }: MyEventsPageProps) 
     registeredEventIds
   );
 
-  // Build a map of day-of-month → event info for SelectedDayPreview
-  const dayEvents: Record<number, SelectedDayEventItem> = {};
+  // Build a map of day-of-month → event info list for SelectedDayPreview
+  const dayEvents: Record<number, SelectedDayEventItem[]> = {};
 
   // First populate registered events
   for (const r of allRegs) {
@@ -193,33 +204,38 @@ export default async function MyEventsPage({ searchParams }: MyEventsPageProps) 
     const parts = getManilaDateParts(r.event.starts_at);
     if (parts.year === manilaYear && parts.month === manilaMonth) {
       if (!dayEvents[parts.day]) {
-        dayEvents[parts.day] = {
-          date: formatDate(r.event.starts_at),
-          title: r.event.title,
-          time: formatTime(r.event.starts_at),
-          venue: r.event.venue ?? "",
-          ticketCode: (r as { ticket_code?: string }).ticket_code ?? "",
-          isRegistered: true,
-          slug: (r.event as { slug?: string }).slug ?? "",
-        };
+        dayEvents[parts.day] = [];
       }
+      dayEvents[parts.day].push({
+        date: formatDate(r.event.starts_at),
+        title: r.event.title,
+        time: formatTime(r.event.starts_at),
+        venue: r.event.venue ?? "",
+        ticketCode: (r as { ticket_code?: string }).ticket_code ?? "",
+        isRegistered: true,
+        slug: (r.event as { slug?: string }).slug ?? "",
+      });
     }
   }
 
-  // Then populate open events for days that don't already have a registered event
+  // Then populate open events for days (avoiding duplicate entries for the same event)
   for (const ev of monthEvents) {
     if (!ev.starts_at) continue;
     const parts = getManilaDateParts(ev.starts_at);
     if (parts.year === manilaYear && parts.month === manilaMonth) {
       if (!dayEvents[parts.day]) {
-        dayEvents[parts.day] = {
+        dayEvents[parts.day] = [];
+      }
+      const alreadyHas = dayEvents[parts.day].some((item) => item.slug === ev.slug || item.title === ev.title);
+      if (!alreadyHas) {
+        dayEvents[parts.day].push({
           date: formatDate(ev.starts_at),
           title: ev.title,
           time: formatTime(ev.starts_at),
           venue: ev.venue ?? "",
           isRegistered: false,
           slug: ev.slug,
-        };
+        });
       }
     }
   }
@@ -236,6 +252,8 @@ export default async function MyEventsPage({ searchParams }: MyEventsPageProps) 
       <main className="min-h-[576px] bg-surface">
         <div className="mx-auto flex max-w-[1440px] flex-col gap-8 px-6 lg:px-10 py-8">
           <WelcomeBar upcoming={upcomingEvents.length} past={pastEvents.length} />
+
+          <OrganizationSwitcher organizations={userOrgs} activeOrgId={activeOrgId} />
 
           <ApplyOrganizerSection existingApplication={userApp} userRole={userRole} />
 
