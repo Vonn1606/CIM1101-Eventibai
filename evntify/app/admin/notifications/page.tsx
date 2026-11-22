@@ -411,11 +411,10 @@ export default function AdminNotificationsPage() {
 
 function AdminNotificationRow({
   n,
-  onDismiss: _onDismiss,
   onToggleRead,
 }: {
   n: AdminNotification;
-  onDismiss: (id: string) => void;
+  onDismiss?: (id: string) => void;
   onToggleRead: (id: string) => void;
 }) {
   const Icon = n.icon;
