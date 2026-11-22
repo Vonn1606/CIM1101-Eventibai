@@ -58,10 +58,10 @@ export async function registerForEvent(
   }
 
   if (!effectiveStudentNumber) {
-    return { error: "Student number is required. Format must be YYYY-NNNNN-XX" };
+    return { error: "Student number is required. Format must be 11 digits (e.g. 20241234567)" };
   }
-  if (!/^\d{4}-\d{5}-\w{2}$/.test(effectiveStudentNumber)) {
-    return { error: "Format must be YYYY-NNNNN-XX" };
+  if (!/^\d{11}$/.test(effectiveStudentNumber)) {
+    return { error: "Student number must be 11 digits (e.g. 20241234567)" };
   }
   if (!effectiveCollege) {
     return { error: "Please select a college." };

@@ -13,7 +13,7 @@ export const signUpSchema = z.object({
   student_number: z
     .string()
     .min(1, "Student number is required")
-    .regex(/^\d{4}-\d{5}-\w{2}$/, "Format must be YYYY-NNNNN-XX"),
+    .regex(/^\d{11}$/, "Student number must be 11 digits (e.g. 20241234567)"),
   // Slug of a row in the `colleges` table; existence is verified in the signUp action.
   college: z.string().min(1, "Please select a college"),
   password: z.string().min(8, "Password must be at least 8 characters"),
@@ -34,7 +34,7 @@ export const registerSchema = z.object({
   eventId: z.string().min(1, "Event ID is required"),
   studentNumber: z
     .string()
-    .regex(/^\d{4}-\d{5}-\w{2}$/, "Format must be YYYY-NNNNN-XX")
+    .regex(/^\d{11}$/, "Student number must be 11 digits (e.g. 20241234567)")
     .optional()
     .or(z.literal("")),
   college: z.string().optional().or(z.literal("")),

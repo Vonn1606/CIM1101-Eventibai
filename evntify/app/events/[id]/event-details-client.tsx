@@ -143,10 +143,10 @@ export default function EventDetailsClient({ initialEvent, initialRegistration, 
     setFieldErrors({});
 
     // Client-side format validation
-    const snRe = /^\d{4}-\d{5}-[A-Za-z0-9]{2}$/;
+    const snRe = /^\d{11}$/;
     const newFieldErrors: typeof fieldErrors = {};
     if (!snRe.test(formData.studentNumber.trim())) {
-      newFieldErrors.studentNumber = "Format: YYYY-NNNNN-XX (e.g. 2023-12345-MN)";
+      newFieldErrors.studentNumber = "Student number must be 11 digits (e.g. 20241234567)";
     }
     if (!formData.college) {
       newFieldErrors.college = "Please select a college";
@@ -583,14 +583,13 @@ export default function EventDetailsClient({ initialEvent, initialRegistration, 
                     <input
                       type="text"
                       required
-                      placeholder="2023-12345-MN"
-                      inputMode="text"
-                      pattern="\d{4}-\d{5}-[A-Za-z0-9]{2}"
-                      autoCapitalize="characters"
+                      placeholder="20241234567"
+                      inputMode="numeric"
+                      pattern="\d{11}"
                       value={formData.studentNumber}
                       readOnly={!!prefill?.studentNumber}
                       onChange={(e) => {
-                        setFormData({ ...formData, studentNumber: e.target.value.toUpperCase().trim() });
+                        setFormData({ ...formData, studentNumber: e.target.value.trim() });
                         if (fieldErrors.studentNumber) setFieldErrors((prev) => ({ ...prev, studentNumber: undefined }));
                       }}
                       className={`w-full px-3.5 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-[#6c0c28]/30 ${fieldErrors.studentNumber ? "border-red-400" : "border-neutral-200"} ${prefill?.studentNumber ? "bg-neutral-50 cursor-not-allowed" : ""}`}
@@ -598,7 +597,7 @@ export default function EventDetailsClient({ initialEvent, initialRegistration, 
                     {fieldErrors.studentNumber && (
                       <p className="text-xs text-red-600 mt-0.5">{fieldErrors.studentNumber}</p>
                     )}
-                    <p className="text-[10px] text-neutral-400 mt-0.5">Format: YYYY-NNNNN-XX</p>
+                    <p className="text-[10px] text-neutral-400 mt-0.5">Format: 11 digits (e.g. 20241234567)</p>
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-neutral-700 mb-1">

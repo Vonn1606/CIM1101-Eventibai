@@ -127,7 +127,7 @@ export async function getApprovals(): Promise<ApprovalItem[]> {
     }
   }
 
-   
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return rawList.map((row) => {
     const ev = row.events;
     const startsAt = ev?.starts_at ? new Date(ev.starts_at) : null;
@@ -257,7 +257,7 @@ export async function getEventsDirectory(
     });
   }
 
-   
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const items: EventDirectoryItem[] = (data as any[]).map((row) => {
     const collegeName: string = row.colleges?.name ?? "";
     const collegeSlug: string = row.colleges?.slug ?? "";
@@ -320,7 +320,7 @@ export type OrganizerItem = {
 export async function getOrganizers(): Promise<OrganizerItem[]> {
   const supabase = await createClient();
 
-   
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
     .from("profiles")
     .select(`
@@ -334,7 +334,7 @@ export async function getOrganizers(): Promise<OrganizerItem[]> {
 
   // Collect all org IDs so we can batch-query pending + active counts
   const orgIds = new Set<string>();
-   
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (data as any[]).forEach((p) => {
     const members = Array.isArray(p.organization_members) ? p.organization_members : [];
     members.forEach((m: { organization_id?: string }) => {
@@ -348,7 +348,7 @@ export async function getOrganizers(): Promise<OrganizerItem[]> {
   if (orgIds.size > 0) {
     const ids = Array.from(orgIds);
 
-     
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [pendingRes, activeRes] = await Promise.all([
       (supabase as any)
         .from("event_approvals")
@@ -364,14 +364,14 @@ export async function getOrganizers(): Promise<OrganizerItem[]> {
     ]);
 
     if (pendingRes.data) {
-       
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (pendingRes.data as any[]).forEach((r) => {
         const oid = r.events?.organization_id as string | undefined;
         if (oid) pendingByOrg[oid] = (pendingByOrg[oid] ?? 0) + 1;
       });
     }
     if (activeRes.data) {
-       
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (activeRes.data as any[]).forEach((r) => {
         const oid = r.organization_id as string;
         activeByOrg[oid] = (activeByOrg[oid] ?? 0) + 1;
@@ -379,7 +379,7 @@ export async function getOrganizers(): Promise<OrganizerItem[]> {
     }
   }
 
-   
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (data as any[]).map((p) => {
     const member = Array.isArray(p.organization_members) ? p.organization_members[0] : null;
     const orgId = member?.organization_id as string | undefined;
@@ -408,7 +408,7 @@ export async function getFeaturedEvent(): Promise<FeaturedEventItem | null> {
   const supabase = await createClient();
 
   // Query explicitly featured events that are approved and upcoming
-   
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
     .from("events")
     .select(`title, starts_at, status, summary, description, is_featured, venues ( name )`)
@@ -441,7 +441,7 @@ export type UpcomingEventItem = {
 export async function getUpcomingEvents(limit = 4): Promise<UpcomingEventItem[]> {
   const supabase = await createClient();
 
-   
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
     .from("events")
     .select(`id, title, starts_at, category, venues ( name )`)
@@ -452,7 +452,7 @@ export async function getUpcomingEvents(limit = 4): Promise<UpcomingEventItem[]>
 
   if (error || !data) return [];
 
-   
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (data as any[]).map((row) => ({
     id: row.id,
     title: row.title ?? "Untitled",
@@ -472,7 +472,7 @@ export const getAdminProfile = cache(async (): Promise<{ name: string; role: str
     return { name: "Admin Office", role: "Student Affairs" };
   }
 
-   
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data } = await (supabase as any)
     .from("profiles")
     .select("full_name, role")
@@ -510,7 +510,7 @@ export async function getCalendarEvents(
   const monthStart = new Date(Date.UTC(year, month, 1) - manilaOffsetMs).toISOString();
   const monthEnd = new Date(Date.UTC(year, month + 1, 1) - manilaOffsetMs).toISOString();
 
-   
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
     .from("events")
     .select(`id, title, starts_at, ends_at, category, slug, venues ( name )`)
@@ -522,7 +522,7 @@ export async function getCalendarEvents(
 
   if (error || !data) return [];
 
-   
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (data as any[]).map((row) => ({
     id: row.id,
     title: row.title ?? "Untitled",

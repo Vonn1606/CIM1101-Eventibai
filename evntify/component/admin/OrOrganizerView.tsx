@@ -461,7 +461,7 @@ export default function OrOrganizersView({
                                 <input
                                     type="text"
                                     required
-                                    placeholder="e.g. 2022-01928-MN or student@ue.edu.ph"
+                                    placeholder="e.g. 20241234567 or student@ue.edu.ph"
                                     value={newStudentIdentifier}
                                     onChange={(e) => setNewStudentIdentifier(e.target.value)}
                                     style={{ padding: "10px 14px", borderRadius: "8px", border: "1px solid #ECE2DC", fontSize: "13px", background: "#FAF5F2" }}

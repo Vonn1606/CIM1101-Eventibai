@@ -158,7 +158,7 @@ export default function SignUpForm({ colleges }: { colleges: CollegeOption[] }) 
             className={`${inputClass} pr-3.5`}
             id="studentNumber"
             name="studentNumber"
-            placeholder="2023-12345-MN"
+            placeholder="20241234567"
             required
             type="text"
             value={studentNumber}
