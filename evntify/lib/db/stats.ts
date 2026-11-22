@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 
 export type AdminStats = {
@@ -196,16 +197,18 @@ export async function getEventsDirectory(
   if (!data || data.length === 0) return { items: [], total: 0 };
 
   const eventIds = ((data ?? []) as Array<{ id: string }>).map((e) => e.id);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: statsData } = await (supabase as any)
-    .from("event_stats")
-    .select("event_id, registered_count")
-    .in("event_id", eventIds);
+
+  // Fix #1: Replace heavy event_stats view with a direct indexed query on registrations
+  const { data: regRows } = await supabase
+    .from("registrations")
+    .select("event_id")
+    .in("event_id", eventIds)
+    .eq("status", "registered");
 
   const regCounts: Record<string, number> = {};
-  if (statsData) {
-    ((statsData ?? []) as Array<{ event_id: string; registered_count: number | null }>).forEach((s) => {
-      regCounts[s.event_id] = Number(s.registered_count ?? 0);
+  if (regRows) {
+    (regRows as Array<{ event_id: string }>).forEach((r) => {
+      regCounts[r.event_id] = (regCounts[r.event_id] ?? 0) + 1;
     });
   }
 
@@ -235,6 +238,15 @@ export async function getEventsDirectory(
 
   return { items, total: count ?? 0 };
 }
+
+export const getPendingApprovalsCount = cache(async (): Promise<number> => {
+  const supabase = await createClient();
+  const { count } = await supabase
+    .from("event_approvals")
+    .select("id", { count: "exact", head: true })
+    .or("decision.is.null,decision.eq.pending");
+  return count ?? 0;
+});
 
 export type OrganizerItem = {
   id: string;
@@ -389,7 +401,7 @@ export async function getUpcomingEvents(limit = 4): Promise<UpcomingEventItem[]>
   }));
 }
 
-export async function getAdminProfile(): Promise<{ name: string; role: string }> {
+export const getAdminProfile = cache(async (): Promise<{ name: string; role: string }> => {
   const supabase = await createClient();
   const {
     data: { user },
@@ -410,5 +422,5 @@ export async function getAdminProfile(): Promise<{ name: string; role: string }>
     name: ((data as unknown) as { full_name?: string | null } | null)?.full_name ?? "Admin Office",
     role: "Office of Student Affairs",
   };
-}
+});
 

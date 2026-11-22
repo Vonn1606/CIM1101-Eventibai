@@ -21,14 +21,13 @@ export default async function AdminLayout({
     .eq("id", user.id)
     .single();
 
+  // Fix #5: Distinguish DB error from unauthorized — throw instead of redirecting on error
   if (profileError) {
     console.error("AdminLayout: failed to load profile:", profileError);
+    throw new Error("Unable to verify admin permissions due to a database timeout. Please try refreshing.");
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const role = (profileRow as any)?.role;
-
-  if (role !== "admin") {
+  if (profileRow?.role !== "admin") {
     redirect("/my-events");
   }
 

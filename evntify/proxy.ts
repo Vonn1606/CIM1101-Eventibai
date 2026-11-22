@@ -36,20 +36,34 @@ export async function proxy(request: NextRequest) {
       const url = request.nextUrl.clone();
       url.pathname = "/signin";
       url.searchParams.set("next", request.nextUrl.pathname);
-      return NextResponse.redirect(url);
+      const redirectResponse = NextResponse.redirect(url);
+      supabaseResponse.cookies.getAll().forEach(({ name, value }) =>
+        redirectResponse.cookies.set(name, value)
+      );
+      return redirectResponse;
     }
 
     // Fetch role from profiles table
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("role")
       .eq("id", user.id)
       .single();
 
+    // Fix #6 + #5: On DB error, do NOT redirect — let the page handle it gracefully
+    if (profileError) {
+      console.error("proxy: failed to load profile for admin guard:", profileError);
+      return supabaseResponse;
+    }
+
     if (profile?.role !== "admin") {
       const url = request.nextUrl.clone();
       url.pathname = "/my-events";
-      return NextResponse.redirect(url);
+      const redirectResponse = NextResponse.redirect(url);
+      supabaseResponse.cookies.getAll().forEach(({ name, value }) =>
+        redirectResponse.cookies.set(name, value)
+      );
+      return redirectResponse;
     }
   }
 
@@ -59,7 +73,11 @@ export async function proxy(request: NextRequest) {
       const url = request.nextUrl.clone();
       url.pathname = "/signin";
       url.searchParams.set("next", request.nextUrl.pathname);
-      return NextResponse.redirect(url);
+      const redirectResponse = NextResponse.redirect(url);
+      supabaseResponse.cookies.getAll().forEach(({ name, value }) =>
+        redirectResponse.cookies.set(name, value)
+      );
+      return redirectResponse;
     }
 
     const { data: profile } = await supabase
@@ -71,7 +89,11 @@ export async function proxy(request: NextRequest) {
     if (profile?.role !== "organizer" && profile?.role !== "admin") {
       const url = request.nextUrl.clone();
       url.pathname = "/my-events";
-      return NextResponse.redirect(url);
+      const redirectResponse = NextResponse.redirect(url);
+      supabaseResponse.cookies.getAll().forEach(({ name, value }) =>
+        redirectResponse.cookies.set(name, value)
+      );
+      return redirectResponse;
     }
   }
 
@@ -81,7 +103,11 @@ export async function proxy(request: NextRequest) {
       const url = request.nextUrl.clone();
       url.pathname = "/signin";
       url.searchParams.set("next", request.nextUrl.pathname);
-      return NextResponse.redirect(url);
+      const redirectResponse = NextResponse.redirect(url);
+      supabaseResponse.cookies.getAll().forEach(({ name, value }) =>
+        redirectResponse.cookies.set(name, value)
+      );
+      return redirectResponse;
     }
   }
 
@@ -91,7 +117,11 @@ export async function proxy(request: NextRequest) {
       const url = request.nextUrl.clone();
       url.pathname = "/signin";
       url.searchParams.set("next", request.nextUrl.pathname);
-      return NextResponse.redirect(url);
+      const redirectResponse = NextResponse.redirect(url);
+      supabaseResponse.cookies.getAll().forEach(({ name, value }) =>
+        redirectResponse.cookies.set(name, value)
+      );
+      return redirectResponse;
     }
   }
 

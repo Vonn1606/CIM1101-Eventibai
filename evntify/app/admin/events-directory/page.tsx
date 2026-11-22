@@ -1,7 +1,7 @@
 import Sidebar from "@/component/admin/Sidebar";
 import Header from "@/component/admin/Header";
 import EdEventsView from "@/component/admin/EdEventsView";
-import { getEventsDirectory, getAdminProfile, getAdminStats } from "@/lib/db/stats";
+import { getEventsDirectory, getAdminProfile, getPendingApprovalsCount } from "@/lib/db/stats";
 import "../admin.css";
 
 // Admin pages render at request time (auth-protected, user-specific data)
@@ -12,16 +12,16 @@ export const metadata = {
 };
 
 export default async function EventsDirectoryPage() {
-  const [{ items, total }, adminProfile, stats] = await Promise.all([
+  const [{ items, total }, adminProfile, pendingApprovals] = await Promise.all([
     getEventsDirectory(1, 12),
     getAdminProfile(),
-    getAdminStats(),
+    getPendingApprovalsCount(),
   ]);
 
   return (
     <div className="admin-root ed-root">
       <div className="shell">
-        <Sidebar pendingApprovals={stats.pendingApprovals} />
+        <Sidebar pendingApprovals={pendingApprovals} />
         <div className="content">
           <Header profile={adminProfile} />
           <main className="main">
