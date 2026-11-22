@@ -5,8 +5,10 @@
 alter function public.current_role_is(user_role) set search_path = public;
 
 -- Helper function: check if current user has 'admin' role
+-- Uses (select auth.uid()) subquery so PostgreSQL caches the result as an InitPlan
+-- across scanned rows instead of evaluating auth.uid() per-row.
 create or replace function public.is_admin() returns boolean as $$
-  select exists (select 1 from public.profiles where id = auth.uid() and role = 'admin');
+  select exists (select 1 from public.profiles where id = (select auth.uid()) and role = 'admin');
 $$ language sql stable security definer set search_path = public;
 
 -- 1b. Auto-create profile trigger: save college_id and handle duplicates safely

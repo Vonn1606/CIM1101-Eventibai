@@ -164,7 +164,6 @@ export default function NotificationsPage() {
   const [filter, setFilter] = useState<"all" | "unread">("all");
   const [items, setItems] = useState<Notification[]>([]);
   const [fetching, setFetching] = useState(true);
-  const [refreshTick, setRefreshTick] = useState(0);
   // Derived value: no setState needed, and the JSX below keeps using `loading`.
   const loading = authLoading || (!!user && fetching);
 
@@ -196,7 +195,7 @@ export default function NotificationsPage() {
     return () => {
       ignore = true;
     };
-  }, [user, refreshTick]);
+  }, [user]);
 
   // Realtime: re-fetch when a new notification is inserted or updated for this user
   useEffect(() => {
@@ -212,8 +211,32 @@ export default function NotificationsPage() {
           table: "notifications",
           filter: `user_id=eq.${user.id}`,
         },
-        () => {
-          setRefreshTick((t) => t + 1);
+        (payload) => {
+          // Step 2.3: Append new notification directly to state instead of
+          // re-fetching the entire table on every realtime event.
+          const raw = payload.new as {
+            id: string;
+            user_id: string;
+            title: string;
+            body: string | null;
+            link: string | null;
+            read_at: string | null;
+            created_at: string;
+          } | undefined;
+          if (raw && raw.id) {
+            setItems((prev) => {
+              // Avoid duplicates on UPDATE events
+              const exists = prev.some((n) => n.id === raw.id);
+              if (exists) {
+                // Update in-place (e.g. read_at changed)
+                return prev.map((n) =>
+                  n.id === raw.id ? parseNotificationRow(raw) : n
+                );
+              }
+              // Prepend new notification
+              return [parseNotificationRow(raw), ...prev];
+            });
+          }
         }
       )
       .subscribe();

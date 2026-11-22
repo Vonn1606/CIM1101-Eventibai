@@ -9,7 +9,7 @@ export type AdminStats = {
   pendingApprovals: number;
 };
 
-export async function getAdminStats(): Promise<AdminStats> {
+export const getAdminStats = cache(async (): Promise<AdminStats> => {
   const supabase = await createClient();
 
   const now = new Date();
@@ -41,7 +41,7 @@ export async function getAdminStats(): Promise<AdminStats> {
     scheduledEvents: eventsRes.count ?? 0,
     pendingApprovals: pendingRes.count ?? 0,
   };
-}
+});
 
 export type ApprovalItem = {
   id: string;
@@ -75,7 +75,7 @@ export type ApprovalItem = {
   previousNote?: string | null;
 };
 
-export async function getApprovals(): Promise<ApprovalItem[]> {
+export const getApprovals = cache(async (): Promise<ApprovalItem[]> => {
   const supabase = await createClient();
 
   // Try selecting with revision/changes/is_current/supersedes_id
@@ -93,7 +93,8 @@ export async function getApprovals(): Promise<ApprovalItem[]> {
       event_documents ( kind, label, file_url ),
       profiles!submitted_by ( full_name, email )
     `)
-    .order("submitted_at", { ascending: false });
+    .order("submitted_at", { ascending: false })
+    .limit(25);
 
   // Fallback to legacy select if migration has not run yet in DB
   if (res.error && res.error.message.includes("does not exist")) {
@@ -110,7 +111,8 @@ export async function getApprovals(): Promise<ApprovalItem[]> {
         event_documents ( kind, label, file_url ),
         profiles!submitted_by ( full_name, email )
       `)
-      .order("submitted_at", { ascending: false });
+      .order("submitted_at", { ascending: false })
+    .limit(25);
   }
 
   const { data, error } = res;
@@ -195,7 +197,7 @@ export async function getApprovals(): Promise<ApprovalItem[]> {
       previousNote: row.supersedes_id ? (noteById[row.supersedes_id] ?? null) : null,
     };
   });
-}
+});
 
 export type EventDirectoryItem = {
   id: string;
@@ -215,10 +217,10 @@ export type EventDirectoryItem = {
   bannerColor: string;
 };
 
-export async function getEventsDirectory(
+export const getEventsDirectory = cache(async (
   page = 1,
   pageSize = 10
-): Promise<{ items: EventDirectoryItem[]; total: number }> {
+): Promise<{ items: EventDirectoryItem[]; total: number }> => {
   const supabase = await createClient();
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
@@ -237,7 +239,7 @@ export async function getEventsDirectory(
 
   if (error) {
     console.error("[getEventsDirectory] Failed to fetch events:", error.message);
-    throw new Error(`Failed to load events directory: ${error.message}`);
+    return { items: [], total: 0 };
   }
   if (!data || data.length === 0) return { items: [], total: 0 };
 
@@ -295,7 +297,7 @@ export async function getEventsDirectory(
   });
 
   return { items, total: count ?? 0 };
-}
+});
 
 export const getPendingApprovalsCount = cache(async (): Promise<number> => {
   const supabase = await createClient();
@@ -317,7 +319,7 @@ export type OrganizerItem = {
   activeEvents: number;
 };
 
-export async function getOrganizers(): Promise<OrganizerItem[]> {
+export const getOrganizers = cache(async (): Promise<OrganizerItem[]> => {
   const supabase = await createClient();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -394,7 +396,7 @@ export async function getOrganizers(): Promise<OrganizerItem[]> {
       activeEvents: orgId ? (activeByOrg[orgId] ?? 0) : 0,
     };
   });
-}
+});
 
 export type FeaturedEventItem = {
   title: string;
@@ -404,7 +406,7 @@ export type FeaturedEventItem = {
   summary?: string | null;
 };
 
-export async function getFeaturedEvent(): Promise<FeaturedEventItem | null> {
+export const getFeaturedEvent = cache(async (): Promise<FeaturedEventItem | null> => {
   const supabase = await createClient();
 
   // Query explicitly featured events that are approved and upcoming
@@ -428,7 +430,7 @@ export async function getFeaturedEvent(): Promise<FeaturedEventItem | null> {
     status: data.status ?? "scheduled",
     summary: data.summary ?? (Array.isArray(data.description) ? data.description[0] : null),
   };
-}
+});
 
 export type UpcomingEventItem = {
   id: string;
@@ -438,7 +440,7 @@ export type UpcomingEventItem = {
   category: string | null;
 };
 
-export async function getUpcomingEvents(limit = 4): Promise<UpcomingEventItem[]> {
+export const getUpcomingEvents = cache(async (limit = 4): Promise<UpcomingEventItem[]> => {
   const supabase = await createClient();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -460,7 +462,7 @@ export async function getUpcomingEvents(limit = 4): Promise<UpcomingEventItem[]>
     venue: row.venues?.name ?? "TBD",
     category: row.category ?? null,
   }));
-}
+});
 
 export const getAdminProfile = cache(async (): Promise<{ name: string; role: string }> => {
   const supabase = await createClient();
@@ -499,10 +501,10 @@ export type CalendarEventItem = {
 
 /** Fetch all approved, non-cancelled/suspended events starting in the given
  *  Manila-local calendar month. `month` is 0-based (Jan = 0). */
-export async function getCalendarEvents(
+export const getCalendarEvents = cache(async (
   year: number,
   month: number
-): Promise<CalendarEventItem[]> {
+): Promise<CalendarEventItem[]> => {
   const supabase = await createClient();
 
   // Asia/Manila = UTC+8; local midnight = UTC − 8 h
@@ -532,5 +534,5 @@ export async function getCalendarEvents(
     venue: row.venues?.name ?? "TBD",
     slug: row.slug ?? "",
   }));
-}
+});
 

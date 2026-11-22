@@ -22,6 +22,7 @@ from public.events e
 left join public.registrations r on r.event_id = e.id
 group by e.id;
 
--- Grant permissions to authenticated and service_role
+-- Grant permissions to authenticated, service_role, and anon (required for guest event directory queries)
 grant select on public.event_stats to authenticated;
 grant select on public.event_stats to service_role;
+grant select on public.event_stats to anon;

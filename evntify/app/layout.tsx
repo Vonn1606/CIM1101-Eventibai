@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, DM_Sans, Newsreader, Playfair_Display, Crimson_Text } from "next/font/google";
+import { Plus_Jakarta_Sans, DM_Sans, Newsreader, Playfair_Display } from "next/font/google";
 
 import "./globals.css";
 
@@ -32,13 +32,6 @@ const playfair = Playfair_Display({
   display: "swap",
 });
 
-const crimson = Crimson_Text({
-  subsets: ["latin"],
-  weight: ["600"],
-  variable: "--font-crimson",
-  display: "swap",
-});
-
 export const metadata: Metadata = {
   title: "Eventify!",
   description:
@@ -53,7 +46,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${jakarta.variable} ${dmSans.variable} ${newsreader.variable} ${playfair.variable} ${crimson.variable}`}
+      className={`${jakarta.variable} ${dmSans.variable} ${newsreader.variable} ${playfair.variable}`}
     >
       <body>{children}</body>
     </html>

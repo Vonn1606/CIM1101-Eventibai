@@ -36,17 +36,27 @@ export default async function OrganizerDashboardPage() {
 
   // Find the first approved event ID from events (populated by getOrgEvents)
   // We pass orgId so getOrgEvents skips its own auth + membership lookup
-  const [events, venuesRes] = await Promise.all([
-    getOrgEvents(orgId),
-    supabase.from("venues").select("id, name, capacity").order("name"),
-  ]);
+  let events: Awaited<ReturnType<typeof getOrgEvents>> = [];
+  let venuesData: { id: string; name: string; capacity: number }[] = [];
+  let roster: Awaited<ReturnType<typeof getOrgRoster>> = [];
 
-  // Use the most recent approved event from the already-fetched list to seed the roster
-  const firstApprovedEvent = events.find((e) => e.status === "live" || e.status === "soldout" || e.status === "completed");
-  const rosterEventId = firstApprovedEvent?.id;
-  const rosterEventCategory = firstApprovedEvent?.tier;
+  try {
+    const [eventsRes, venuesRes] = await Promise.all([
+      getOrgEvents(orgId),
+      supabase.from("venues").select("id, name, capacity").order("name"),
+    ]);
+    events = eventsRes;
+    venuesData = (venuesRes.data ?? []).map((v) => ({ ...v, capacity: v.capacity ?? 0 }));
 
-  const roster = await getOrgRoster(rosterEventId, rosterEventCategory);
+    // Use the most recent approved event from the already-fetched list to seed the roster
+    const firstApprovedEvent = events.find((e) => e.status === "live" || e.status === "soldout" || e.status === "completed");
+    const rosterEventId = firstApprovedEvent?.id;
+    const rosterEventCategory = firstApprovedEvent?.tier;
+
+    roster = await getOrgRoster(rosterEventId, rosterEventCategory);
+  } catch (err) {
+    console.error("[OrganizerDashboardPage] Data fetch error:", err);
+  }
 
   return (
     <OrganizerDashboardClient
@@ -54,7 +64,7 @@ export default async function OrganizerDashboardPage() {
       initialRoster={roster}
       organizerName={organizerName}
       orgName={orgName}
-      venues={venuesRes.data ?? []}
+      venues={venuesData}
     />
   );
 }

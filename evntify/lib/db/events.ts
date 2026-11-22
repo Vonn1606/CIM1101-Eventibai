@@ -200,7 +200,8 @@ export async function getEvents(): Promise<CampusEvent[]> {
     .select(EVENT_SELECT)
     .eq("approval", "approved")
     .not("status", "in", "(draft,suspended,cancelled)")
-    .order("starts_at", { ascending: true });
+    .order("starts_at", { ascending: true })
+    .limit(20);
 
   if (error) {
     console.error("[getEvents]", error.message);

@@ -204,10 +204,12 @@ export async function submitEvent(
   // Resolve venue
   let venueId: string | null = inputVenueId ?? null;
   if (!venueId && venue) {
+    // Query #2 fix: use exact case-insensitive match (ilike without leading wildcard)
+    // so the index on venues.name can be used. Venue names from the dropdown are exact.
     const { data: venueRow } = (await supabase
       .from("venues")
       .select("id")
-      .ilike("name", `%${venue}%`)
+      .ilike("name", venue)
       .limit(1)
       .maybeSingle()) as { data: { id: string } | null };
 

@@ -38,39 +38,14 @@ export default function SignInForm() {
       return;
     }
 
-    // Fetch role from profiles and validate access
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      setError("Could not load your profile: no user found");
-      setLoading(false);
-      return;
-    }
-
-    const { data: profileRow, error: profileError } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-
-    if (profileError || !profileRow) {
-      setError(`Could not load your profile: ${profileError?.message ?? "no row"}`);
-      setLoading(false);
-      return;
-    }
-
-    const role = profileRow.role;
-    const home = role === "admin" ? "/admin" : role === "organizer" ? "/organizer-dashboard" : "/my-events";
-
+    // Delegate role-lookup + redirect to the server — eliminates the extra
+    // client-side DB round-trip that was causing login slowness.
     const next = new URLSearchParams(window.location.search).get("next");
-    const safe = next && next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/\\");
-    const allowed =
-      safe && (!next!.startsWith("/admin") || role === "admin") &&
-      (!next!.startsWith("/organizer-dashboard") || role !== "student");
+    const redirectTo = next
+      ? `/auth/redirect?next=${encodeURIComponent(next)}`
+      : "/auth/redirect";
 
-    router.push(allowed ? next! : home);
+    router.push(redirectTo);
   };
 
   return (

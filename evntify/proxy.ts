@@ -25,13 +25,25 @@ export async function proxy(request: NextRequest) {
     }
   );
 
-  // Refresh session so it doesn't expire
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const pathname = request.nextUrl.pathname;
+
+  // Only call getUser() when the route actually requires authentication.
+  // On fully public paths (landing, events directory, signin, etc.) we skip
+  // the network round-trip entirely — saves ~775 ms per public request.
+  const requiresAuth =
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/organizer-dashboard") ||
+    pathname.startsWith("/my-events") ||
+    pathname.startsWith("/notifications");
+
+  let user: { id: string } | null = null;
+  if (requiresAuth) {
+    const { data } = await supabase.auth.getUser();
+    user = data.user;
+  }
 
   // Guard: /admin/* requires admin role
-  if (request.nextUrl.pathname.startsWith("/admin")) {
+  if (pathname.startsWith("/admin")) {
     if (!user) {
       const url = request.nextUrl.clone();
       url.pathname = "/signin";
@@ -68,7 +80,7 @@ export async function proxy(request: NextRequest) {
   }
 
   // Guard: /organizer-dashboard requires organizer or admin role
-  if (request.nextUrl.pathname.startsWith("/organizer-dashboard")) {
+  if (pathname.startsWith("/organizer-dashboard")) {
     if (!user) {
       const url = request.nextUrl.clone();
       url.pathname = "/signin";
@@ -98,7 +110,7 @@ export async function proxy(request: NextRequest) {
   }
 
   // Guard: /my-events requires any authenticated user
-  if (request.nextUrl.pathname.startsWith("/my-events")) {
+  if (pathname.startsWith("/my-events")) {
     if (!user) {
       const url = request.nextUrl.clone();
       url.pathname = "/signin";
@@ -112,7 +124,7 @@ export async function proxy(request: NextRequest) {
   }
 
   // Guard: /notifications requires any authenticated user
-  if (request.nextUrl.pathname.startsWith("/notifications")) {
+  if (pathname.startsWith("/notifications")) {
     if (!user) {
       const url = request.nextUrl.clone();
       url.pathname = "/signin";

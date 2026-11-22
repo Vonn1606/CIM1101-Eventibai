@@ -1,7 +1,9 @@
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/component/admin/Sidebar";
 import Header from "@/component/admin/Header";
 import OrOrganizersView from "@/component/admin/OrOrganizerView";
-import { getOrganizers, getAdminProfile, getAdminStats } from "@/lib/db/stats";
+import { getOrganizers, getAdminStats } from "@/lib/db/stats";
 import { getOrganizerApplications } from "@/app/actions/organizer-application";
 import "../admin.css";
 
@@ -13,12 +15,34 @@ export const metadata = {
 };
 
 export default async function OrganizersPage() {
-  const [organizers, applications, adminProfile, stats] = await Promise.all([
+  const supabase = await createClient();
+
+  // Auth + data in parallel
+  const [authRes, organizers, applications, stats] = await Promise.all([
+    supabase.auth.getUser(),
     getOrganizers(),
     getOrganizerApplications(),
-    getAdminProfile(),
     getAdminStats(),
   ]);
+
+  const user = authRes.data.user;
+  if (!user) redirect("/signin");
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: profile } = await (supabase as any)
+    .from("profiles")
+    .select("full_name, role")
+    .eq("id", user.id)
+    .single();
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if ((profile as any)?.role !== "admin") redirect("/my-events");
+
+  const adminProfile = {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    name: (profile as any)?.full_name ?? "Admin Office",
+    role: "Office of Student Affairs",
+  };
 
   return (
     <div className="admin-root or-root">

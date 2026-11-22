@@ -260,7 +260,9 @@ export async function createOrganizationWithOrganizer(input: {
   const { data: targetProfile, error: profileErr } = await supabase
     .from("profiles")
     .select("id, role, full_name")
-    .or(`email.ilike.%${term}%,student_number.eq.${term}`)
+    // Query #1 fix: avoid leading-wildcard ilike (prevents B-Tree index use).
+    // Try exact email match first, then exact student number match.
+    .or(`email.eq.${term},student_number.eq.${term}`)
     .maybeSingle();
 
   if (profileErr || !targetProfile) {
