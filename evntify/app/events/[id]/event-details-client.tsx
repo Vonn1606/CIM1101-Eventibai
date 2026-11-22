@@ -8,9 +8,6 @@ import Link from "next/link";
 import {
   Calendar,
   Clock,
-  ShieldCheck,
-  Monitor,
-  Award,
   Share2,
   Mail,
   Phone,
@@ -375,44 +372,7 @@ export default function EventDetailsClient({ initialEvent, initialRegistration, 
                   )}
                 </div>
 
-                {/* 3 Feature Boxes */}
-                <div className="features">
-                  {/* Feature 1 */}
-                  <div className="feature">
-                    <ShieldCheck size={20} className="feature__icon--maroon" />
-                    <h3 className="feature__title">
-                      {event.features?.[0]?.title || "Prerequisites"}
-                    </h3>
-                    <p className="feature__body">
-                      {event.features?.[0]?.body ||
-                        "Active Figma for Education account, basic understanding of auto-layout, design variables, and components."}
-                    </p>
-                  </div>
 
-                  {/* Feature 2 */}
-                  <div className="feature">
-                    <Monitor size={20} className="feature__icon--green" />
-                    <h3 className="feature__title">
-                      {event.features?.[1]?.title || "Hardware / BYOD"}
-                    </h3>
-                    <p className="feature__body">
-                      {event.features?.[1]?.body ||
-                        'Lab stations provided with 27" 4K displays. Participants may bring their own laptops and graphic tablets.'}
-                    </p>
-                  </div>
-
-                  {/* Feature 3 */}
-                  <div className="feature">
-                    <Award size={20} className="feature__icon--amber" />
-                    <h3 className="feature__title">
-                      {event.features?.[2]?.title || "Prizes & Credential"}
-                    </h3>
-                    <p className="feature__body">
-                      {event.features?.[2]?.body ||
-                        "₱15,000 top cash pool, official CoE design trophies, and Figma Community badge accreditation."}
-                    </p>
-                  </div>
-                </div>
               </article>
             </div>
 
