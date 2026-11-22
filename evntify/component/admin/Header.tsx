@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
 import { Menu, Bell, User, ChevronDown } from "lucide-react";
 import { usePathname } from "next/navigation";
 import ProfileDropdown from "@/component/auth/profile-dropdown";
@@ -36,10 +37,10 @@ export default function Header({ title, profile }: HeaderProps) {
         <span className="t-12 muted-brown">Office of Student Affairs</span>
       </div>
       <div className="header-actions" style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-        <button className="icon-btn" aria-label="Notifications">
+        <Link href="/admin/notifications" className="icon-btn" aria-label="Notifications">
           <Bell size={18} color="#5C3F40" />
           <span className="dot-badge" />
-        </button>
+        </Link>
 
         {/* Profile button + dropdown */}
         <div style={{ position: "relative" }}>

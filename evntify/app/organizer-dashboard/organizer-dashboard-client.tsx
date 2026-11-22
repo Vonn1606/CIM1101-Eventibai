@@ -479,15 +479,14 @@ export default function OrganizerDashboardClient({
             </div>
 
             {/* Notification Bell */}
-            <button
-              type="button"
-              onClick={() => showToast("🔔 3 unread alerts: SAO cleared LITS General Assembly, 2 new RSVPs.")}
+            <Link
+              href="/organizer-dashboard/notifications"
               className="relative flex size-8 items-center justify-center rounded-xl border border-[#ECE2DC] bg-white text-[#554243] transition hover:bg-[#FAF5F2]"
               aria-label="Notifications"
             >
               <Bell size={14} />
               <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-[#E13654] ring-2 ring-white" />
-            </button>
+            </Link>
 
             {/* User Profile Avatar + Dropdown */}
             <div className="relative">

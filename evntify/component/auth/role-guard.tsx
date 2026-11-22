@@ -17,8 +17,18 @@ export default function RoleGuard({ allowedRole = "any", children }: RoleGuardPr
     if (loading) return;
 
     if (!user) {
-      const destination = allowedRole === "organizer" ? "/organizer-dashboard" : "/my-events";
+      const destination =
+        allowedRole === "organizer"
+          ? "/organizer-dashboard"
+          : allowedRole === "admin"
+            ? "/admin"
+            : "/my-events";
       router.replace(`/signin?next=${destination}`);
+      return;
+    }
+
+    if (allowedRole === "admin" && !isAdmin) {
+      router.replace("/my-events");
       return;
     }
 
@@ -27,8 +37,8 @@ export default function RoleGuard({ allowedRole = "any", children }: RoleGuardPr
       return;
     }
 
-    if (allowedRole === "user" && isOrganizer) {
-      router.replace("/organizer-dashboard");
+    if (allowedRole === "user" && (isOrganizer || isAdmin)) {
+      router.replace(isAdmin ? "/admin" : "/organizer-dashboard");
       return;
     }
   }, [user, loading, isOrganizer, isAdmin, allowedRole, router]);
@@ -46,8 +56,9 @@ export default function RoleGuard({ allowedRole = "any", children }: RoleGuardPr
 
   if (!user) return null;
 
+  if (allowedRole === "admin" && !isAdmin) return null;
   if (allowedRole === "organizer" && !isOrganizer && !isAdmin) return null;
-  if (allowedRole === "user" && isOrganizer) return null;
+  if (allowedRole === "user" && (isOrganizer || isAdmin)) return null;
 
   return <>{children}</>;
 }
