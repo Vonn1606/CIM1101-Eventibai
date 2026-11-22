@@ -411,7 +411,7 @@ export default function AdminNotificationsPage() {
 
 function AdminNotificationRow({
   n,
-  onDismiss,
+  onDismiss: _onDismiss,
   onToggleRead,
 }: {
   n: AdminNotification;
