@@ -56,6 +56,15 @@ export const getCurrentUser = cache(async (): Promise<CurrentUserResult> => {
       isSessionMissing: !user,
     };
   } catch (err: unknown) {
+    // Next.js dynamic rendering and navigation throw internal errors that must be re-thrown
+    if (
+      err &&
+      typeof err === "object" &&
+      ("digest" in err || (err instanceof Error && err.message.includes("Dynamic server usage")))
+    ) {
+      throw err;
+    }
+
     const msg = err instanceof Error ? err.message : String(err);
     return {
       user: null,
