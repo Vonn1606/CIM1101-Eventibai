@@ -1,22 +1,41 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, CalendarDays, Clock, MapPin, Users, Info } from "lucide-react";
-import type { UpcomingEventItem, FeaturedEventItem } from "@/lib/db/stats";
+import type { CalendarEventItem, FeaturedEventItem } from "@/lib/db/stats";
 
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 interface CalendarProps {
-  events?: UpcomingEventItem[];
+  events?: CalendarEventItem[];
   featuredEvent?: FeaturedEventItem | null;
+  year?: number;
+  month?: number;
 }
 
-export default function Calendar({ events = [], featuredEvent }: CalendarProps) {
-  const [viewDate, setViewDate] = useState(() => new Date());
-  const [selectedDay, setSelectedDay] = useState(() => new Date().getDate());
+export default function Calendar({
+  events = [],
+  featuredEvent,
+  year: propYear,
+  month: propMonth,
+}: CalendarProps) {
+  const router = useRouter();
+  const currentNow = new Date();
+  const year = propYear ?? currentNow.getFullYear();
+  const month = propMonth ?? currentNow.getMonth();
 
-  const year = viewDate.getFullYear();
-  const month = viewDate.getMonth();
+  const isCurrentMonth = year === currentNow.getFullYear() && month === currentNow.getMonth();
+  const [userSelectedDay, setUserSelectedDay] = useState<number | null>(null);
+  const [prevView, setPrevView] = useState({ year, month });
+
+  if (prevView.year !== year || prevView.month !== month) {
+    setPrevView({ year, month });
+    setUserSelectedDay(null);
+  }
+
+  const selectedDay = userSelectedDay ?? (isCurrentMonth ? currentNow.getDate() : 1);
+  const setSelectedDay = setUserSelectedDay;
 
   const monthLabel = useMemo(() => {
     return new Date(year, month, 1).toLocaleDateString("en-US", {
@@ -39,12 +58,24 @@ export default function Calendar({ events = [], featuredEvent }: CalendarProps) 
     );
     const monthDays = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
-    const map = new Map<number, UpcomingEventItem>();
+    const map = new Map<number, CalendarEventItem[]>();
     events.forEach((ev) => {
       if (!ev.starts_at) return;
       const d = new Date(ev.starts_at);
-      if (d.getFullYear() === year && d.getMonth() === month) {
-        map.set(d.getDate(), ev);
+      const dayNum = Number(
+        new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila", day: "numeric" }).format(d)
+      );
+      const evYear = Number(
+        new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila", year: "numeric" }).format(d)
+      );
+      const evMonth =
+        Number(
+          new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Manila", month: "numeric" }).format(d)
+        ) - 1;
+      if (evYear === year && evMonth === month) {
+        const existing = map.get(dayNum) ?? [];
+        existing.push(ev);
+        map.set(dayNum, existing);
       }
     });
 
@@ -56,35 +87,40 @@ export default function Calendar({ events = [], featuredEvent }: CalendarProps) 
   }, [year, month, events]);
 
   const handlePrevMonth = () => {
-    setViewDate(new Date(year, month - 1, 1));
+    const prevDate = new Date(year, month - 1, 1);
+    const m = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, "0")}`;
+    router.push(`/admin?m=${m}`);
   };
 
   const handleNextMonth = () => {
-    setViewDate(new Date(year, month + 1, 1));
+    const nextDate = new Date(year, month + 1, 1);
+    const m = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, "0")}`;
+    router.push(`/admin?m=${m}`);
   };
 
   const handleToday = () => {
-    const now = new Date();
-    setViewDate(new Date(now.getFullYear(), now.getMonth(), 1));
-    setSelectedDay(now.getDate());
+    router.push("/admin");
   };
 
-  // Determine active spotlight event
-  const selectedEvent = dayEventsMap.get(selectedDay);
+  // Determine active spotlight event (first on selected day)
+  const selectedDayEvents = dayEventsMap.get(selectedDay) ?? [];
+  const selectedEvent = selectedDayEvents[0] ?? null;
   const spotlightTitle = selectedEvent?.title || featuredEvent?.title || null;
   const spotlightVenue = selectedEvent?.venue || featuredEvent?.venue || "Campus Venue";
   const spotlightCategory = selectedEvent?.category || "Campus Event";
   const spotlightTime = selectedEvent?.starts_at
     ? new Date(selectedEvent.starts_at).toLocaleTimeString("en-US", {
-        hour: "numeric",
-        minute: "2-digit",
-      })
+      timeZone: "Asia/Manila",
+      hour: "numeric",
+      minute: "2-digit",
+    })
     : featuredEvent?.starts_at
-    ? new Date(featuredEvent.starts_at).toLocaleTimeString("en-US", {
+      ? new Date(featuredEvent.starts_at).toLocaleTimeString("en-US", {
+        timeZone: "Asia/Manila",
         hour: "numeric",
         minute: "2-digit",
       })
-    : "TBD";
+      : "TBD";
 
   const isWeekend = (dayNum: number) => {
     const d = new Date(year, month, dayNum);
@@ -128,26 +164,29 @@ export default function Calendar({ events = [], featuredEvent }: CalendarProps) 
             </div>
           ))}
           {days.map((d) => {
-            const ev = dayEventsMap.get(d);
+            const evs = dayEventsMap.get(d);
+            const hasEv = evs && evs.length > 0;
+            const firstEv = evs?.[0];
             const isSel = d === selectedDay;
             return (
               <button
                 key={d}
                 type="button"
                 onClick={() => setSelectedDay(d)}
-                className={`day ${isSel ? "selected" : ""} ${ev && !isSel ? "week" : ""}`}
+                className={`day ${isSel ? "selected" : ""} ${hasEv && !isSel ? "week" : ""}`}
               >
                 <span className="day-top">
                   <span
-                    className={`day-num ${isWeekend(d) ? "dim" : ""} ${ev ? "red-text" : ""}`}
+                    className={`day-num ${isWeekend(d) ? "dim" : ""} ${hasEv ? "red-text" : ""}`}
                   >
                     {d}
                   </span>
-                  {ev && <span className={`ev-dot ${isSel ? "big" : ""}`} />}
+                  {hasEv && <span className={`ev-dot ${isSel ? "big" : ""}`} />}
                 </span>
-                {ev && (
+                {hasEv && (
                   <span className={`ev-tag ${isSel ? "solid-sel" : "red"}`}>
-                    {ev.category ? ev.category.slice(0, 7) : "Event"}
+                    {firstEv?.category ? firstEv.category.slice(0, 7) : "Event"}
+                    {evs && evs.length > 1 ? ` +${evs.length - 1}` : ""}
                   </span>
                 )}
               </button>
@@ -185,7 +224,7 @@ export default function Calendar({ events = [], featuredEvent }: CalendarProps) 
                   {selectedEvent || featuredEvent ? "Confirmed" : "Open"}
                 </span>
               </div>
-              <h4>{spotlightTitle || "No scheduled events for this date"}</h4>
+              <h4>{spotlightTitle || "No scheduled events for this date"}{selectedDayEvents.length > 1 ? ` (+${selectedDayEvents.length - 1} more)` : ""}</h4>
             </div>
           </div>
           <button type="button" className="ghost-btn" aria-label="Details">

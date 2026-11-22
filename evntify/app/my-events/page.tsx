@@ -4,11 +4,13 @@ import { createClient } from "@/lib/supabase/server";
 import { getMyRegistrations } from "@/app/actions/registration";
 import type { UpcomingEvent, PastEvent } from "@/app/actions/registration";
 import { getUserOrganizerApplication } from "@/app/actions/organizer-application";
+import { getCalendarEvents } from "@/lib/db/stats";
 import ApplyOrganizerSection from "@/component/user-profile/ApplyOrganizerSection";
 import Header from "@/component/user-profile/Header";
 import Footer from "@/component/user-profile/Footer";
 import WelcomeBar from "@/component/user-profile/WelcomeBar";
 import CalendarSidebar from "@/component/user-profile/CalendarSidebar";
+import type { SelectedDayEventItem } from "@/component/user-profile/SelectedDayPreview";
 import { PastCard, UpcomingCard } from "@/component/user-profile/EventCards";
 
 export const metadata: Metadata = {
@@ -32,11 +34,22 @@ function formatTime(isoDate: string | null): string {
   return d.toLocaleTimeString("en-US", { timeZone: "Asia/Manila", hour: "numeric", minute: "2-digit" });
 }
 
+/** Get year, month (0-based), day in Asia/Manila */
+function getManilaDateParts(isoDate: string): { year: number; month: number; day: number } {
+  const d = new Date(isoDate);
+  const year = Number(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila", year: "numeric" }).format(d));
+  const month = Number(new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Manila", month: "numeric" }).format(d)) - 1;
+  const day = Number(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila", day: "numeric" }).format(d));
+  return { year, month, day };
+}
+
 /** Build a calendar object for the given month */
 function buildCalendar(
   year: number,
   month: number, // 0-indexed
-  registrations: { event: { starts_at: string | null } }[]
+  registrations: { event: { starts_at: string | null } }[],
+  monthEvents: { id: string; starts_at: string }[],
+  registeredEventIds: Set<string>
 ) {
   const firstDay = new Date(year, month, 1);
   const dowOfFirst = firstDay.getDay(); // 0=Sun
@@ -51,12 +64,26 @@ function buildCalendar(
 
   const monthLabel = firstDay.toLocaleDateString("en-US", { month: "long", year: "numeric" });
 
-  // Days that have a registration in this month
+  // Days that have a registration in this month (Manila-tz based)
   const registered = registrations
     .map((r) => {
       if (!r.event.starts_at) return null;
-      const d = new Date(r.event.starts_at);
-      if (d.getFullYear() === year && d.getMonth() === month) return d.getDate();
+      const parts = getManilaDateParts(r.event.starts_at);
+      if (parts.year === year && parts.month === month) return parts.day;
+      return null;
+    })
+    .filter((d): d is number => d !== null);
+
+  const registeredSet = new Set(registered);
+
+  // Open events the user has not registered for (Manila-tz based)
+  const openEvents = monthEvents
+    .filter((e) => !registeredEventIds.has(e.id))
+    .map((e) => {
+      const parts = getManilaDateParts(e.starts_at);
+      if (parts.year === year && parts.month === month && !registeredSet.has(parts.day)) {
+        return parts.day;
+      }
       return null;
     })
     .filter((d): d is number => d !== null);
@@ -66,11 +93,17 @@ function buildCalendar(
     prevTail,
     days: daysInMonth,
     featured: 0,
-    registered: [...new Set(registered)],
+    registered: [...registeredSet],
+    openEvents: [...new Set(openEvents)],
   };
 }
 
-export default async function MyEventsPage() {
+interface MyEventsPageProps {
+  searchParams?: Promise<{ m?: string }>;
+}
+
+export default async function MyEventsPage({ searchParams }: MyEventsPageProps) {
+  const params = searchParams ? await searchParams : {};
   const supabase = await createClient();
   const {
     data: { user },
@@ -80,10 +113,28 @@ export default async function MyEventsPage() {
     redirect("/signin?next=/my-events");
   }
 
-  const [{ upcoming: upcomingRegs, past: pastRegs }, userApp, userProfileRes] = await Promise.all([
+  const now = new Date();
+  let manilaYear = Number(
+    new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila", year: "numeric" }).format(now)
+  );
+  let manilaMonth =
+    Number(
+      new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Manila", month: "numeric" }).format(now)
+    ) - 1; // 0-based
+
+  if (params.m && /^\d{4}-\d{2}$/.test(params.m)) {
+    const [y, m] = params.m.split("-").map(Number);
+    if (!isNaN(y) && !isNaN(m) && m >= 1 && m <= 12) {
+      manilaYear = y;
+      manilaMonth = m - 1;
+    }
+  }
+
+  const [{ upcoming: upcomingRegs, past: pastRegs }, userApp, userProfileRes, monthEvents] = await Promise.all([
     getMyRegistrations(user.id),
     getUserOrganizerApplication(),
     supabase.from("profiles").select("role").eq("id", user.id).maybeSingle(),
+    getCalendarEvents(manilaYear, manilaMonth),
   ]);
 
   const userRole = userProfileRes.data?.role ?? "student";
@@ -119,31 +170,65 @@ export default async function MyEventsPage() {
     footer: r.has_checked_in ? "Checked in ✓" : "Not checked in",
   }));
 
-  // Build calendar for the current month
-  const now = new Date();
-  const calendarData = buildCalendar(now.getFullYear(), now.getMonth(), [
-    ...upcomingRegs,
-    ...pastRegs,
-  ]);
+  const allRegs = [...upcomingRegs, ...pastRegs];
+  const registeredEventIds = new Set(
+    allRegs.map((r) => (r.event as { id?: string })?.id).filter(Boolean) as string[]
+  );
 
-  // Build a map of day-of-month → event info for the SelectedDayPreview
-  const dayEvents: Record<number, { date: string; title: string; time: string; venue: string; ticketCode: string }> = {};
-  for (const r of upcomingRegs) {
+  // Build calendar for the active month (in Asia/Manila)
+  const calendarData = buildCalendar(
+    manilaYear,
+    manilaMonth,
+    allRegs,
+    monthEvents,
+    registeredEventIds
+  );
+
+  // Build a map of day-of-month → event info for SelectedDayPreview
+  const dayEvents: Record<number, SelectedDayEventItem> = {};
+
+  // First populate registered events
+  for (const r of allRegs) {
     if (!r.event.starts_at) continue;
-    const d = new Date(r.event.starts_at);
-    if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()) {
-      const day = d.getDate();
-      if (!dayEvents[day]) {
-        dayEvents[day] = {
+    const parts = getManilaDateParts(r.event.starts_at);
+    if (parts.year === manilaYear && parts.month === manilaMonth) {
+      if (!dayEvents[parts.day]) {
+        dayEvents[parts.day] = {
           date: formatDate(r.event.starts_at),
           title: r.event.title,
           time: formatTime(r.event.starts_at),
           venue: r.event.venue ?? "",
-          ticketCode: r.ticket_code ?? "",
+          ticketCode: (r as { ticket_code?: string }).ticket_code ?? "",
+          isRegistered: true,
+          slug: (r.event as { slug?: string }).slug ?? "",
         };
       }
     }
   }
+
+  // Then populate open events for days that don't already have a registered event
+  for (const ev of monthEvents) {
+    if (!ev.starts_at) continue;
+    const parts = getManilaDateParts(ev.starts_at);
+    if (parts.year === manilaYear && parts.month === manilaMonth) {
+      if (!dayEvents[parts.day]) {
+        dayEvents[parts.day] = {
+          date: formatDate(ev.starts_at),
+          title: ev.title,
+          time: formatTime(ev.starts_at),
+          venue: ev.venue ?? "",
+          isRegistered: false,
+          slug: ev.slug,
+        };
+      }
+    }
+  }
+
+  const prevDate = new Date(manilaYear, manilaMonth - 1, 1);
+  const nextDate = new Date(manilaYear, manilaMonth + 1, 1);
+  const prevHref = `/my-events?m=${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, "0")}`;
+  const nextHref = `/my-events?m=${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, "0")}`;
+  const todayHref = "/my-events";
 
   return (
     <>
@@ -162,6 +247,10 @@ export default async function MyEventsPage() {
                 days={calendarData.days}
                 featured={calendarData.featured}
                 registered={calendarData.registered}
+                openEvents={calendarData.openEvents}
+                prevHref={prevHref}
+                nextHref={nextHref}
+                todayHref={todayHref}
                 dayEvents={dayEvents}
               />
             </aside>

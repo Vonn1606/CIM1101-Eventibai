@@ -26,6 +26,8 @@ export interface OrgEvent {
   rawStartTime?: string;
   rawEndTime?: string;
   decisionNote?: string;
+  category?: string;
+  description?: string;
 }
 
 export interface OrgRosterStudent {
@@ -141,6 +143,20 @@ function mapEventRow(row: any, stats: Record<string, { registered_count: number;
     ? new Date(row.ends_at).toLocaleTimeString("en-US", { timeZone: "Asia/Manila", hour12: false, hour: "2-digit", minute: "2-digit" })
     : "";
 
+  // Pick latest/current approval note only when event is returned
+  let decisionNote: string | undefined = undefined;
+  if (row.approval === "returned" && Array.isArray(row.event_approvals) && row.event_approvals.length > 0) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sorted = [...row.event_approvals].sort((a: any, b: any) => {
+      if (a.is_current && !b.is_current) return -1;
+      if (!a.is_current && b.is_current) return 1;
+      const tA = a.submitted_at ? new Date(a.submitted_at).getTime() : 0;
+      const tB = b.submitted_at ? new Date(b.submitted_at).getTime() : 0;
+      return tB - tA;
+    });
+    decisionNote = sorted[0]?.decision_note ?? undefined;
+  }
+
   return {
     id: row.id,
     month,
@@ -162,61 +178,72 @@ function mapEventRow(row: any, stats: Record<string, { registered_count: number;
     rawDate,
     rawStartTime,
     rawEndTime,
-    decisionNote: row.event_approvals?.[0]?.decision_note ?? undefined,
+    decisionNote,
+    category: row.category ?? "",
+    description: Array.isArray(row.description) ? row.description.join("\n\n") : (row.description ?? row.summary ?? ""),
   };
 }
 
-export async function getOrgEvents(): Promise<OrgEvent[]> {
+export async function getOrgEvents(orgId?: string): Promise<OrgEvent[]> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return [];
 
-  // Find the organiser's organisation ID
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: memberData } = await (supabase as any)
-    .from("organization_members")
-    .select("organization_id")
-    .eq("user_id", user.id)
-    .limit(1)
-    .maybeSingle();
+  // If orgId not pre-resolved, look it up (fallback for standalone calls)
+  let resolvedOrgId = orgId;
+  if (!resolvedOrgId) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return [];
 
-  if (!memberData) return [];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const orgId = (memberData as any).organization_id as string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: memberData } = await (supabase as any)
+      .from("organization_members")
+      .select("organization_id")
+      .eq("user_id", user.id)
+      .limit(1)
+      .maybeSingle();
+
+    if (!memberData) return [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolvedOrgId = (memberData as any).organization_id as string;
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
     .from("events")
     .select(`
-      id, title, starts_at, ends_at, approval, status, total_capacity, tier,
+      id, title, starts_at, ends_at, approval, status, total_capacity, tier, category, description, summary,
       venues ( name ),
       organizations ( name ),
-      event_approvals ( decision_note, decided_at, stage )
+      event_approvals ( id, decision_note, decided_at, stage, is_current, revision, submitted_at )
     `)
-    .eq("organization_id", orgId)
+    .eq("organization_id", resolvedOrgId)
     .order("starts_at", { ascending: false })
     .limit(20);
 
   if (error || !data || data.length === 0) return [];
 
-  // Fetch live stats from event_stats view
+  // Fix #1: Replace heavy event_stats view with a direct indexed query on registrations
   const eventIds = ((data ?? []) as Array<{ id: string }>).map((e) => e.id);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: statsData } = await (supabase as any)
-    .from("event_stats")
-    .select("event_id, registered_count, waitlist_count")
-    .in("event_id", eventIds);
-
   const statsMap: Record<string, { registered_count: number; waitlist_count: number }> = {};
-  if (statsData) {
-    ((statsData ?? []) as Array<{ event_id: string; registered_count: number | null; waitlist_count: number | null }>).forEach((s) => {
-      statsMap[s.event_id] = {
-        registered_count: Number(s.registered_count ?? 0),
-        waitlist_count: Number(s.waitlist_count ?? 0),
-      };
-    });
+  eventIds.forEach((id) => {
+    statsMap[id] = { registered_count: 0, waitlist_count: 0 };
+  });
+
+  if (eventIds.length > 0) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: regRows } = await (supabase as any)
+      .from("registrations")
+      .select("event_id, status")
+      .in("event_id", eventIds)
+      .in("status", ["registered", "waitlisted"]);
+
+    if (regRows) {
+      (regRows as Array<{ event_id: string; status: string }>).forEach((r) => {
+        if (r.status === "registered") statsMap[r.event_id].registered_count++;
+        else if (r.status === "waitlisted") statsMap[r.event_id].waitlist_count++;
+      });
+    }
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -226,12 +253,8 @@ export async function getOrgEvents(): Promise<OrgEvent[]> {
 /* --------------------------------------------------------------------------
    getOrgRoster – registrations for a specific event (or the most recent one)
    -------------------------------------------------------------------------- */
-export async function getOrgRoster(eventId?: string): Promise<OrgRosterStudent[]> {
+export async function getOrgRoster(eventId?: string, eventCategory?: string): Promise<OrgRosterStudent[]> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return [];
 
   // If eventId is provided, verify caller owns the event (or is admin)
   if (eventId) {
@@ -240,9 +263,14 @@ export async function getOrgRoster(eventId?: string): Promise<OrgRosterStudent[]
     if (!owns) return [];
   }
 
-  // If no eventId, pick the organiser's most recent approved event
+  // Fix #3: If no eventId, resolve via auth only (no redundant org membership re-query when called from page.tsx with pre-resolved data)
   let resolvedEventId = eventId;
   if (!resolvedEventId) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return [];
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: memberData } = await (supabase as any)
       .from("organization_members")
@@ -266,15 +294,20 @@ export async function getOrgRoster(eventId?: string): Promise<OrgRosterStudent[]
     resolvedEventId = (evData as any).id;
   }
 
+  // Fix #3: Skip redundant events(category) join when category is already known from the caller
+  const selectClause = eventCategory
+    ? `id, ticket_code, status, registered_at, student_number,
+       profiles ( full_name, college_id, colleges ( name ) ),
+       check_ins ( checked_in_at )`
+    : `id, ticket_code, status, registered_at, student_number,
+       events ( category ),
+       profiles ( full_name, college_id, colleges ( name ) ),
+       check_ins ( checked_in_at )`;
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
     .from("registrations")
-    .select(`
-      id, ticket_code, status, registered_at, student_number,
-      events ( category ),
-      profiles ( full_name, college_id, colleges ( name ) ),
-      check_ins ( checked_in_at )
-    `)
+    .select(selectClause)
     .eq("event_id", resolvedEventId)
     .eq("status", "registered")
     .order("registered_at", { ascending: true })
@@ -305,7 +338,7 @@ export async function getOrgRoster(eventId?: string): Promise<OrgRosterStudent[]
       name,
       yearProgram: college,
       studentId: row.student_number ?? row.id,
-      eventTrack: row.events?.category ?? "General",
+      eventTrack: eventCategory ?? row.events?.category ?? "General",
       registeredAt: row.registered_at
         ? new Date(row.registered_at).toLocaleString("en-US", {
           timeZone: "Asia/Manila",

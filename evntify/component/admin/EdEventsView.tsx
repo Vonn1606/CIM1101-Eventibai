@@ -35,23 +35,26 @@ const COLLEGE_CHIPS = [
 
 /** Map DB item → legacy EventItem shape for child components */
 function toEventItem(d: EventDirectoryItem): EventItem {
-  const statusMap: Record<string, EventItem["status"]> = {
-    open: "ongoing",
-    ongoing: "ongoing",
-    scheduled: "scheduled",
-    draft: "scheduled",
-    completed: "completed",
-    concluded: "completed",
-    closed: "completed",
-    cancelled: "cancelled" as EventItem["status"],
-    suspended: "suspended",
-  };
+  // Derive status from db status + approval + time
+  let status: EventItem["status"];
+  if (d.status === "cancelled") {
+    status = "cancelled";
+  } else if (d.status === "suspended") {
+    status = "suspended";
+  } else if (d.status === "completed") {
+    status = "completed";
+  } else if (d.approval !== "approved") {
+    status = "scheduled"; // pending/returned/declined shown as scheduled
+  } else {
+    status = "upcoming";
+  }
   return {
     id: d.slug,
     dept: d.dept,
+    collegeShort: d.collegeShort,
     title: d.title,
     blurb: d.category,
-    status: (statusMap[d.status] ?? "scheduled") as EventItem["status"],
+    status,
     org: d.org,
     date: d.date,
     venue: d.venue,
@@ -103,7 +106,7 @@ export default function EdEventsView({
             ? e.status === "suspended"
             : e.status !== "completed" && e.status !== "suspended" && e.status !== "cancelled"
       )
-      .filter((e) => college === COLLEGE_CHIPS[0] || e.dept.includes(college))
+      .filter((e) => college === COLLEGE_CHIPS[0] || e.collegeShort === college)
       .filter(
         (e) =>
           !q ||

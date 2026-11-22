@@ -43,6 +43,22 @@ export default function ApProposalCard({
             <Clock size={12} />
             {p.submitted}
           </span>
+          {p.revision && p.revision > 1 && (
+            <span
+              className="chip"
+              style={{
+                background: "#FEF3C7",
+                color: "#92400E",
+                fontWeight: 700,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              <i style={{ width: 6, height: 6, borderRadius: "50%", background: "#D97706", display: "inline-block" }} />
+              Resubmitted · v{p.revision}
+            </span>
+          )}
           <span className="chip tint">{p.org}</span>
         </div>
         <span className="stage" style={{ background: s.bg, color: s.fg }}>
@@ -59,6 +75,11 @@ export default function ApProposalCard({
             <span>/</span>
             {p.when}
           </p>
+          {p.changes && Object.keys(p.changes).length > 0 && (
+            <p style={{ fontSize: 11, fontWeight: 600, color: "#B80035", marginTop: 4 }}>
+              Updated fields: {Object.keys(p.changes).join(", ")}
+            </p>
+          )}
         </div>
         <button type="button" className="rv-review" onClick={onReview}>
           <FileSearch size={15} /> Review proposal

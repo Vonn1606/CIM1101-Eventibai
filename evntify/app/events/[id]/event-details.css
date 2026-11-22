@@ -39,27 +39,27 @@
   box-sizing: border-box;
 }
 
-.event-details-root h1,
-.event-details-root h2,
-.event-details-root h3,
-.event-details-root p,
-.event-details-root ul,
-.event-details-root ol {
+:where(.event-details-root) h1,
+:where(.event-details-root) h2,
+:where(.event-details-root) h3,
+:where(.event-details-root) p,
+:where(.event-details-root) ul,
+:where(.event-details-root) ol {
   margin: 0;
   padding: 0;
 }
 
-.event-details-root ul,
-.event-details-root ol {
+:where(.event-details-root) ul,
+:where(.event-details-root) ol {
   list-style: none;
 }
 
-.event-details-root a {
+:where(.event-details-root) a {
   color: inherit;
   text-decoration: none;
 }
 
-.event-details-root button {
+:where(.event-details-root) button {
   font: inherit;
   color: inherit;
   cursor: pointer;
@@ -408,7 +408,7 @@
 }
 
 /* ---------- Grid Layout ---------- */
-.event-details-root .grid {
+.event-details-root .container > .grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 350px;
   gap: 16px;

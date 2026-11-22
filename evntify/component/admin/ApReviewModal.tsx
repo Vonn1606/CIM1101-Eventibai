@@ -155,6 +155,72 @@ export default function ApReviewModal({
             </div>
           </div>
 
+          {p.revision && p.revision > 1 && (
+            <div className="rv-diff-box">
+              <div className="rv-diff-header">
+                <span className="rv-diff-badge">
+                  <ShieldCheck size={12} />
+                  Resubmitted · Revision v{p.revision}
+                </span>
+                {p.resubmittedAt && (
+                  <span className="label-sm">
+                    {new Date(p.resubmittedAt).toLocaleString("en-US", { timeZone: "Asia/Manila" })}
+                  </span>
+                )}
+              </div>
+
+              {p.changes && Object.keys(p.changes).length > 0 ? (
+                <table className="rv-diff-table">
+                  <thead>
+                    <tr>
+                      <th>Modified Field</th>
+                      <th>Previous Value</th>
+                      <th>Resubmitted Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(p.changes).map(([field, diff]) => (
+                      <tr key={field}>
+                        <td style={{ fontWeight: 600 }}>{field}</td>
+                        <td>
+                          <span className="rv-diff-old">
+                            {String(diff.from || "—")}
+                          </span>
+                        </td>
+                        <td>
+                          <span className="rv-diff-new">
+                            {String(diff.to || "—")}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="t-12 muted">Details updated by organizer without major field changes.</p>
+              )}
+
+              <div className="rv-diff-notes">
+                {p.previousNote && (
+                  <div>
+                    <span className="label-sm" style={{ color: "#B80035" }}>You requested earlier:</span>
+                    <p style={{ fontStyle: "italic", color: "#555", marginTop: 2 }}>
+                      &ldquo;{p.previousNote}&rdquo;
+                    </p>
+                  </div>
+                )}
+                {p.clearanceNote && (
+                  <div>
+                    <span className="label-sm">Organizer note:</span>
+                    <p style={{ color: "#222", marginTop: 2 }}>
+                      {p.clearanceNote}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           <section className="rv-brief">
             <h3>
               <ClipboardList size={16} color="#B80035" /> Event overview

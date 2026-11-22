@@ -62,7 +62,7 @@ export default function EdEventCard({
           </span>
           <span className="ed-dept-badge">
             <Building2 size={11} color="#0050D4" />
-            {event.dept.split(" ")[0]}
+            {event.collegeShort || event.dept.split(" ")[0]}
           </span>
         </div>
         <div className="ed-ev-overlay">

@@ -680,7 +680,7 @@ export async function updateEvent(
 
   const { data: existingEvent, error: fetchErr } = await supabase
     .from("events")
-    .select("id, slug, title, approval, status, starts_at, ends_at, venue_id, total_capacity")
+    .select("id, slug, title, category, description, approval, status, starts_at, ends_at, venue_id, total_capacity")
     .eq("id", eventId)
     .single();
 
@@ -773,20 +773,116 @@ export async function updateEvent(
     }
   }
 
-  if (resubmitForReview) {
-    updates.approval = "pending";
-    updates.status = "draft";
-  } else if (isApproved) {
-    // Material change check: if venue, date/time, or capacity increase occurs on an approved event,
-    // re-trigger approval workflow so changes are cleared by SAO
-    const isVenueChanged = venueId && venueId !== existingEvent.venue_id;
-    const isDateChanged = date && updates.starts_at !== existingEvent.starts_at;
-    const isCapIncreased = capacity !== undefined && capacity > (existingEvent.total_capacity ?? 0);
+  // Compute diff and handle returned event resubmission
+  const changes: Record<string, { from: string | number; to: string | number }> = {};
+  if (title && title !== existingEvent.title) {
+    changes.Title = { from: existingEvent.title, to: title };
+  }
+  if (venueId && venueId !== existingEvent.venue_id) {
+    changes.Venue = { from: existingEvent.venue_id ?? "Default", to: venueId };
+  }
+  if (category && category !== existingEvent.category) {
+    changes.Category = { from: existingEvent.category ?? "", to: category };
+  }
+  if (capacity !== undefined && capacity !== existingEvent.total_capacity) {
+    changes.Capacity = { from: existingEvent.total_capacity ?? 0, to: capacity };
+  }
+  if (description) {
+    const oldDesc = Array.isArray(existingEvent.description)
+      ? existingEvent.description.join(" ")
+      : (existingEvent.description ?? "");
+    if (description.trim() !== oldDesc.trim()) {
+      changes.Description = {
+        from: oldDesc.slice(0, 40) + (oldDesc.length > 40 ? "..." : ""),
+        to: description.slice(0, 40) + (description.length > 40 ? "..." : ""),
+      };
+    }
+  }
+  if (newStartsAt) {
+    const oldStartsMs = existingEvent.starts_at ? new Date(existingEvent.starts_at).getTime() : 0;
+    const newStartsMs = new Date(newStartsAt).getTime();
+    if (Math.abs(oldStartsMs - newStartsMs) > 1000) {
+      changes["Start Time"] = {
+        from: existingEvent.starts_at ? new Date(existingEvent.starts_at).toLocaleString("en-US", { timeZone: "Asia/Manila" }) : "None",
+        to: new Date(newStartsAt).toLocaleString("en-US", { timeZone: "Asia/Manila" }),
+      };
+    }
+  }
+  if (newEndsAt) {
+    const oldEndsMs = existingEvent.ends_at ? new Date(existingEvent.ends_at).getTime() : 0;
+    const newEndsMs = new Date(newEndsAt).getTime();
+    if (Math.abs(oldEndsMs - newEndsMs) > 1000) {
+      changes["End Time"] = {
+        from: existingEvent.ends_at ? new Date(existingEvent.ends_at).toLocaleString("en-US", { timeZone: "Asia/Manila" }) : "None",
+        to: new Date(newEndsAt).toLocaleString("en-US", { timeZone: "Asia/Manila" }),
+      };
+    }
+  }
 
-    if (isVenueChanged || isDateChanged || isCapIncreased) {
+  // Handle returned event resubmission (atomic via RPC with graceful fallback)
+  if (existingEvent.approval === "returned") {
+    if (Object.keys(changes).length === 0 && !resubmitMemo) {
+      return { error: "No changes to submit." };
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: rpcErr } = await (supabase.rpc as any)("resubmit_event", {
+      p_event: eventId,
+      p_updates: updates,
+      p_changes: changes,
+      p_memo: resubmitMemo || "Resubmitted after edits",
+    });
+
+    if (rpcErr) {
+      // Fallback for environment before migration is applied
       updates.approval = "pending";
       updates.status = "draft";
+      const { error: fallbackUpdateErr } = await supabase.from("events").update(updates).eq("id", eventId);
+      if (fallbackUpdateErr) return { error: fallbackUpdateErr.message };
+
+      // Mark old approval is_current = false
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase as any)
+        .from("event_approvals")
+        .update({ is_current: false })
+        .eq("event_id", eventId);
+
+      // Insert new approval row
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase as any).from("event_approvals").insert({
+        event_id: eventId,
+        submitted_by: user.id,
+        brief: updates.summary ?? null,
+        seats_expected: updates.total_capacity ?? null,
+        stage: "Awaiting Review",
+        decision: "pending",
+        decision_note: resubmitMemo ?? "Resubmitted after edits",
+        revision: 2,
+        is_current: true,
+        changes,
+        resubmitted_at: new Date().toISOString(),
+      });
     }
+
+    revalidatePath("/organizer-dashboard");
+    revalidatePath("/admin/approvals");
+    revalidatePath("/admin");
+    revalidatePath(`/events/${existingEvent.slug}`);
+    revalidatePath("/events");
+
+    return { success: true };
+  }
+
+  // Approved event material change check (using timestamp comparison, not strings)
+  const oldStartsMs = existingEvent.starts_at ? new Date(existingEvent.starts_at).getTime() : 0;
+  const newStartsMs = newStartsAt ? new Date(newStartsAt).getTime() : 0;
+  const isTimeChanged = date && Math.abs(oldStartsMs - newStartsMs) > 1000;
+  const isVenueChanged = venueId && venueId !== existingEvent.venue_id;
+  const isCapIncreased = capacity !== undefined && capacity > (existingEvent.total_capacity ?? 0);
+
+  if (isApproved && (isVenueChanged || isTimeChanged || isCapIncreased)) {
+    updates.approval = "pending";
+    updates.status = "draft";
   }
 
   const { error: updateErr } = await supabase
@@ -796,13 +892,11 @@ export async function updateEvent(
 
   if (updateErr) return { error: updateErr.message };
 
-  // E3.4: If approved event had venue or schedule changed, notify registered students via RPC
-  const venueChanged = venueId && venueId !== existingEvent.venue_id;
-  const timeChanged = updates.starts_at && updates.starts_at !== existingEvent.starts_at;
-  if (isApproved && (venueChanged || timeChanged)) {
+  // If approved event had venue or schedule changed, notify registered students via RPC
+  if (isApproved && (isVenueChanged || isTimeChanged)) {
     const changeDetails = [
-      venueChanged ? "venue" : null,
-      timeChanged ? "date/time" : null,
+      isVenueChanged ? "venue" : null,
+      isTimeChanged ? "date/time" : null,
     ].filter(Boolean).join(" and ");
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -817,33 +911,17 @@ export async function updateEvent(
   // Audit log of update
   await supabase.from("audit_logs").insert({
     actor_id: user.id,
-    action: resubmitForReview ? "event.resubmit" : "event.update",
+    action: "event.update",
     entity: "events",
     entity_id: eventId,
     meta: { updates, previousApproval: existingEvent.approval },
   });
 
-  if (resubmitForReview) {
-    const { error: apErr } = await supabase.from("event_approvals").insert({
-      event_id: eventId,
-      submitted_by: user.id,
-      brief: updates.summary ?? null,
-      seats_expected: updates.total_capacity ?? null,
-      stage: "Awaiting Review",
-      decision: "pending",
-      decision_note: resubmitMemo ?? "Resubmitted after edits",
-    });
-
-    if (apErr) {
-      return {
-        error: `Event details saved, but resubmission for review failed: ${apErr.message}`,
-      };
-    }
-  }
-
   revalidatePath("/organizer-dashboard");
   revalidatePath("/admin/approvals");
+  revalidatePath("/admin");
   revalidatePath(`/events/${existingEvent.slug}`);
+  revalidatePath("/events");
 
   return { success: true };
 }

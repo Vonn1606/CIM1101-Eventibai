@@ -34,6 +34,39 @@ export async function registerForEvent(
   // Resolve UUID if inputEventId is a slug or a UUID
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(inputEventId);
 
+  // Fallback to profile if studentNumber or college was omitted
+  let effectiveStudentNumber = studentNumber?.trim() || "";
+  let effectiveCollege = college?.trim() || "";
+
+  if (!effectiveStudentNumber || !effectiveCollege) {
+    const { data: prof } = await supabase
+      .from("profiles")
+      .select("student_number, colleges ( slug )")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (prof) {
+      if (!effectiveStudentNumber && prof.student_number) {
+        effectiveStudentNumber = prof.student_number;
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const profCollegeSlug = (prof.colleges as any)?.slug;
+      if (!effectiveCollege && profCollegeSlug) {
+        effectiveCollege = profCollegeSlug;
+      }
+    }
+  }
+
+  if (!effectiveStudentNumber) {
+    return { error: "Student number is required. Format must be YYYY-NNNNN-XX" };
+  }
+  if (!/^\d{4}-\d{5}-\w{2}$/.test(effectiveStudentNumber)) {
+    return { error: "Format must be YYYY-NNNNN-XX" };
+  }
+  if (!effectiveCollege) {
+    return { error: "Please select a college." };
+  }
+
   // Use separate queries instead of interpolating user input into .or() (filter injection risk)
   let ev: { id: string; slug: string; registration_deadline: string | null; status: string; starts_at: string | null } | null = null;
   if (isUuid) {
@@ -86,7 +119,7 @@ export async function registerForEvent(
   const { data: collegeRow } = await supabase
     .from("colleges")
     .select("id")
-    .eq("slug", college)
+    .eq("slug", effectiveCollege)
     .single();
 
   if (!collegeRow) return { error: "Invalid college selected." };
@@ -97,8 +130,8 @@ export async function registerForEvent(
     "register_for_event",
     {
       p_event: eventId,
-      p_student_number: studentNumber,
-      p_college: college,
+      p_student_number: effectiveStudentNumber,
+      p_college: effectiveCollege,
     }
   );
 

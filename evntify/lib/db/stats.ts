@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 
@@ -67,15 +68,22 @@ export type ApprovalItem = {
   risk: string;
   documents: { name: string; meta: string }[];
   endorsements: string[];
+  revision?: number;
+  changes?: Record<string, { from: unknown; to: unknown }> | null;
+  resubmittedAt?: string | null;
+  supersedesId?: string | null;
+  previousNote?: string | null;
 };
 
 export async function getApprovals(): Promise<ApprovalItem[]> {
   const supabase = await createClient();
 
-  const { data, error } = await supabase
+  // Try selecting with revision/changes/is_current/supersedes_id
+  let res: any = await supabase
     .from("event_approvals")
     .select(`
       id, submitted_at, decision, decided_at, decision_note, brief, capacity_note, safety_check, seats_expected, risk,
+      revision, changes, resubmitted_at, supersedes_id, is_current,
       events (
         id, title, category, total_capacity, starts_at, ends_at, description, summary,
         organizations ( name, dept_label ),
@@ -87,10 +95,40 @@ export async function getApprovals(): Promise<ApprovalItem[]> {
     `)
     .order("submitted_at", { ascending: false });
 
+  // Fallback to legacy select if migration has not run yet in DB
+  if (res.error && res.error.message.includes("does not exist")) {
+    res = await supabase
+      .from("event_approvals")
+      .select(`
+        id, submitted_at, decision, decided_at, decision_note, brief, capacity_note, safety_check, seats_expected, risk,
+        events (
+          id, title, category, total_capacity, starts_at, ends_at, description, summary,
+          organizations ( name, dept_label ),
+          colleges ( name ),
+          venues ( name, details )
+        ),
+        event_documents ( kind, label, file_url ),
+        profiles!submitted_by ( full_name, email )
+      `)
+      .order("submitted_at", { ascending: false });
+  }
+
+  const { data, error } = res;
   if (error || !data) return [];
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data as any[]).map((row) => {
+  // Filter out superseded rows where is_current is explicitly false
+  const rawList = (data as any[]).filter((row) => row.is_current !== false);
+
+  // Build lookup of previous notes for superseded rows
+  const noteById: Record<string, string> = {};
+  for (const r of data as any[]) {
+    if (r.id && r.decision_note) {
+      noteById[r.id] = r.decision_note;
+    }
+  }
+
+   
+  return rawList.map((row) => {
     const ev = row.events;
     const startsAt = ev?.starts_at ? new Date(ev.starts_at) : null;
     const endsAt = ev?.ends_at ? new Date(ev.ends_at) : null;
@@ -150,6 +188,11 @@ export async function getApprovals(): Promise<ApprovalItem[]> {
       risk: formattedRisk,
       documents,
       endorsements,
+      revision: row.revision ?? 1,
+      changes: row.changes ?? null,
+      resubmittedAt: row.resubmitted_at ?? null,
+      supersedesId: row.supersedes_id ?? null,
+      previousNote: row.supersedes_id ? (noteById[row.supersedes_id] ?? null) : null,
     };
   });
 }
@@ -160,6 +203,8 @@ export type EventDirectoryItem = {
   title: string;
   org: string;
   dept: string;
+  collegeSlug: string;
+  collegeShort: string;
   venue: string;
   date: string;
   registered: number;
@@ -183,7 +228,7 @@ export async function getEventsDirectory(
     .select(
       `id, slug, title, category, total_capacity, status, approval, starts_at, banner_color,
       organizations ( name ),
-      colleges ( name ),
+      colleges ( name, slug ),
       venues ( name )`,
       { count: "exact" }
     )
@@ -212,29 +257,42 @@ export async function getEventsDirectory(
     });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const items: EventDirectoryItem[] = (data as any[]).map((row) => ({
-    id: row.id,
-    slug: row.slug,
-    title: row.title,
-    org: row.organizations?.name ?? row.colleges?.name ?? "",
-    dept: row.colleges?.name ?? "",
-    venue: row.venues?.name ?? "",
-    date: row.starts_at
-      ? new Date(row.starts_at).toLocaleDateString("en-US", {
-        timeZone: "Asia/Manila",
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      })
-      : "TBD",
-    registered: regCounts[row.id] ?? 0,
-    capacity: row.total_capacity ?? 0,
-    status: row.status,
-    approval: row.approval,
-    category: row.category ?? "",
-    bannerColor: row.banner_color ?? "#1e2022",
-  }));
+   
+  const items: EventDirectoryItem[] = (data as any[]).map((row) => {
+    const collegeName: string = row.colleges?.name ?? "";
+    const collegeSlug: string = row.colleges?.slug ?? "";
+    const SHORT_MAP: Record<string, string> = {
+      eng: "Engineering",
+      sci: "Arts & Science",
+      biz: "Business",
+      art: "Design",
+    };
+    const collegeShort = SHORT_MAP[collegeSlug] || collegeName.split(" ").slice(-1)[0] || "Unknown";
+    return {
+      id: row.id,
+      slug: row.slug,
+      title: row.title,
+      org: row.organizations?.name ?? row.colleges?.name ?? "",
+      dept: collegeName,
+      collegeSlug,
+      collegeShort,
+      venue: row.venues?.name ?? "",
+      date: row.starts_at
+        ? new Date(row.starts_at).toLocaleDateString("en-US", {
+          timeZone: "Asia/Manila",
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        })
+        : "TBD",
+      registered: regCounts[row.id] ?? 0,
+      capacity: row.total_capacity ?? 0,
+      status: row.status,
+      approval: row.approval,
+      category: row.category ?? "",
+      bannerColor: row.banner_color ?? "#1e2022",
+    };
+  });
 
   return { items, total: count ?? 0 };
 }
@@ -262,7 +320,7 @@ export type OrganizerItem = {
 export async function getOrganizers(): Promise<OrganizerItem[]> {
   const supabase = await createClient();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const { data, error } = await (supabase as any)
     .from("profiles")
     .select(`
@@ -276,7 +334,7 @@ export async function getOrganizers(): Promise<OrganizerItem[]> {
 
   // Collect all org IDs so we can batch-query pending + active counts
   const orgIds = new Set<string>();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   (data as any[]).forEach((p) => {
     const members = Array.isArray(p.organization_members) ? p.organization_members : [];
     members.forEach((m: { organization_id?: string }) => {
@@ -284,41 +342,44 @@ export async function getOrganizers(): Promise<OrganizerItem[]> {
     });
   });
 
-  // Fetch pending approval counts per org
+  // Fix #4: Run pending + active counts in parallel (avoid sequential round-trips)
   const pendingByOrg: Record<string, number> = {};
   const activeByOrg: Record<string, number> = {};
   if (orgIds.size > 0) {
     const ids = Array.from(orgIds);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: pendingRows } = await (supabase as any)
-      .from("event_approvals")
-      .select("events!inner(organization_id)")
-      .eq("decision", "pending")
-      .in("events.organization_id", ids);
-    if (pendingRows) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (pendingRows as any[]).forEach((r) => {
+
+     
+    const [pendingRes, activeRes] = await Promise.all([
+      (supabase as any)
+        .from("event_approvals")
+        .select("events!inner(organization_id)")
+        .eq("decision", "pending")
+        .in("events.organization_id", ids),
+      (supabase as any)
+        .from("events")
+        .select("organization_id")
+        .in("organization_id", ids)
+        .eq("approval", "approved")
+        .eq("status", "open"),
+    ]);
+
+    if (pendingRes.data) {
+       
+      (pendingRes.data as any[]).forEach((r) => {
         const oid = r.events?.organization_id as string | undefined;
         if (oid) pendingByOrg[oid] = (pendingByOrg[oid] ?? 0) + 1;
       });
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: activeRows } = await (supabase as any)
-      .from("events")
-      .select("organization_id")
-      .in("organization_id", ids)
-      .eq("approval", "approved")
-      .eq("status", "open");
-    if (activeRows) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (activeRows as any[]).forEach((r) => {
+    if (activeRes.data) {
+       
+      (activeRes.data as any[]).forEach((r) => {
         const oid = r.organization_id as string;
         activeByOrg[oid] = (activeByOrg[oid] ?? 0) + 1;
       });
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   return (data as any[]).map((p) => {
     const member = Array.isArray(p.organization_members) ? p.organization_members[0] : null;
     const orgId = member?.organization_id as string | undefined;
@@ -347,7 +408,7 @@ export async function getFeaturedEvent(): Promise<FeaturedEventItem | null> {
   const supabase = await createClient();
 
   // Query explicitly featured events that are approved and upcoming
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const { data, error } = await (supabase as any)
     .from("events")
     .select(`title, starts_at, status, summary, description, is_featured, venues ( name )`)
@@ -380,7 +441,7 @@ export type UpcomingEventItem = {
 export async function getUpcomingEvents(limit = 4): Promise<UpcomingEventItem[]> {
   const supabase = await createClient();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const { data, error } = await (supabase as any)
     .from("events")
     .select(`id, title, starts_at, category, venues ( name )`)
@@ -391,7 +452,7 @@ export async function getUpcomingEvents(limit = 4): Promise<UpcomingEventItem[]>
 
   if (error || !data) return [];
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   return (data as any[]).map((row) => ({
     id: row.id,
     title: row.title ?? "Untitled",
@@ -411,7 +472,7 @@ export const getAdminProfile = cache(async (): Promise<{ name: string; role: str
     return { name: "Admin Office", role: "Student Affairs" };
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const { data } = await (supabase as any)
     .from("profiles")
     .select("full_name, role")
@@ -423,4 +484,53 @@ export const getAdminProfile = cache(async (): Promise<{ name: string; role: str
     role: "Office of Student Affairs",
   };
 });
+
+// ── Calendar Events ───────────────────────────────────────────────────────────
+
+export type CalendarEventItem = {
+  id: string;
+  title: string;
+  starts_at: string;
+  ends_at: string | null;
+  category: string | null;
+  venue: string;
+  slug: string;
+};
+
+/** Fetch all approved, non-cancelled/suspended events starting in the given
+ *  Manila-local calendar month. `month` is 0-based (Jan = 0). */
+export async function getCalendarEvents(
+  year: number,
+  month: number
+): Promise<CalendarEventItem[]> {
+  const supabase = await createClient();
+
+  // Asia/Manila = UTC+8; local midnight = UTC − 8 h
+  const manilaOffsetMs = 8 * 60 * 60 * 1000;
+  const monthStart = new Date(Date.UTC(year, month, 1) - manilaOffsetMs).toISOString();
+  const monthEnd = new Date(Date.UTC(year, month + 1, 1) - manilaOffsetMs).toISOString();
+
+   
+  const { data, error } = await (supabase as any)
+    .from("events")
+    .select(`id, title, starts_at, ends_at, category, slug, venues ( name )`)
+    .eq("approval", "approved")
+    .not("status", "in", '("cancelled","suspended")')
+    .gte("starts_at", monthStart)
+    .lt("starts_at", monthEnd)
+    .order("starts_at", { ascending: true });
+
+  if (error || !data) return [];
+
+   
+  return (data as any[]).map((row) => ({
+    id: row.id,
+    title: row.title ?? "Untitled",
+    starts_at: row.starts_at ?? "",
+    ends_at: row.ends_at ?? null,
+    category: row.category ?? null,
+    venue: row.venues?.name ?? "TBD",
+    slug: row.slug ?? "",
+  }));
+}
 

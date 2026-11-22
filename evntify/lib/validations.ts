@@ -34,9 +34,10 @@ export const registerSchema = z.object({
   eventId: z.string().min(1, "Event ID is required"),
   studentNumber: z
     .string()
-    .min(1, "Student number is required")
-    .regex(/^\d{4}-\d{5}-\w{2}$/, "Format must be YYYY-NNNNN-XX"),
-  college: z.string().min(1, "Please select a college"),
+    .regex(/^\d{4}-\d{5}-\w{2}$/, "Format must be YYYY-NNNNN-XX")
+    .optional()
+    .or(z.literal("")),
+  college: z.string().optional().or(z.literal("")),
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;

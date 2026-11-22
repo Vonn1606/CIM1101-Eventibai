@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -326,6 +326,11 @@ export type Database = {
           stage: string | null
           submitted_at: string
           submitted_by: string | null
+          revision: number
+          is_current: boolean
+          changes: Json | null
+          supersedes_id: string | null
+          resubmitted_at: string | null
         }
         Insert: {
           brief?: string | null
@@ -342,6 +347,11 @@ export type Database = {
           stage?: string | null
           submitted_at?: string
           submitted_by?: string | null
+          revision?: number
+          is_current?: boolean
+          changes?: Json | null
+          supersedes_id?: string | null
+          resubmitted_at?: string | null
         }
         Update: {
           brief?: string | null
@@ -358,6 +368,11 @@ export type Database = {
           stage?: string | null
           submitted_at?: string
           submitted_by?: string | null
+          revision?: number
+          is_current?: boolean
+          changes?: Json | null
+          supersedes_id?: string | null
+          resubmitted_at?: string | null
         }
         Relationships: [
           {
@@ -1072,6 +1087,15 @@ export type Database = {
           p_approval: string
           p_decision: Database["public"]["Enums"]["approval_status"]
           p_note: string
+        }
+        Returns: undefined
+      }
+      resubmit_event: {
+        Args: {
+          p_event: string
+          p_updates: Json
+          p_changes: Json
+          p_memo: string
         }
         Returns: undefined
       }

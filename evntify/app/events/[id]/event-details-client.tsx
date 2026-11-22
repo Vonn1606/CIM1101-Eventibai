@@ -30,6 +30,7 @@ import {
 import type { EventDetail } from "@/types/events";
 import { registerForEvent } from "@/app/actions/registration";
 import type { RegistrationResult } from "@/app/actions/registration";
+import { DEPARTMENTS } from "@/lib/department";
 import "./event-details.css";
 
 export type InitialRegistration = {
@@ -38,9 +39,17 @@ export type InitialRegistration = {
   status: "registered" | "waitlisted" | null;
 };
 
+export type PrefillData = {
+  fullName: string;
+  studentNumber: string;
+  email: string;
+  collegeSlug: string;
+};
+
 interface EventDetailsClientProps {
   initialEvent: EventDetail;
   initialRegistration: InitialRegistration;
+  prefill?: PrefillData | null;
 }
 
 function getCountdown(deadline: string) {
@@ -57,7 +66,7 @@ function getCountdown(deadline: string) {
     closed: diff <= 0,
   };
 }
-export default function EventDetailsClient({ initialEvent, initialRegistration }: EventDetailsClientProps) {
+export default function EventDetailsClient({ initialEvent, initialRegistration, prefill }: EventDetailsClientProps) {
   const [event, setEvent] = useState<EventDetail>(initialEvent);
   const [isCopied, setIsCopied] = useState(false);
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
@@ -65,11 +74,12 @@ export default function EventDetailsClient({ initialEvent, initialRegistration }
 
   // Registration Form State
   const [formData, setFormData] = useState({
-    fullName: "",
-    studentNumber: "",
-    email: "",
-    college: "eng",
+    fullName: prefill?.fullName ?? "",
+    studentNumber: prefill?.studentNumber ?? "",
+    email: prefill?.email ?? "",
+    college: prefill?.collegeSlug ?? "eng",
   });
+  const [fieldErrors, setFieldErrors] = useState<{ studentNumber?: string; college?: string }>({});
   const [ticketCode, setTicketCode] = useState<string>(initialRegistration.ticketCode);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>("");
   const [isRegistered, setIsRegistered] = useState(initialRegistration.isRegistered);
@@ -133,6 +143,22 @@ export default function EventDetailsClient({ initialEvent, initialRegistration }
     e.preventDefault();
     setIsSubmitting(true);
     setRegError(null);
+    setFieldErrors({});
+
+    // Client-side format validation
+    const snRe = /^\d{4}-\d{5}-[A-Za-z0-9]{2}$/;
+    const newFieldErrors: typeof fieldErrors = {};
+    if (!snRe.test(formData.studentNumber.trim())) {
+      newFieldErrors.studentNumber = "Format: YYYY-NNNNN-XX (e.g. 2023-12345-MN)";
+    }
+    if (!formData.college) {
+      newFieldErrors.college = "Please select a college";
+    }
+    if (Object.keys(newFieldErrors).length > 0) {
+      setFieldErrors(newFieldErrors);
+      setIsSubmitting(false);
+      return;
+    }
 
     const targetEventId = event.dbId ?? event.id;
     const result: RegistrationResult = await registerForEvent({
@@ -597,11 +623,22 @@ export default function EventDetailsClient({ initialEvent, initialRegistration }
                     <input
                       type="text"
                       required
-                      placeholder="2023-1101-MN"
+                      placeholder="2023-12345-MN"
+                      inputMode="text"
+                      pattern="\d{4}-\d{5}-[A-Za-z0-9]{2}"
+                      autoCapitalize="characters"
                       value={formData.studentNumber}
-                      onChange={(e) => setFormData({ ...formData, studentNumber: e.target.value })}
-                      className="w-full px-3.5 py-2 text-sm rounded-lg border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-[#6c0c28]/30"
+                      readOnly={!!prefill?.studentNumber}
+                      onChange={(e) => {
+                        setFormData({ ...formData, studentNumber: e.target.value.toUpperCase().trim() });
+                        if (fieldErrors.studentNumber) setFieldErrors((prev) => ({ ...prev, studentNumber: undefined }));
+                      }}
+                      className={`w-full px-3.5 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-[#6c0c28]/30 ${fieldErrors.studentNumber ? "border-red-400" : "border-neutral-200"} ${prefill?.studentNumber ? "bg-neutral-50 cursor-not-allowed" : ""}`}
                     />
+                    {fieldErrors.studentNumber && (
+                      <p className="text-xs text-red-600 mt-0.5">{fieldErrors.studentNumber}</p>
+                    )}
+                    <p className="text-[10px] text-neutral-400 mt-0.5">Format: YYYY-NNNNN-XX</p>
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-neutral-700 mb-1">
@@ -624,14 +661,23 @@ export default function EventDetailsClient({ initialEvent, initialRegistration }
                   </label>
                   <select
                     value={formData.college}
-                    onChange={(e) => setFormData({ ...formData, college: e.target.value })}
-                    className="w-full px-3.5 py-2 text-sm rounded-lg border border-neutral-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#6c0c28]/30"
+                    onChange={(e) => {
+                      setFormData({ ...formData, college: e.target.value });
+                      if (fieldErrors.college) setFieldErrors((prev) => ({ ...prev, college: undefined }));
+                    }}
+                    disabled={!!prefill?.collegeSlug}
+                    className={`w-full px-3.5 py-2 text-sm rounded-lg border bg-white focus:outline-none focus:ring-2 focus:ring-[#6c0c28]/30 ${fieldErrors.college ? "border-red-400" : "border-neutral-200"} ${prefill?.collegeSlug ? "cursor-not-allowed bg-neutral-50" : ""}`}
                   >
-                    <option value="eng">College of Engineering</option>
-                    <option value="sci">Lucio Tan College of Computer Studies</option>
-                    <option value="biz">Tan Yan Kee Business &amp; Accountancy</option>
-                    <option value="art">College of Arts and Sciences</option>
+                    {DEPARTMENTS.map((d) => (
+                      <option key={d.value} value={d.value}>{d.label}</option>
+                    ))}
                   </select>
+                  {fieldErrors.college && (
+                    <p className="text-xs text-red-600 mt-0.5">{fieldErrors.college}</p>
+                  )}
+                  {prefill?.collegeSlug && (
+                    <p className="text-[10px] text-neutral-400 mt-0.5">From your profile · <a href="/profile" className="underline">Edit in profile</a></p>
+                  )}
                 </div>
 
                 <div className="rounded-lg bg-neutral-50 p-3 border border-neutral-100 flex items-start gap-2.5 text-xs text-neutral-600">

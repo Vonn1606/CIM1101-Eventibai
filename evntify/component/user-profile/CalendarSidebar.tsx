@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import CalendarCard from "@/component/user-profile/CalendarCard";
-import SelectedDayPreview from "@/component/user-profile/SelectedDayPreview";
+import SelectedDayPreview, { SelectedDayEventItem } from "@/component/user-profile/SelectedDayPreview";
 
 interface CalendarSidebarProps {
   monthLabel: string;
@@ -10,17 +10,12 @@ interface CalendarSidebarProps {
   days: number;
   featured: number;
   registered: number[];
+  openEvents?: number[];
+  prevHref?: string;
+  nextHref?: string;
+  todayHref?: string;
   /** Map of day-of-month → event info for the preview */
-  dayEvents: Record<
-    number,
-    {
-      date: string;
-      title: string;
-      time: string;
-      venue: string;
-      ticketCode: string;
-    }
-  >;
+  dayEvents: Record<number, SelectedDayEventItem>;
 }
 
 export default function CalendarSidebar({
@@ -29,9 +24,20 @@ export default function CalendarSidebar({
   days,
   featured,
   registered,
+  openEvents = [],
+  prevHref,
+  nextHref,
+  todayHref,
   dayEvents,
 }: CalendarSidebarProps) {
+  const [prevMonth, setPrevMonth] = useState(monthLabel);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
+
+  // Reset selected day whenever monthLabel changes
+  if (prevMonth !== monthLabel) {
+    setPrevMonth(monthLabel);
+    setSelectedDay(null);
+  }
 
   const selectedEvent = selectedDay != null ? (dayEvents[selectedDay] ?? null) : null;
 
@@ -43,8 +49,12 @@ export default function CalendarSidebar({
         days={days}
         featured={featured}
         registered={registered}
+        openEvents={openEvents}
         selectedDay={selectedDay}
         onDayClick={setSelectedDay}
+        prevHref={prevHref}
+        nextHref={nextHref}
+        todayHref={todayHref}
       />
       <SelectedDayPreview event={selectedEvent} />
     </>

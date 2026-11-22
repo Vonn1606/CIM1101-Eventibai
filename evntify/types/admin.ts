@@ -33,6 +33,11 @@ export interface Proposal {
   clearance: string;
   clearanceNote: string;
   documents: { name: string; meta: string }[];
+  revision?: number;
+  changes?: Record<string, { from: unknown; to: unknown }> | null;
+  resubmittedAt?: string | null;
+  supersedesId?: string | null;
+  previousNote?: string | null;
 }
 
 export const TONES: Record<Tone, { bg: string; fg: string; stripe: string }> = {
@@ -47,6 +52,7 @@ export type EventDirStatus = "ongoing" | "upcoming" | "scheduled" | "completed" 
 export interface EventItem {
   id: string;
   dept: string;
+  collegeShort: string;
   title: string;
   blurb: string;
   status: EventDirStatus;
@@ -62,9 +68,9 @@ export interface EventItem {
 }
 
 export const STATUS_LABEL: Record<EventDirStatus, string> = {
-  ongoing: "Ongoing Now",
+  ongoing: "Live Now",
   upcoming: "Upcoming",
-  scheduled: "Scheduled",
+  scheduled: "Upcoming",
   completed: "Completed",
   suspended: "Suspended",
   cancelled: "Cancelled",

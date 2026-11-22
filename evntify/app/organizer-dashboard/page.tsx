@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getOrgEvents, getOrgRoster, getOrgProfile } from "@/lib/db/organizer";
+import { getOrgEvents, getOrgRoster } from "@/lib/db/organizer";
 import OrganizerDashboardClient from "./organizer-dashboard-client";
 
 export const metadata: Metadata = {
@@ -11,30 +11,49 @@ export const metadata: Metadata = {
 };
 
 export default async function OrganizerDashboardPage() {
-  // Server-side auth + role guard (middleware also guards this route)
+  // Fix #2: Resolve user + profile + org membership in a single query at top level
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/signin");
 
-  const { data: p } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (p?.role !== "organizer" && p?.role !== "admin") redirect("/my-events");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: profile } = await (supabase as any)
+    .from("profiles")
+    .select("role, full_name, organization_members ( organization_id, organizations ( name ) )")
+    .eq("id", user.id)
+    .single();
 
-  // Fetch in parallel
-  const [profile, events, roster, venuesRes] = await Promise.all([
-    getOrgProfile(),
-    getOrgEvents(),
-    getOrgRoster(),
+  if (profile?.role !== "organizer" && profile?.role !== "admin") redirect("/my-events");
+
+  // Extract org info from the single profile query — no extra round-trips
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const member = Array.isArray(profile?.organization_members) ? (profile.organization_members as any[])[0] : null;
+  const orgId: string | undefined = member?.organization_id;
+  const orgName: string = member?.organizations?.name ?? "My Organisation";
+  const organizerName: string = profile?.full_name ?? "Organizer";
+
+  // Find the first approved event ID from events (populated by getOrgEvents)
+  // We pass orgId so getOrgEvents skips its own auth + membership lookup
+  const [events, venuesRes] = await Promise.all([
+    getOrgEvents(orgId),
     supabase.from("venues").select("id, name, capacity").order("name"),
   ]);
+
+  // Use the most recent approved event from the already-fetched list to seed the roster
+  const firstApprovedEvent = events.find((e) => e.status === "live" || e.status === "soldout" || e.status === "completed");
+  const rosterEventId = firstApprovedEvent?.id;
+  const rosterEventCategory = firstApprovedEvent?.tier;
+
+  const roster = await getOrgRoster(rosterEventId, rosterEventCategory);
 
   return (
     <OrganizerDashboardClient
       initialEvents={events}
       initialRoster={roster}
-      organizerName={profile?.fullName ?? "Organizer"}
-      orgName={profile?.orgName ?? "My Organisation"}
+      organizerName={organizerName}
+      orgName={orgName}
       venues={venuesRes.data ?? []}
     />
   );

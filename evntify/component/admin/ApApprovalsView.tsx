@@ -83,8 +83,13 @@ function mapToProposal(a: ApprovalItem): Proposal {
     contact: a.submittedBy,
     contactEmail: a.contactEmail,
     clearance: a.safetyCheck,
-    clearanceNote: a.safetyCheck === "Not recorded" ? "Pending inspection" : "Verified by campus administration",
+    clearanceNote: a.notes || (a.safetyCheck === "Not recorded" ? "Pending inspection" : "Verified by campus administration"),
     documents: a.documents ?? [],
+    revision: a.revision ?? 1,
+    changes: a.changes ?? null,
+    resubmittedAt: a.resubmittedAt ?? null,
+    supersedesId: a.supersedesId ?? null,
+    previousNote: a.previousNote ?? null,
   };
 }
 
@@ -106,6 +111,7 @@ export default function ApApprovalsView({
   });
 
   const [tab, setTab] = useState<Tab>("pending");
+  const [filterResubmitted, setFilterResubmitted] = useState(false);
   const [query, setQuery] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -129,6 +135,7 @@ export default function ApApprovalsView({
     const q = query.trim().toLowerCase();
     return items
       .filter((i) => i.status === tab)
+      .filter((i) => !filterResubmitted || (i.revision !== undefined && i.revision > 1))
       .filter(
         (i) =>
           !q ||
@@ -136,7 +143,7 @@ export default function ApApprovalsView({
             s.toLowerCase().includes(q)
           )
       );
-  }, [items, tab, query]);
+  }, [items, tab, filterResubmitted, query]);
 
   const open = items.find((i) => i.id === openId) ?? null;
 
@@ -266,6 +273,18 @@ export default function ApApprovalsView({
               </button>
             );
           })}
+          <button
+            type="button"
+            className={filterResubmitted ? "on" : ""}
+            onClick={() => setFilterResubmitted(!filterResubmitted)}
+            title="Filter to proposals that were resubmitted with changes"
+            style={{ marginLeft: 8 }}
+          >
+            Resubmitted
+            {items.filter((i) => (i.revision ?? 1) > 1 && i.status === tab).length > 0 && (
+              <em>{items.filter((i) => (i.revision ?? 1) > 1 && i.status === tab).length}</em>
+            )}
+          </button>
         </div>
         <div className="ap-search">
           <div className="field">

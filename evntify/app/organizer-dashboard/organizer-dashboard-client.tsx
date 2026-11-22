@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toggleCheckIn, updateEvent, cancelEvent, checkInByTicketCode } from "@/app/actions/events";
 import { sendBroadcast, getBroadcastLogs } from "@/app/actions/broadcasts";
 import type { BroadcastLogItem } from "@/app/actions/broadcasts";
@@ -122,6 +123,7 @@ export default function OrganizerDashboardClient({
   const [nfcSimulating, setNfcSimulating] = useState(false);
 
   // Modal State
+  const router = useRouter();
   const [quickCheckinOpen, setQuickCheckinOpen] = useState(false);
   // const [qrModalEvent, setQrModalEvent] = useState<EventItem | null>(null);
   const [editModalEvent, setEditModalEvent] = useState<EventItem | null>(null);
@@ -132,6 +134,8 @@ export default function OrganizerDashboardClient({
   const [editDate, setEditDate] = useState("");
   const [editStartTime, setEditStartTime] = useState("");
   const [editEndTime, setEditEndTime] = useState("");
+  const [editCategory, setEditCategory] = useState("");
+  const [editDescription, setEditDescription] = useState("");
   const [cancellingEvent, setCancellingEvent] = useState(false);
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
@@ -898,6 +902,8 @@ export default function OrganizerDashboardClient({
                           setEditDate(evt.rawDate || "");
                           setEditStartTime(evt.rawStartTime || "");
                           setEditEndTime(evt.rawEndTime || "");
+                          setEditCategory(evt.category || "");
+                          setEditDescription(evt.description || "");
                           setEditResubmit(evt.status === "returned");
                           setEditResubmitMemo("");
                         }}
@@ -1527,6 +1533,36 @@ export default function OrganizerDashboardClient({
                   )}
                 </div>
 
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold text-[#1E1B19]">Category</label>
+                    <input
+                      type="text"
+                      value={editCategory}
+                      onChange={(e) => setEditCategory(e.target.value)}
+                      placeholder="e.g. Workshop, Seminar"
+                      className="w-full rounded-xl border border-[#ECE2DC] bg-[#FAF5F2] px-3.5 py-2 text-xs font-medium text-[#1E1B19]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-[#1E1B19]">Status</label>
+                    <div className="rounded-xl border border-[#ECE2DC] bg-[#FAF5F2] px-3 py-2 text-xs font-medium text-[#7A6B68]">
+                      {editModalEvent.badgeLabel}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-[#1E1B19]">Description</label>
+                  <textarea
+                    rows={2}
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    placeholder="Describe the event..."
+                    className="w-full rounded-xl border border-[#ECE2DC] bg-[#FAF5F2] px-3.5 py-2 text-xs font-medium text-[#1E1B19]"
+                  />
+                </div>
+
                 <div className="grid grid-cols-3 gap-2">
                   <div>
                     <label className="text-xs font-semibold text-[#1E1B19]">Date</label>
@@ -1557,52 +1593,36 @@ export default function OrganizerDashboardClient({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-semibold text-[#1E1B19]">
-                      Capacity (Floor: {editModalEvent.registered})
-                    </label>
-                    <input
-                      type="number"
-                      min={editModalEvent.registered || 1}
-                      value={editModalEvent.cap}
-                      onChange={(e) =>
-                        setEditModalEvent({
-                          ...editModalEvent,
-                          cap: Number(e.target.value) || 100,
-                        })
-                      }
-                      className="w-full rounded-xl border border-[#ECE2DC] bg-[#FAF5F2] px-3.5 py-2 text-xs font-medium text-[#1E1B19]"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-[#1E1B19]">Status</label>
-                    <div className="rounded-xl border border-[#ECE2DC] bg-[#FAF5F2] px-3 py-2 text-xs font-medium text-[#7A6B68]">
-                      {editModalEvent.badgeLabel}
-                    </div>
-                  </div>
+                <div>
+                  <label className="text-xs font-semibold text-[#1E1B19]">
+                    Capacity (Floor: {editModalEvent.registered})
+                  </label>
+                  <input
+                    type="number"
+                    min={editModalEvent.registered || 1}
+                    value={editModalEvent.cap}
+                    onChange={(e) =>
+                      setEditModalEvent({
+                        ...editModalEvent,
+                        cap: Number(e.target.value) || 100,
+                      })
+                    }
+                    className="w-full rounded-xl border border-[#ECE2DC] bg-[#FAF5F2] px-3.5 py-2 text-xs font-medium text-[#1E1B19]"
+                  />
                 </div>
 
                 {editModalEvent.status === "returned" && (
                   <div className="space-y-2 border-t border-[#ECE5DF] pt-3">
-                    <label className="flex items-center gap-2 text-xs font-semibold text-[#651C32] cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={editResubmit}
-                        onChange={(e) => setEditResubmit(e.target.checked)}
-                        className="rounded accent-[#651C32]"
-                      />
-                      Resubmit to Student Affairs (SAO) for Review
+                    <label className="block text-xs font-bold text-[#651C32]">
+                      Resubmission Note for SAO Reviewer
                     </label>
-                    {editResubmit && (
-                      <textarea
-                        value={editResubmitMemo}
-                        onChange={(e) => setEditResubmitMemo(e.target.value)}
-                        placeholder="Note for reviewer detailing what changes were made..."
-                        className="w-full rounded-xl border border-[#ECE2DC] bg-[#FAF5F2] p-2.5 text-xs text-[#1E1B19]"
-                        rows={2}
-                      />
-                    )}
+                    <textarea
+                      value={editResubmitMemo}
+                      onChange={(e) => setEditResubmitMemo(e.target.value)}
+                      placeholder="Detail what changes were made in response to reviewer comments..."
+                      className="w-full rounded-xl border border-[#ECE2DC] bg-[#FAF5F2] p-2.5 text-xs text-[#1E1B19]"
+                      rows={2}
+                    />
                   </div>
                 )}
               </div>
@@ -1641,15 +1661,18 @@ export default function OrganizerDashboardClient({
                       setEditError(null);
 
                       const vObj = venues.find((v) => v.name === editModalEvent.venue);
+                      const isReturned = editModalEvent.status === "returned";
                       const res = await updateEvent({
                         eventId: editModalEvent.id,
                         title: editModalEvent.title,
                         venueId: vObj?.id,
+                        category: editCategory || undefined,
+                        description: editDescription || undefined,
                         capacity: editModalEvent.cap,
                         date: editDate || undefined,
                         startTime: editStartTime || undefined,
                         endTime: editEndTime || undefined,
-                        resubmitForReview: editResubmit,
+                        resubmitForReview: isReturned || editResubmit,
                         resubmitMemo: editResubmitMemo || undefined,
                       });
 
@@ -1657,24 +1680,14 @@ export default function OrganizerDashboardClient({
                       if (res.error) {
                         setEditError(res.error);
                       } else {
-                        setEvents((prev) =>
-                          prev.map((e) =>
-                            e.id === editModalEvent.id
-                              ? {
-                                  ...editModalEvent,
-                                  status: editResubmit ? "pending" : editModalEvent.status,
-                                  badgeLabel: editResubmit ? "Pending SAO Clearance" : editModalEvent.badgeLabel,
-                                }
-                              : e
-                          )
-                        );
                         setEditModalEvent(null);
-                        showToast("✓ Event changes saved successfully.");
+                        showToast(isReturned ? "✓ Resubmitted to SAO for review." : "✓ Event changes saved successfully.");
+                        router.refresh();
                       }
                     }}
                     className="rounded-xl bg-[#651C32] px-5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-[#521325] disabled:opacity-50"
                   >
-                    {editSaving ? "Saving..." : "Save Changes"}
+                    {editSaving ? "Saving..." : editModalEvent.status === "returned" ? "Save & Resubmit to SAO" : "Save Changes"}
                   </button>
                 </div>
               </div>

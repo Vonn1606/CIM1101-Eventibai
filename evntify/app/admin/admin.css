@@ -1158,6 +1158,64 @@
 /* ==========================================================================
    Events Directory Specific Styles
    ========================================================================== */
+.ed-root .ed-container {
+  max-width: 1440px;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.ed-root .ed-card {
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  border-radius: 12px;
+}
+
+.ed-root .ed-label {
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 700;
+  letter-spacing: .55px;
+  text-transform: uppercase;
+}
+
+.ed-root .ed-label-sm {
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 700;
+  letter-spacing: .44px;
+  color: var(--muted);
+}
+
+.ed-root .ed-t-12 {
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: .12px;
+}
+
+.ed-root .ed-t-12-600 {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  letter-spacing: .24px;
+}
+
+.ed-root .ed-muted {
+  color: var(--muted);
+}
+
+.ed-root .ed-ghost-btn {
+  padding: 8px;
+  border-radius: 8px;
+  color: var(--muted);
+}
+
+.ed-root .ed-ghost-btn:hover {
+  background: var(--surface-low);
+  color: var(--ink);
+}
+
 /* ---- Events Directory page hero ---- */
 .ed-root .ed-ev-hero {
   display: flex;
@@ -3950,4 +4008,76 @@
     flex: 1 1 100%;
     justify-content: center;
   }
+}
+
+/* ==========================================================================
+   Proposal Review Diff Styles (Issue 5)
+   ========================================================================== */
+.rv-diff-box {
+  background: var(--surface-low);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+.rv-diff-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.rv-diff-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(225, 29, 72, 0.1);
+  color: #B80035;
+}
+.rv-diff-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.rv-diff-table th {
+  text-align: left;
+  padding: 6px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+.rv-diff-table td {
+  padding: 8px;
+  vertical-align: top;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+.rv-diff-old {
+  text-decoration: line-through;
+  color: #888;
+  background: rgba(239, 68, 68, 0.08);
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-block;
+}
+.rv-diff-new {
+  color: #065F46;
+  font-weight: 600;
+  background: rgba(16, 185, 129, 0.12);
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-block;
+}
+.rv-diff-notes {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(0, 0, 0, 0.08);
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
