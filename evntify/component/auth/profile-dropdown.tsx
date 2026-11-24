@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -13,7 +14,8 @@ type ProfileDropdownProps = {
 export default function ProfileDropdown({ name, role, onClose }: ProfileDropdownProps) {
   const router = useRouter();
   const ref = useRef<HTMLDivElement>(null);
-  const [isHovered, setIsHovered] = useState(false);
+  const [isProfileHovered, setIsProfileHovered] = useState(false);
+  const [isLogoutHovered, setIsLogoutHovered] = useState(false);
 
   /* Close on outside click or Escape */
   useEffect(() => {
@@ -126,13 +128,13 @@ export default function ProfileDropdown({ name, role, onClose }: ProfileDropdown
         }}
       />
 
-      {/* Log Out button */}
-      <button
-        type="button"
+      {/* Profile link */}
+      <Link
+        href="/my-events"
         role="menuitem"
-        onClick={handleLogout}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
+        onClick={onClose}
+        onMouseEnter={() => setIsProfileHovered(true)}
+        onMouseLeave={() => setIsProfileHovered(false)}
         style={{
           display: "flex",
           alignItems: "center",
@@ -142,7 +144,72 @@ export default function ProfileDropdown({ name, role, onClose }: ProfileDropdown
           padding: "8px 12px",
           border: 0,
           borderRadius: "10px",
-          backgroundColor: isHovered ? "rgba(186, 26, 26, 0.06)" : "transparent",
+          backgroundColor: isProfileHovered ? "#faf5f2" : "transparent",
+          color: "#1e1b19",
+          textDecoration: "none",
+          cursor: "pointer",
+          fontSize: "14px",
+          fontWeight: 500,
+          fontFamily: "var(--font-dm-sans), 'DM Sans', system-ui, sans-serif",
+          transition: "background-color 0.15s ease",
+          boxSizing: "border-box",
+          textAlign: "left",
+        }}
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#1e1b19"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+          style={{
+            width: "16px",
+            minWidth: "16px",
+            maxWidth: "16px",
+            height: "16px",
+            minHeight: "16px",
+            maxHeight: "16px",
+            flexShrink: 0,
+            display: "block",
+          }}
+        >
+          <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+          <circle cx="12" cy="7" r="4" />
+        </svg>
+        <span
+          style={{
+            color: "#1e1b19",
+            fontSize: "14px",
+            fontWeight: 500,
+            lineHeight: "20px",
+            letterSpacing: "-0.1px",
+          }}
+        >
+          Profile
+        </span>
+      </Link>
+
+      {/* Log Out button */}
+      <button
+        type="button"
+        role="menuitem"
+        onClick={handleLogout}
+        onMouseEnter={() => setIsLogoutHovered(true)}
+        onMouseLeave={() => setIsLogoutHovered(false)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "10px",
+          width: "100%",
+          height: "40px",
+          padding: "8px 12px",
+          border: 0,
+          borderRadius: "10px",
+          backgroundColor: isLogoutHovered ? "rgba(186, 26, 26, 0.06)" : "transparent",
           color: "#ba1a1a",
           cursor: "pointer",
           fontSize: "14px",

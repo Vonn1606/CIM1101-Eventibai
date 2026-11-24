@@ -40,10 +40,12 @@ export async function setActiveOrganization(orgId: string): Promise<SetActiveOrg
 
   // If not admin, check membership in organization_members
   if (!isAdmin) {
+    // Bug Fix: organization_members has composite primary key (organization_id, user_id)
+    // and no "id" column. Selecting "id" throws a column not found error and falsely rejects membership.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: membership } = await (supabase as any)
       .from("organization_members")
-      .select("id")
+      .select("organization_id")
       .eq("user_id", user.id)
       .eq("organization_id", parsed.data)
       .maybeSingle();

@@ -7,10 +7,17 @@ export interface UserOrganization {
   name: string;
   position: string;
   deptLabel?: string | null;
+  collegeName?: string | null;
+  shortName?: string | null;
+  initials?: string | null;
+  category?: string | null;
+  memberCount?: number;
+  upcomingEventsCount?: number;
 }
 
 /**
- * Returns all organizations of which the user is an active member.
+ * Returns all organizations of which the user is an active member,
+ * along with real member counts and upcoming event counts from the database.
  */
 export async function getMyOrganizations(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -22,7 +29,15 @@ export async function getMyOrganizations(
     .select(`
       position,
       organization_id,
-      organizations ( id, name, dept_label )
+      organizations (
+        id,
+        name,
+        dept_label,
+        short_name,
+        initials,
+        college_id,
+        colleges ( name, short_name )
+      )
     `)
     .eq("user_id", userId);
 
@@ -33,14 +48,104 @@ export async function getMyOrganizations(
   (data as any[]).forEach((row) => {
     const org = row.organizations;
     if (org && org.id) {
+      const collegeName = org.colleges?.name ?? null;
+      const deptLabel = org.dept_label ?? collegeName ?? null;
+      const category = deptLabel || collegeName || "Student Organization";
+
       orgs.push({
         id: org.id as string,
         name: (org.name ?? "Unnamed Organization") as string,
         position: (row.position ?? "Member") as string,
-        deptLabel: org.dept_label ?? null,
+        deptLabel,
+        collegeName,
+        shortName: org.short_name ?? null,
+        initials: org.initials ?? null,
+        category,
+        memberCount: 1,
+        upcomingEventsCount: 0,
       });
     }
   });
+
+  if (orgs.length > 0) {
+    const orgIds = orgs.map((o) => o.id);
+    const nowIso = new Date().toISOString();
+
+    // Query real member counts and real upcoming events in parallel
+    await Promise.all([
+      // 1. Real member counts
+      (async () => {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { data: memberCountRows } = await (supabase.rpc as any)(
+            "get_organization_member_counts",
+            { p_org_ids: orgIds }
+          );
+
+          if (memberCountRows && memberCountRows.length > 0) {
+            const mCounts: Record<string, number> = {};
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            memberCountRows.forEach((row: any) => {
+              mCounts[row.organization_id] = Number(row.member_count);
+            });
+            orgs.forEach((o) => {
+              if (mCounts[o.id] !== undefined) {
+                o.memberCount = mCounts[o.id];
+              }
+            });
+          } else {
+            // Direct table fallback
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { data: mRows } = await (supabase as any)
+              .from("organization_members")
+              .select("organization_id")
+              .in("organization_id", orgIds);
+
+            if (mRows && mRows.length > 0) {
+              const mCounts: Record<string, number> = {};
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              mRows.forEach((row: any) => {
+                mCounts[row.organization_id] = (mCounts[row.organization_id] || 0) + 1;
+              });
+              orgs.forEach((o) => {
+                if (mCounts[o.id] !== undefined) {
+                  o.memberCount = mCounts[o.id];
+                }
+              });
+            }
+          }
+        } catch {
+          // Default baseline maintained
+        }
+      })(),
+
+      // 2. Real upcoming events
+      (async () => {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { data: eventRows } = await (supabase as any)
+            .from("events")
+            .select("organization_id")
+            .in("organization_id", orgIds)
+            .gte("starts_at", nowIso)
+            .neq("status", "cancelled");
+
+          if (eventRows) {
+            const counts: Record<string, number> = {};
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            eventRows.forEach((e: any) => {
+              counts[e.organization_id] = (counts[e.organization_id] || 0) + 1;
+            });
+            orgs.forEach((o) => {
+              o.upcomingEventsCount = counts[o.id] ?? 0;
+            });
+          }
+        } catch {
+          // Default baseline maintained
+        }
+      })(),
+    ]);
+  }
 
   return orgs;
 }

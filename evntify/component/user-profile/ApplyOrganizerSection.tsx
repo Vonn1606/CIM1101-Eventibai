@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { UserPlus, Sparkles, CheckCircle2, Clock, X, AlertCircle } from "lucide-react";
+import { UserPlus, Sparkles, Clock, X, AlertCircle } from "lucide-react";
 import { submitOrganizerApplication } from "@/app/actions/organizer-application";
 
 interface ApplyOrganizerSectionProps {
@@ -14,14 +14,17 @@ interface ApplyOrganizerSectionProps {
     admin_notes?: string | null;
   } | null;
   userRole?: string;
+  allOrganizations?: Array<{ id: string; name: string; short_name?: string | null }>;
 }
 
 export default function ApplyOrganizerSection({
   existingApplication,
   userRole,
+  allOrganizations = [],
 }: ApplyOrganizerSectionProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const [orgName, setOrgName] = useState("");
+  const [selectedOrgId, setSelectedOrgId] = useState<string | undefined>(undefined);
   const [position, setPosition] = useState("");
   const [department, setDepartment] = useState("");
   const [reason, setReason] = useState("");
@@ -29,30 +32,22 @@ export default function ApplyOrganizerSection({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  // If already an organizer or admin
-  if (userRole === "organizer" || userRole === "admin") {
-    return (
-      <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-5 shadow-xs flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="rounded-xl bg-emerald-100 p-2.5 text-emerald-800">
-            <CheckCircle2 size={20} />
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-emerald-950">Organizer Privileges Active</h3>
-            <p className="text-xs text-emerald-700">
-              You have access to create campus events, manage live attendee rosters, and broadcast notifications.
-            </p>
-          </div>
-        </div>
-        <a
-          href="/organizer-dashboard"
-          className="rounded-xl bg-emerald-800 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-emerald-900 transition shrink-0"
-        >
-          Organizer Dashboard
-        </a>
-      </div>
+  const handleOrgNameChange = (val: string) => {
+    setOrgName(val);
+    const trimmed = val.trim().toLowerCase();
+    const matched = allOrganizations.find(
+      (o) =>
+        o.name.toLowerCase() === trimmed ||
+        (o.short_name && o.short_name.toLowerCase() === trimmed)
     );
-  }
+    setSelectedOrgId(matched?.id);
+  };
+
+  // Feature: Persistent "Apply as Organizer" — organizers/admins see their status
+  // banner but are NOT blocked from applying to join additional organizations.
+  // The early-return has been replaced with a conditional banner rendered inline
+  // above the apply form, so existing organizers can still submit new applications.
+  const isPrivilegedUser = userRole === "organizer" || userRole === "admin";
 
   // If there's an existing pending application
   if (existingApplication?.status === "pending" || success) {
@@ -82,6 +77,7 @@ export default function ApplyOrganizerSection({
     setSubmitting(true);
 
     const res = await submitOrganizerApplication({
+      organizationId: selectedOrgId,
       orgName,
       position,
       department,
@@ -106,13 +102,17 @@ export default function ApplyOrganizerSection({
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-base font-bold text-[#1E1B19]">Lead an Organization or Event?</h3>
+              <h3 className="text-base font-bold text-[#1E1B19]">
+                {isPrivilegedUser ? "Join Another Organization?" : "Lead an Organization or Event?"}
+              </h3>
               <span className="rounded-full bg-[#FCECEF] px-2 py-0.5 text-[10px] font-bold text-[#8C233C]">
                 Student Councils &amp; Orgs
               </span>
             </div>
             <p className="text-xs text-[#7A6B68] mt-0.5">
-              Apply as a campus event organizer to host events, reserve venues, and coordinate participant fast-passes.
+              {isPrivilegedUser
+                ? "Apply to represent an additional campus organization or council as an event organizer."
+                : "Apply as a campus event organizer to host events, reserve venues, and coordinate participant fast-passes."}
             </p>
           </div>
         </div>
@@ -152,15 +152,32 @@ export default function ApplyOrganizerSection({
               )}
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-[#1E1B19]">Organization / Council Name *</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-[#1E1B19]">Organization / Council Name *</label>
+                  {selectedOrgId && (
+                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                      ✓ Matches recognized org
+                    </span>
+                  )}
+                </div>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. League of Information Tech Students"
+                  list="org-suggestions"
+                  placeholder="e.g. League of Information Technology Students"
                   value={orgName}
-                  onChange={(e) => setOrgName(e.target.value)}
+                  onChange={(e) => handleOrgNameChange(e.target.value)}
                   className="w-full rounded-xl border border-[#ECE2DC] bg-[#FAF5F2] p-2.5 text-xs text-[#1E1B19] focus:bg-white focus:border-[#651C32] focus:outline-none"
                 />
+                {allOrganizations.length > 0 && (
+                  <datalist id="org-suggestions">
+                    {allOrganizations.map((o) => (
+                      <option key={o.id} value={o.name}>
+                        {o.short_name ? `${o.short_name} • ${o.name}` : o.name}
+                      </option>
+                    ))}
+                  </datalist>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">

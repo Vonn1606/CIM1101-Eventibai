@@ -78,12 +78,14 @@ export default function EventsNavbar({
             <div className="h-8 w-16 rounded-lg bg-neutral-100 animate-pulse" />
           ) : user ? (
             <>
-              <Link
-                href={isAdmin ? "/admin" : isOrganizer ? "/organizer-dashboard" : "/my-events"}
-                className="hidden sm:inline-flex h-8 items-center px-3 rounded-lg text-xs font-bold text-neutral-700 hover:bg-neutral-100 transition"
-              >
-                {isAdmin ? "Admin Portal" : isOrganizer ? "Organizer Dashboard" : "My Events"}
-              </Link>
+              {isAdmin && (
+                <Link
+                  href="/admin"
+                  className="hidden sm:inline-flex h-8 items-center px-3 rounded-lg text-xs font-bold text-neutral-700 hover:bg-neutral-100 transition"
+                >
+                  Admin Portal
+                </Link>
+              )}
 
               {/* Profile avatar button + dropdown */}
               <div className="relative">

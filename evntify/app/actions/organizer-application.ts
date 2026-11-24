@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/app/actions/admin";
 
@@ -143,84 +144,139 @@ export async function decideOrganizerApplication(
   const adminCheck = await requireAdmin(supabase, user.id);
   if (!adminCheck.ok) return { error: adminCheck.error };
 
+  // Use admin (service-role) client if configured to safely perform cross-user updates
+  const adminDb = createAdminClient() ?? supabase;
+
   // Fetch application
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: appRow, error: fetchErr } = await (supabase as any)
+  const { data: appRow, error: fetchErr } = await (adminDb as any)
     .from("organizer_applications")
-    .select("id, user_id, organization_id, org_name, position")
+    .select("id, user_id, organization_id, org_name, position, department")
     .eq("id", applicationId)
     .single();
 
   if (fetchErr || !appRow) return { error: "Application not found." };
 
-  // Update application
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: updateErr } = await (supabase as any)
-    .from("organizer_applications")
-    .update({
-      status: decision,
-      admin_notes: adminNotes || null,
-      reviewed_at: new Date().toISOString(),
-      reviewed_by: user.id,
-    })
-    .eq("id", applicationId);
-
-  if (updateErr) return { error: updateErr.message };
-
   // If approved:
   if (decision === "approved") {
-    // 1. Promote profile role to organizer
-    const { error: roleErr } = await supabase
+    // 1. Resolve or create organization FIRST before role promotion
+    let orgId = appRow.organization_id;
+    if (!orgId) {
+      const trimmedName = appRow.org_name.trim();
+
+      // Check case-insensitive match on name or short_name (limit 1 to avoid multi-row errors)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: matchedOrgs } = await (adminDb as any)
+        .from("organizations")
+        .select("id, name, short_name")
+        .or(`name.ilike.${trimmedName},short_name.ilike.${trimmedName}`)
+        .limit(1);
+
+      if (matchedOrgs && matchedOrgs.length > 0) {
+        orgId = matchedOrgs[0].id;
+      } else {
+        const words = trimmedName.split(/\s+/);
+        const autoShort =
+          words.length > 1
+            ? words
+                .map((w: string) => w[0])
+                .join("")
+                .slice(0, 10)
+                .toUpperCase()
+            : trimmedName.slice(0, 10).toUpperCase();
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: newOrg, error: newOrgErr } = await (adminDb as any)
+          .from("organizations")
+          .insert({
+            name: trimmedName,
+            short_name: autoShort,
+            dept_label: appRow.department?.trim() || null,
+          })
+          .select("id")
+          .single();
+
+        if (newOrgErr) {
+          console.error("[decideOrganizerApplication] Failed to create organization:", newOrgErr.message);
+          return { error: `Failed to create organization: ${newOrgErr.message}` };
+        }
+        if (newOrg) {
+          orgId = newOrg.id;
+        }
+      }
+    }
+
+    if (!orgId) {
+      return { error: "Could not resolve or create target organization." };
+    }
+
+    // Persist resolved organization_id back to application
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (adminDb as any)
+      .from("organizer_applications")
+      .update({ organization_id: orgId })
+      .eq("id", applicationId);
+
+    // 2. Link user in organization_members BEFORE promoting role.
+    // If membership creation fails, we do NOT leave the user in an orphaned "organizer" role.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: memberUpsertErr } = await (adminDb as any).from("organization_members").upsert(
+      {
+        organization_id: orgId,
+        user_id: appRow.user_id,
+        position: appRow.position || "Officer",
+      },
+      { onConflict: "organization_id,user_id" }
+    );
+
+    if (memberUpsertErr) {
+      console.error("[decideOrganizerApplication] Failed to insert organization member:", memberUpsertErr);
+      return { error: `Approved role, but failed to link organization: ${memberUpsertErr.message}` };
+    }
+
+    // 3. Promote profile role to organizer
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: roleErr } = await (adminDb as any)
       .from("profiles")
       .update({ role: "organizer" })
       .eq("id", appRow.user_id);
+
     if (roleErr) return { error: `Could not promote user: ${roleErr.message}` };
 
-    // 2. Resolve or create organization
-    let orgId = appRow.organization_id;
-    if (!orgId) {
-      const { data: matchedOrg } = await supabase
-        .from("organizations")
-        .select("id")
-        .ilike("name", appRow.org_name)
-        .maybeSingle();
+    // 4. Update application status to approved
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: updateErr } = await (adminDb as any)
+      .from("organizer_applications")
+      .update({
+        status: "approved",
+        admin_notes: adminNotes || null,
+        reviewed_at: new Date().toISOString(),
+        reviewed_by: user.id,
+      })
+      .eq("id", applicationId);
 
-      if (matchedOrg) {
-        orgId = matchedOrg.id;
-      } else {
-        const { data: newOrg } = await supabase
-          .from("organizations")
-          .insert({ name: appRow.org_name, short_name: appRow.org_name.slice(0, 10).toUpperCase() })
-          .select("id")
-          .single();
-        if (newOrg) orgId = newOrg.id;
-      }
-    }
+    if (updateErr) return { error: updateErr.message };
+  } else {
+    // Decision is "rejected"
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: updateErr } = await (adminDb as any)
+      .from("organizer_applications")
+      .update({
+        status: "rejected",
+        admin_notes: adminNotes || null,
+        reviewed_at: new Date().toISOString(),
+        reviewed_by: user.id,
+      })
+      .eq("id", applicationId);
 
-    // 3. Link user in organization_members
-    if (orgId) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error: memberUpsertErr } = await (supabase as any).from("organization_members").upsert(
-        {
-          organization_id: orgId,
-          user_id: appRow.user_id,
-          position: appRow.position || "Officer",
-        },
-        { onConflict: "organization_id,user_id" }
-      );
-      if (memberUpsertErr) {
-        console.error("[decideOrganizerApplication] Failed to insert organization member:", memberUpsertErr);
-        return { error: `Approved role, but failed to link organization: ${memberUpsertErr.message}` };
-      }
-    } else {
-      return { error: "Approved role, but could not resolve target organization ID." };
-    }
+    if (updateErr) return { error: updateErr.message };
   }
 
   // Notify the applicant of the decision (non-blocking)
   try {
     const isApproved = decision === "approved";
-    await supabase.from("notifications").insert({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (adminDb as any).from("notifications").insert({
       user_id: appRow.user_id,
       title: isApproved
         ? "Organizer Application Approved 🎉"
@@ -255,13 +311,14 @@ export async function createOrganizationWithOrganizer(input: {
   const adminCheck = await requireAdmin(supabase, user.id);
   if (!adminCheck.ok) return { error: adminCheck.error };
 
+  const adminDb = createAdminClient() ?? supabase;
+
   // 1. Find profile by email or student number
   const term = input.studentEmailOrNumber.trim();
-  const { data: targetProfile, error: profileErr } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: targetProfile, error: profileErr } = await (adminDb as any)
     .from("profiles")
     .select("id, role, full_name")
-    // Query #1 fix: avoid leading-wildcard ilike (prevents B-Tree index use).
-    // Try exact email match first, then exact student number match.
     .or(`email.eq.${term},student_number.eq.${term}`)
     .maybeSingle();
 
@@ -270,7 +327,8 @@ export async function createOrganizationWithOrganizer(input: {
   }
 
   // 2. Create organization
-  const { data: newOrg, error: orgErr } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: newOrg, error: orgErr } = await (adminDb as any)
     .from("organizations")
     .insert({
       name: input.orgName.trim(),
@@ -285,11 +343,12 @@ export async function createOrganizationWithOrganizer(input: {
   }
 
   // 3. Update target profile role to organizer
-  await supabase.from("profiles").update({ role: "organizer" }).eq("id", targetProfile.id);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (adminDb as any).from("profiles").update({ role: "organizer" }).eq("id", targetProfile.id);
 
   // 4. Insert into organization_members
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: memberErr } = await (supabase as any).from("organization_members").upsert(
+  const { error: memberErr } = await (adminDb as any).from("organization_members").upsert(
     {
       organization_id: newOrg.id,
       user_id: targetProfile.id,

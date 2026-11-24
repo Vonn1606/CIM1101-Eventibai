@@ -108,7 +108,15 @@ export default function OrganizerDashboardClient({
   const [ticketInputCode, setTicketInputCode] = useState("");
   const [ticketScanResult, setTicketScanResult] = useState<{ success?: boolean; message?: string } | null>(null);
   const [ticketScanning, setTicketScanning] = useState(false);
-  const [selectedCheckinEventId, setSelectedCheckinEventId] = useState<string>("");
+  // Bug Fix #3: Initialize selectedCheckinEventId to the first live/soldout event's
+  // ID (or the first event overall) so it always matches what the select displays.
+  // An empty string caused a mismatch between the UI selection and the submitted eventId.
+  const [selectedCheckinEventId, setSelectedCheckinEventId] = useState<string>(
+    () => {
+      const liveEvent = initialEvents.find((ev) => ev.status === "live" || ev.status === "soldout");
+      return liveEvent?.id ?? initialEvents[0]?.id ?? "";
+    }
+  );
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [orgDropdownOpen, setOrgDropdownOpen] = useState(false);
   const [isPendingOrg, startOrgTransition] = useTransition();
@@ -1453,16 +1461,18 @@ export default function OrganizerDashboardClient({
                     setTicketScanning(true);
                     setTicketScanResult(null);
 
-                    // Pick selected or active event
+                    // Bug Fix #3: Use selectedCheckinEventId (always populated after the
+                    // lazy initializer fix) as the authoritative event ID.  Fall back to
+                    // the first live/soldout event only when the state truly has no value.
                     const fallbackEvent = events.find((ev) => ev.status === "live" || ev.status === "soldout") ?? events[0];
-                    const targetEvent = events.find((ev) => ev.id === selectedCheckinEventId) ?? fallbackEvent;
-                    if (!targetEvent) {
+                    const resolvedEventId = selectedCheckinEventId || fallbackEvent?.id;
+                    if (!resolvedEventId) {
                       setTicketScanResult({ success: false, message: "No event found to check into." });
                       setTicketScanning(false);
                       return;
                     }
 
-                    const res = await checkInByTicketCode(ticketInputCode.trim(), targetEvent.id);
+                    const res = await checkInByTicketCode(ticketInputCode.trim(), resolvedEventId);
                     setTicketScanning(false);
                     if (res.error) {
                       setTicketScanResult({ success: false, message: res.error });
@@ -1472,6 +1482,21 @@ export default function OrganizerDashboardClient({
                         message: `Checked in ${res.studentName ?? "student"} (${res.studentNumber ?? "ID"}) at ${res.checkedInTime}`,
                       });
                       setTicketInputCode("");
+                      // Bug Fix #3: Reflect the successful check-in in the live roster
+                      // so the attendee table updates immediately without a full page refresh.
+                      if (res.studentNumber) {
+                        setRoster((prev) =>
+                          prev.map((s) =>
+                            s.studentId === res.studentNumber
+                              ? {
+                                  ...s,
+                                  checkedIn: true,
+                                  checkedInTime: res.checkedInTime ?? new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+                                }
+                              : s
+                          )
+                        );
+                      }
                     }
                   }}
                   className="space-y-3 text-left"
@@ -1481,8 +1506,10 @@ export default function OrganizerDashboardClient({
                       <label className="block text-xs font-semibold text-[#5A4B48]">
                         Check-in Event
                       </label>
+                      {/* Bug Fix #3: Use selectedCheckinEventId directly (never empty after
+                          initializer) so the submitted eventId always matches what is shown. */}
                       <select
-                        value={selectedCheckinEventId || (events.find((ev) => ev.status === "live" || ev.status === "soldout") ?? events[0])?.id}
+                        value={selectedCheckinEventId}
                         onChange={(e) => setSelectedCheckinEventId(e.target.value)}
                         className="w-full rounded-xl border border-[#E4D9D2] bg-white px-3 py-2 text-xs font-medium text-[#1E1B19] focus:outline-none focus:border-[#651C32]"
                       >

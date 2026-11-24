@@ -111,8 +111,38 @@ export default function ApApprovalsView({
   });
 
   const [tab, setTab] = useState<Tab>("pending");
+  // Bug Fix #4: "Resubmitted" is an overlay filter, NOT a separate tab.
+  // Selecting any primary tab must clear this filter so it cannot be simultaneously
+  // active with a primary tab in a visually contradictory way. A helper handles
+  // this pairing so both states always stay mutually consistent.
   const [filterResubmitted, setFilterResubmitted] = useState(false);
   const [query, setQuery] = useState("");
+
+  /**
+   * Switch to a primary tab and always clear the resubmitted filter,
+   * enforcing mutual exclusivity between primary tabs and the Resubmitted overlay.
+   */
+  const switchTab = (key: Tab) => {
+    setTab(key);
+    setFilterResubmitted(false);
+  };
+
+  /**
+   * Toggle the resubmitted filter. When activating it, also switch to "pending"
+   * (the most common home for resubmissions) if not already there, and deselect
+   * any visual "active" appearance of primary tabs by not changing their class
+   * (the class is now driven purely by `tab`).
+   */
+  const toggleResubmitted = () => {
+    setFilterResubmitted((prev) => {
+      const next = !prev;
+      if (next) {
+        // Resubmissions that are waiting for re-approval live under "pending"
+        setTab("pending");
+      }
+      return next;
+    });
+  };
   const [openId, setOpenId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -263,9 +293,9 @@ export default function ApApprovalsView({
             return (
               <button
                 key={key} type="button" role="tab"
-                aria-selected={tab === key}
-                className={tab === key ? "on" : ""}
-                onClick={() => setTab(key)}
+                aria-selected={tab === key && !filterResubmitted}
+                className={tab === key && !filterResubmitted ? "on" : ""}
+                onClick={() => switchTab(key)}
               >
                 <Icon size={13} color={key === "approved" ? "#059669" : undefined} />
                 {label}
@@ -273,10 +303,14 @@ export default function ApApprovalsView({
               </button>
             );
           })}
+          {/* Bug Fix #4: "Resubmitted" is visually on only when filterResubmitted is true,
+              and clicking any primary tab (via switchTab) will clear it. */}
           <button
             type="button"
+            role="tab"
+            aria-selected={filterResubmitted}
             className={filterResubmitted ? "on" : ""}
-            onClick={() => setFilterResubmitted(!filterResubmitted)}
+            onClick={toggleResubmitted}
             title="Filter to proposals that were resubmitted with changes"
             style={{ marginLeft: 8 }}
           >

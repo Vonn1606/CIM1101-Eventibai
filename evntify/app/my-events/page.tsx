@@ -139,6 +139,7 @@ export default async function MyEventsPage({ searchParams }: MyEventsPageProps) 
     monthEvents,
     userOrgs,
     activeOrgId,
+    allOrgsRes,
   ] = await Promise.all([
     getMyRegistrations(user.id),
     getUserOrganizerApplication(),
@@ -146,7 +147,14 @@ export default async function MyEventsPage({ searchParams }: MyEventsPageProps) 
     getCalendarEvents(manilaYear, manilaMonth),
     getMyOrganizations(supabase, user.id),
     getActiveOrgId(supabase, user.id),
+    supabase.from("organizations").select("id, name, short_name").order("name"),
   ]);
+
+  const allOrganizations = (allOrgsRes.data ?? []).map((o) => ({
+    id: o.id,
+    name: o.name,
+    short_name: o.short_name,
+  }));
 
   const userRole = userProfileRes.data?.role ?? "student";
 
@@ -248,14 +256,20 @@ export default async function MyEventsPage({ searchParams }: MyEventsPageProps) 
 
   return (
     <>
-      <Header />
+      {/* Feature 2: Pass organizations + activeOrgId so Header can render
+          the multi-org dropdown when the user belongs to more than one org. */}
+      <Header organizations={userOrgs} activeOrgId={activeOrgId} />
       <main className="min-h-[576px] bg-surface">
         <div className="mx-auto flex max-w-[1440px] flex-col gap-8 px-6 lg:px-10 py-8">
           <WelcomeBar upcoming={upcomingEvents.length} past={pastEvents.length} />
 
           <OrganizationSwitcher organizations={userOrgs} activeOrgId={activeOrgId} />
 
-          <ApplyOrganizerSection existingApplication={userApp} userRole={userRole} />
+          <ApplyOrganizerSection
+            existingApplication={userApp}
+            userRole={userRole}
+            allOrganizations={allOrganizations}
+          />
 
           <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,488px)_1fr]">
             <aside className="flex flex-col gap-5 lg:sticky lg:top-28">
