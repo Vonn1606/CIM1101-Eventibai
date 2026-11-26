@@ -130,8 +130,14 @@ export default function OrganizerDashboardClient({
 
   // App Data
   const [events, setEvents] = useState<OrgEvent[]>(initialEvents);
+  const [prevInitialEvents, setPrevInitialEvents] = useState<OrgEvent[]>(initialEvents);
+  if (initialEvents !== prevInitialEvents) {
+    setPrevInitialEvents(initialEvents);
+    setEvents(initialEvents);
+  }
+
   const [roster, setRoster] = useState<OrgRosterStudent[]>(initialRoster);
-  const [rosterLoading, setRosterLoading] = useState(false);
+  const [settledRosterKey, setSettledRosterKey] = useState<string | null>(null);
   const rosterLoadedKeyRef = useRef<string | null>(null);
   const [broadcastMessage, setBroadcastMessage] = useState(
     "Doors open in 15 mins! Have your student QR codes ready for fast gate tap at Tan Yan Kee 11th Flr."
@@ -160,47 +166,36 @@ export default function OrganizerDashboardClient({
   // Modal State
   const [quickCheckinOpen, setQuickCheckinOpen] = useState(false);
 
-  // Keep client events synced when server props refresh (e.g., org switch)
-  useEffect(() => {
-    setEvents(initialEvents);
-  }, [initialEvents]);
+  const targetRosterEvent =
+    events.find((e) => e.id === selectedRosterEvent) ??
+    events.find((e) => e.status === "live" || e.status === "soldout" || e.status === "completed") ??
+    events[0];
+  const rosterLoadKey = targetRosterEvent?.id ? `${activeOrgId ?? "init"}:${targetRosterEvent.id}` : null;
+  const rosterLoading = Boolean(rosterLoadKey && settledRosterKey !== rosterLoadKey);
 
   // Load roster for the selected event (or default live/first event) on mount & when selection/org changes
   useEffect(() => {
-    const targetEvent =
-      events.find((e) => e.id === selectedRosterEvent) ??
-      events.find((e) => e.status === "live" || e.status === "soldout" || e.status === "completed") ??
-      events[0];
-    if (!targetEvent?.id) {
-      setRoster([]);
-      return;
-    }
-
-    if (selectedRosterEvent !== targetEvent.id) {
-      setSelectedRosterEvent(targetEvent.id);
-    }
-
-    const loadKey = `${activeOrgId ?? "init"}:${targetEvent.id}`;
-    if (rosterLoadedKeyRef.current === loadKey) return;
+    if (!targetRosterEvent?.id || !rosterLoadKey) return;
+    if (rosterLoadedKeyRef.current === rosterLoadKey) return;
 
     let cancelled = false;
-    rosterLoadedKeyRef.current = loadKey;
-    setRosterLoading(true);
-    fetchOrgRoster(targetEvent.id, targetEvent.tier)
+    rosterLoadedKeyRef.current = rosterLoadKey;
+    fetchOrgRoster(targetRosterEvent.id, targetRosterEvent.tier)
       .then((res) => {
-        if (!cancelled && res.roster) setRoster(res.roster);
+        if (cancelled) return;
+        setRoster(res.roster ?? []);
+        setSettledRosterKey(rosterLoadKey);
       })
       .catch(() => {
-        if (!cancelled) rosterLoadedKeyRef.current = null;
-      })
-      .finally(() => {
-        if (!cancelled) setRosterLoading(false);
+        if (cancelled) return;
+        rosterLoadedKeyRef.current = null;
+        setSettledRosterKey(rosterLoadKey);
       });
 
     return () => {
       cancelled = true;
     };
-  }, [selectedRosterEvent, activeOrgId, events]);
+  }, [targetRosterEvent, rosterLoadKey]);
   // const [qrModalEvent, setQrModalEvent] = useState<EventItem | null>(null);
   const [editModalEvent, setEditModalEvent] = useState<EventItem | null>(null);
   const [editSaving, setEditSaving] = useState(false);
@@ -1304,7 +1299,7 @@ export default function OrganizerDashboardClient({
                 {/* Event Selector */}
                 <div className="relative">
                   <select
-                    value={selectedRosterEvent}
+                    value={targetRosterEvent?.id ?? ""}
                     onChange={(e) => setSelectedRosterEvent(e.target.value)}
                     disabled={events.length === 0}
                     className="appearance-none rounded-xl border border-[#ECE2DC] bg-[#FAF5F2] px-3.5 py-1.5 pr-8 text-xs font-semibold text-[#1E1B19] focus:bg-white focus:border-[#651C32] focus:outline-none transition cursor-pointer disabled:opacity-60"
