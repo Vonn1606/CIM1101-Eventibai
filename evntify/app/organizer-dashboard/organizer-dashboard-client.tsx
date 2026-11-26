@@ -130,8 +130,15 @@ export default function OrganizerDashboardClient({
 
   // App Data
   const [events, setEvents] = useState<OrgEvent[]>(initialEvents);
+  const [prevInitialEvents, setPrevInitialEvents] = useState<OrgEvent[]>(initialEvents);
+  if (initialEvents !== prevInitialEvents) {
+    setPrevInitialEvents(initialEvents);
+    setEvents(initialEvents);
+  }
+
   const [roster, setRoster] = useState<OrgRosterStudent[]>(initialRoster);
-  const rosterLoadedForOrgRef = useRef<string | null>(initialRoster.length > 0 ? (activeOrgId ?? "init") : null);
+  const [settledRosterKey, setSettledRosterKey] = useState<string | null>(null);
+  const rosterLoadedKeyRef = useRef<string | null>(null);
   const [broadcastMessage, setBroadcastMessage] = useState(
     "Doors open in 15 mins! Have your student QR codes ready for fast gate tap at Tan Yan Kee 11th Flr."
   );
@@ -143,9 +150,12 @@ export default function OrganizerDashboardClient({
   const [selectedCohort, setSelectedCohort] = useState<string>(
     initialEvents[0]?.id ?? ""
   );
-  const [selectedRosterEvent, setSelectedRosterEvent] = useState(
-    "LITS General Assembly (400 pax)"
-  );
+  const [selectedRosterEvent, setSelectedRosterEvent] = useState<string>(() => {
+    const preferred =
+      initialEvents.find((e) => e.status === "live" || e.status === "soldout" || e.status === "completed") ??
+      initialEvents[0];
+    return preferred?.id ?? "";
+  });
   const [rosterSearch, setRosterSearch] = useState("");
   const [headerSearch, setHeaderSearch] = useState("");
 
@@ -156,25 +166,36 @@ export default function OrganizerDashboardClient({
   // Modal State
   const [quickCheckinOpen, setQuickCheckinOpen] = useState(false);
 
-  // Lazy-load roster only when the organizer opens Roster or Quick Check-in
+  const targetRosterEvent =
+    events.find((e) => e.id === selectedRosterEvent) ??
+    events.find((e) => e.status === "live" || e.status === "soldout" || e.status === "completed") ??
+    events[0];
+  const rosterLoadKey = targetRosterEvent?.id ? `${activeOrgId ?? "init"}:${targetRosterEvent.id}` : null;
+  const rosterLoading = Boolean(rosterLoadKey && settledRosterKey !== rosterLoadKey);
+
+  // Load roster for the selected event (or default live/first event) on mount & when selection/org changes
   useEffect(() => {
-    if (activeTab !== "roster" && !quickCheckinOpen) return;
-    if (rosterLoadedForOrgRef.current === (activeOrgId ?? "init")) return;
+    if (!targetRosterEvent?.id || !rosterLoadKey) return;
+    if (rosterLoadedKeyRef.current === rosterLoadKey) return;
 
-    const targetEvent =
-      events.find((e) => e.status === "live" || e.status === "soldout" || e.status === "completed") ??
-      events[0];
-    if (!targetEvent?.id) return;
-
-    rosterLoadedForOrgRef.current = activeOrgId ?? "init";
-    fetchOrgRoster(targetEvent.id, targetEvent.tier)
+    let cancelled = false;
+    rosterLoadedKeyRef.current = rosterLoadKey;
+    fetchOrgRoster(targetRosterEvent.id, targetRosterEvent.tier)
       .then((res) => {
-        if (res.roster) setRoster(res.roster);
+        if (cancelled) return;
+        setRoster(res.roster ?? []);
+        setSettledRosterKey(rosterLoadKey);
       })
       .catch(() => {
-        rosterLoadedForOrgRef.current = null;
+        if (cancelled) return;
+        rosterLoadedKeyRef.current = null;
+        setSettledRosterKey(rosterLoadKey);
       });
-  }, [activeTab, quickCheckinOpen, activeOrgId, events]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [targetRosterEvent, rosterLoadKey]);
   // const [qrModalEvent, setQrModalEvent] = useState<EventItem | null>(null);
   const [editModalEvent, setEditModalEvent] = useState<EventItem | null>(null);
   const [editSaving, setEditSaving] = useState(false);
@@ -1014,6 +1035,7 @@ export default function OrganizerDashboardClient({
                       {evt.status === "live" && (
                         <a
                           href="#participant-checkin"
+                          onClick={() => setSelectedRosterEvent(evt.id)}
                           className="flex items-center gap-1 rounded-lg border border-[#E8DFD8] bg-[#FAF5F2] px-2.5 py-1.5 text-xs font-semibold text-[#2C181C] transition hover:bg-[#F2ECE8]"
                         >
                           <Users size={11} />
@@ -1277,13 +1299,20 @@ export default function OrganizerDashboardClient({
                 {/* Event Selector */}
                 <div className="relative">
                   <select
-                    value={selectedRosterEvent}
+                    value={targetRosterEvent?.id ?? ""}
                     onChange={(e) => setSelectedRosterEvent(e.target.value)}
-                    className="appearance-none rounded-xl border border-[#ECE2DC] bg-[#FAF5F2] px-3.5 py-1.5 pr-8 text-xs font-semibold text-[#1E1B19] focus:bg-white focus:border-[#651C32] focus:outline-none transition cursor-pointer"
+                    disabled={events.length === 0}
+                    className="appearance-none rounded-xl border border-[#ECE2DC] bg-[#FAF5F2] px-3.5 py-1.5 pr-8 text-xs font-semibold text-[#1E1B19] focus:bg-white focus:border-[#651C32] focus:outline-none transition cursor-pointer disabled:opacity-60"
                   >
-                    <option value="LITS General Assembly (400 pax)">LITS General Assembly (400 pax)</option>
-                    <option value="LITS Figma Sprint (50 pax)">LITS Figma Sprint (50 pax)</option>
-                    <option value="Mr & Ms University (300 pax)">Mr &amp; Ms University (300 pax)</option>
+                    {events.length === 0 ? (
+                      <option value="">No events available</option>
+                    ) : (
+                      events.map((evt) => (
+                        <option key={evt.id} value={evt.id}>
+                          {evt.title} ({evt.registered} / {evt.cap} pax)
+                        </option>
+                      ))
+                    )}
                   </select>
                   <ChevronDown size={14} className="pointer-events-none absolute right-2.5 top-2.5 text-[#8A7B78]" />
                 </div>
@@ -1316,7 +1345,22 @@ export default function OrganizerDashboardClient({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#ECE2DC] bg-white">
-                  {filteredRoster.map((student) => (
+                  {rosterLoading ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-8 text-center text-xs text-[#7A6B68]">
+                        Loading attendee roster...
+                      </td>
+                    </tr>
+                  ) : filteredRoster.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-8 text-center text-xs text-[#7A6B68]">
+                        {roster.length === 0
+                          ? "No registered attendees for this event yet."
+                          : "No attendees match your search."}
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredRoster.map((student) => (
                     <tr key={student.id} className="transition hover:bg-[#FAF5F2]/50">
                       {/* Attendee */}
                       <td className="px-4 py-3.5">
@@ -1382,7 +1426,8 @@ export default function OrganizerDashboardClient({
                         )}
                       </td>
                     </tr>
-                  ))}
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
