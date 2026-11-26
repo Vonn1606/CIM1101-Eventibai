@@ -77,11 +77,44 @@ export type ApprovalItem = {
   previousNote?: string | null;
 };
 
+type ApprovalRow = {
+  id: string;
+  submitted_at: string;
+  decision: "pending" | "approved" | "rejected" | "returned" | "declined" | null;
+  decided_at: string | null;
+  decision_note: string | null;
+  brief: string | null;
+  capacity_note: string | null;
+  safety_check: string | null;
+  seats_expected: number | null;
+  risk: string | null;
+  revision?: number | null;
+  changes?: Record<string, { from: unknown; to: unknown }> | null;
+  resubmitted_at?: string | null;
+  supersedes_id?: string | null;
+  is_current?: boolean | null;
+  events: {
+    id: string;
+    title: string | null;
+    category: string | null;
+    total_capacity: number | null;
+    starts_at: string | null;
+    ends_at: string | null;
+    description: string[] | string | null;
+    summary: string | null;
+    organizations: { name: string | null; dept_label: string | null } | null;
+    colleges: { name: string | null } | null;
+    venues: { name: string | null; details: string | null } | null;
+  } | null;
+  event_documents: Array<{ kind?: string; label?: string; file_url?: string }> | null;
+  profiles: { full_name: string | null; email: string | null } | null;
+};
+
 export const getApprovals = cache(async (): Promise<ApprovalItem[]> => {
   const supabase = await createClient();
 
   // Try selecting with revision/changes/is_current/supersedes_id
-  let res: any = await supabase
+  let res = (await supabase
     .from("event_approvals")
     .select(`
       id, submitted_at, decision, decided_at, decision_note, brief, capacity_note, safety_check, seats_expected, risk,
@@ -96,11 +129,11 @@ export const getApprovals = cache(async (): Promise<ApprovalItem[]> => {
       profiles!submitted_by ( full_name, email )
     `)
     .order("submitted_at", { ascending: false })
-    .limit(25);
+    .limit(25)) as { data: ApprovalRow[] | null; error: { message: string } | null };
 
   // Fallback to legacy select if migration has not run yet in DB
   if (res.error && res.error.message.includes("does not exist")) {
-    res = await supabase
+    res = (await supabase
       .from("event_approvals")
       .select(`
         id, submitted_at, decision, decided_at, decision_note, brief, capacity_note, safety_check, seats_expected, risk,
@@ -114,18 +147,18 @@ export const getApprovals = cache(async (): Promise<ApprovalItem[]> => {
         profiles!submitted_by ( full_name, email )
       `)
       .order("submitted_at", { ascending: false })
-      .limit(25);
+      .limit(25)) as unknown as { data: ApprovalRow[] | null; error: { message: string } | null };
   }
 
   const { data, error } = res;
   if (error || !data) return [];
 
   // Filter out superseded rows where is_current is explicitly false
-  const rawList = (data as any[]).filter((row) => row.is_current !== false);
+  const rawList = data.filter((row) => row.is_current !== false);
 
   // Build lookup of previous notes for superseded rows
   const noteById: Record<string, string> = {};
-  for (const r of data as any[]) {
+  for (const r of data) {
     if (r.id && r.decision_note) {
       noteById[r.id] = r.decision_note;
     }
@@ -261,7 +294,22 @@ export const getEventsDirectory = cache(async (
   }
 
 
-  const items: EventDirectoryItem[] = (data as any[]).map((row) => {
+  type DirectoryRow = {
+    id: string;
+    slug: string;
+    title: string;
+    category: string | null;
+    total_capacity: number | null;
+    status: string;
+    approval: string;
+    starts_at: string | null;
+    banner_color: string | null;
+    organizations: { name: string | null } | null;
+    colleges: { name: string | null; slug: string | null } | null;
+    venues: { name: string | null } | null;
+  };
+
+  const items: EventDirectoryItem[] = (data as unknown as DirectoryRow[]).map((row) => {
     const collegeName: string = row.colleges?.name ?? "";
     const collegeSlug: string = row.colleges?.slug ?? "";
     const collegeShort = isDepartmentId(collegeSlug)
@@ -316,27 +364,42 @@ export type OrganizerItem = {
   activeEvents: number;
 };
 
+type OrganizerProfileRow = {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  student_number: string | null;
+  colleges: { name: string | null } | null;
+  organization_members: Array<{
+    position: string | null;
+    organization_id: string | null;
+    organizations: { name: string | null } | null;
+  }> | null;
+};
+
 export const getOrganizers = cache(async (): Promise<OrganizerItem[]> => {
   const supabase = await createClient();
 
-
-  const { data, error } = await (supabase as any)
+  const { data, error } = (await supabase
     .from("profiles")
     .select(`
       id, full_name, email, student_number,
       colleges ( name ),
       organization_members ( position, organization_id, organizations ( name ) )
     `)
-    .eq("role", "organizer");
+    .eq("role", "organizer")) as unknown as {
+      data: OrganizerProfileRow[] | null;
+      error: { message: string } | null;
+    };
 
   if (error || !data) return [];
 
   // Collect all org IDs so we can batch-query pending + active counts
   const orgIds = new Set<string>();
 
-  (data as any[]).forEach((p) => {
+  data.forEach((p) => {
     const members = Array.isArray(p.organization_members) ? p.organization_members : [];
-    members.forEach((m: { organization_id?: string }) => {
+    members.forEach((m) => {
       if (m.organization_id) orgIds.add(m.organization_id);
     });
   });
@@ -347,41 +410,41 @@ export const getOrganizers = cache(async (): Promise<OrganizerItem[]> => {
   if (orgIds.size > 0) {
     const ids = Array.from(orgIds);
 
-
     const [pendingRes, activeRes] = await Promise.all([
-      (supabase as any)
+      supabase
         .from("event_approvals")
         .select("events!inner(organization_id)")
         .eq("decision", "pending")
-        .in("events.organization_id", ids),
-      (supabase as any)
+        .in("events.organization_id", ids) as unknown as Promise<{
+          data: Array<{ events: { organization_id: string | null } | null }> | null;
+        }>,
+      supabase
         .from("events")
         .select("organization_id")
         .in("organization_id", ids)
         .eq("approval", "approved")
-        .eq("status", "open"),
+        .eq("status", "open") as unknown as Promise<{
+          data: Array<{ organization_id: string | null }> | null;
+        }>,
     ]);
 
     if (pendingRes.data) {
-
-      (pendingRes.data as any[]).forEach((r) => {
-        const oid = r.events?.organization_id as string | undefined;
+      pendingRes.data.forEach((r) => {
+        const oid = r.events?.organization_id ?? undefined;
         if (oid) pendingByOrg[oid] = (pendingByOrg[oid] ?? 0) + 1;
       });
     }
     if (activeRes.data) {
-
-      (activeRes.data as any[]).forEach((r) => {
-        const oid = r.organization_id as string;
-        activeByOrg[oid] = (activeByOrg[oid] ?? 0) + 1;
+      activeRes.data.forEach((r) => {
+        const oid = r.organization_id;
+        if (oid) activeByOrg[oid] = (activeByOrg[oid] ?? 0) + 1;
       });
     }
   }
 
-
-  return (data as any[]).map((p) => {
+  return data.map((p) => {
     const member = Array.isArray(p.organization_members) ? p.organization_members[0] : null;
-    const orgId = member?.organization_id as string | undefined;
+    const orgId = member?.organization_id ?? undefined;
     return {
       id: p.id,
       name: p.full_name ?? "Unknown",
@@ -407,8 +470,16 @@ export const getFeaturedEvent = cache(async (): Promise<FeaturedEventItem | null
   const supabase = await createClient();
 
   // Query explicitly featured events that are approved and upcoming
+  type FeaturedRow = {
+    title: string | null;
+    starts_at: string | null;
+    status: string | null;
+    summary: string | null;
+    description: string[] | string | null;
+    venues: { name: string | null } | null;
+  };
 
-  const { data, error } = await (supabase as any)
+  const { data, error } = (await supabase
     .from("events")
     .select(`title, starts_at, status, summary, description, is_featured, venues ( name )`)
     .eq("approval", "approved")
@@ -417,7 +488,10 @@ export const getFeaturedEvent = cache(async (): Promise<FeaturedEventItem | null
     .gte("starts_at", new Date().toISOString())
     .order("starts_at", { ascending: true })
     .limit(1)
-    .maybeSingle();
+    .maybeSingle()) as unknown as {
+      data: FeaturedRow | null;
+      error: { message: string } | null;
+    };
 
   if (error || !data) return null;
 
@@ -441,20 +515,29 @@ export type UpcomingEventItem = {
 export const getUpcomingEvents = cache(async (limit = 4): Promise<UpcomingEventItem[]> => {
   const supabase = await createClient();
 
+  type UpcomingRow = {
+    id: string;
+    title: string | null;
+    starts_at: string | null;
+    category: string | null;
+    venues: { name: string | null } | null;
+  };
 
-  const { data, error } = await (supabase as any)
+  const { data, error } = (await supabase
     .from("events")
     .select(`id, title, starts_at, category, venues ( name )`)
     .eq("approval", "approved")
     .not("status", "in", '("draft","suspended","cancelled","completed")')
     .gte("starts_at", new Date().toISOString())
     .order("starts_at", { ascending: true })
-    .limit(limit);
+    .limit(limit)) as unknown as {
+      data: UpcomingRow[] | null;
+      error: { message: string } | null;
+    };
 
   if (error || !data) return [];
 
-
-  return (data as any[]).map((row) => ({
+  return data.map((row) => ({
     id: row.id,
     title: row.title ?? "Untitled",
     starts_at: row.starts_at ?? null,
@@ -497,19 +580,31 @@ export const getCalendarEvents = cache(async (
   const monthEnd = new Date(Date.UTC(year, month + 1, 1) - manilaOffsetMs).toISOString();
 
 
-  const { data, error } = await (supabase as any)
+  type CalendarRow = {
+    id: string;
+    title: string | null;
+    starts_at: string | null;
+    ends_at: string | null;
+    category: string | null;
+    slug: string | null;
+    venues: { name: string | null } | null;
+  };
+
+  const { data, error } = (await supabase
     .from("events")
     .select(`id, title, starts_at, ends_at, category, slug, venues ( name )`)
     .eq("approval", "approved")
     .not("status", "in", '("draft","suspended","cancelled","completed")')
     .gte("starts_at", monthStart)
     .lt("starts_at", monthEnd)
-    .order("starts_at", { ascending: true });
+    .order("starts_at", { ascending: true })) as unknown as {
+      data: CalendarRow[] | null;
+      error: { message: string } | null;
+    };
 
   if (error || !data) return [];
 
-
-  return (data as any[]).map((row) => ({
+  return data.map((row) => ({
     id: row.id,
     title: row.title ?? "Untitled",
     starts_at: row.starts_at ?? "",
