@@ -22,18 +22,18 @@ export default function RoleGuard({ allowedRole = "any", children }: RoleGuardPr
           ? "/organizer-dashboard"
           : allowedRole === "admin"
             ? "/admin"
-            : "/my-events";
+            : "/events";
       router.replace(`/signin?next=${destination}`);
       return;
     }
 
     if (allowedRole === "admin" && !isAdmin) {
-      router.replace("/my-events");
+      router.replace(isOrganizer ? "/organizer-dashboard" : "/events");
       return;
     }
 
     if (allowedRole === "organizer" && !isOrganizer && !isAdmin) {
-      router.replace("/my-events");
+      router.replace("/events");
       return;
     }
     // allowedRole === "user" allows students, organizers, and admins to access student views

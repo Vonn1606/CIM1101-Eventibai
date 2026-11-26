@@ -1021,4 +1021,13 @@ export async function cancelEvent(
   return { success: true };
 }
 
+export async function fetchOrgRoster(eventId: string, eventCategory?: string) {
+  if (!z.string().uuid().safeParse(eventId).success) {
+    return { roster: [], error: "Invalid event ID." };
+  }
+  const { getOrgRoster } = await import("@/lib/db/organizer");
+  const roster = await getOrgRoster(eventId, eventCategory);
+  return { roster };
+}
+
 

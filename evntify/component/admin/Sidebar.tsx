@@ -1,5 +1,4 @@
 "use client";
-import Image from "next/image";
 import Link from "next/link";
 import {
   LayoutDashboard,
@@ -7,8 +6,10 @@ import {
   ClipboardCheck,
   Users,
   HelpCircle,
+  ArrowLeftRight,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
+import BrandLink from "@/component/layout/brand-link";
 
 interface SidebarProps {
   pendingApprovals?: number;
@@ -38,15 +39,7 @@ export default function Sidebar({ pendingApprovals }: SidebarProps) {
     <aside className="aside">
       <div>
         <div className="brand">
-          <Link href="/admin" className="flex items-center gap-2.5 group focus:outline-none">
-            <Image
-              src="/eventifytxt-cropped.svg"
-              alt="Eventify"
-              width={120}
-              height={36}
-              className="h-9 w-auto object-contain transition transform group-hover:scale-105"
-            />
-          </Link>
+          <BrandLink />
           <span className="label brand-sub" style={{ marginLeft: "6px" }}>Admin</span>
         </div>
         <div className="label brand-sub" style={{ padding: "8px 24px 0" }}>Operations Portal</div>
@@ -72,11 +65,21 @@ export default function Sidebar({ pendingApprovals }: SidebarProps) {
           })}
         </nav>
       </div>
-      <div className="help">
-        <div className="help-icon"><HelpCircle size={16} /></div>
-        <div>
-          <div className="t-12-600">Need help?</div>
-          <div className="t-12 muted-brown">Contact support</div>
+      <div className="flex flex-col gap-2">
+        <Link
+          href="/my-events"
+          className="nav-link"
+          style={{ margin: "0 12px" }}
+        >
+          <ArrowLeftRight size={16} />
+          <span>Switch to Student View</span>
+        </Link>
+        <div className="help">
+          <div className="help-icon"><HelpCircle size={16} /></div>
+          <div>
+            <div className="t-12-600">Need help?</div>
+            <div className="t-12 muted-brown">Contact support</div>
+          </div>
         </div>
       </div>
     </aside>

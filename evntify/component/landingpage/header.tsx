@@ -1,8 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/lib/use-auth";
+import BrandLink from "@/component/layout/brand-link";
 
 export default function Header() {
     const { user, loading, isOrganizer, isAdmin } = useAuth();
@@ -18,18 +18,7 @@ export default function Header() {
     return (
         <header className="header fixed inset-x-0 top-0 z-50 h-20 w-full bg-[#fff8f5]/80 backdrop-blur-md shadow-[0_1px_8px_#0000000a]">
             <div className="header-inner mx-auto flex h-full w-full max-w-[1320px] items-center justify-between px-6 sm:px-12">
-                <Link
-                    href="/"
-                    className="flex items-center gap-2.5 group focus:outline-none"
-                >
-                    <Image
-                        src="/eventifytxt-cropped.svg"
-                        alt="Eventify"
-                        width={120}
-                        height={36}
-                        className="h-9 w-auto object-contain transition transform group-hover:scale-105"
-                    />
-                </Link>
+                <BrandLink />
                 <nav className="header-nav flex items-center gap-4">
                     <Link
                         href="/#events"
@@ -46,22 +35,11 @@ export default function Header() {
                         About
                     </Link>
                     {!loading && user ? (
-                        <Link
-                            href={
-                                isAdmin
-                                    ? "/admin"
-                                    : isOrganizer
-                                    ? "/organizer-dashboard"
-                                    : "/my-events"
-                            }
-                            className="nav-cta"
-                        >
-                            {isAdmin
-                                ? "Admin Portal"
-                                : isOrganizer
-                                ? "Organizer Dashboard"
-                                : "My Events"}
-                        </Link>
+                        !isAdmin && !isOrganizer ? (
+                            <Link href="/my-events" className="nav-cta">
+                                My Events
+                            </Link>
+                        ) : null
                     ) : (
                         <Link href="/signin" className="nav-cta">
                             Sign In

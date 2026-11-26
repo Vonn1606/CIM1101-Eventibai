@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Header from "@/component/login/layout-login/header";
-import Footer from "@/component/login/layout-login/footer";
+import SiteFooter from "@/component/layout/site-footer";
 import SignUpCard from "@/component/login/signup/signupcard";
 import type { CollegeOption } from "@/component/login/signup/signupform";
 import { createClient } from "@/lib/supabase/server";
@@ -30,7 +30,7 @@ export default async function SignUpPage() {
       <main className="flex-1 flex items-center justify-center px-4 py-10 sm:py-16">
         <SignUpCard colleges={colleges} />
       </main>
-      <Footer />
+      <SiteFooter />
     </div>
   );
 }

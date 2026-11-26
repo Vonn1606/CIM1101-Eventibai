@@ -19,6 +19,7 @@ import {
 import type { EventDirectoryItem } from "@/lib/db/stats";
 import type { EventItem } from "@/types/admin";
 import { pct } from "@/types/admin";
+import { DEPARTMENTS } from "@/lib/department";
 import EdEventCard from "./EdEventCard";
 import EdInspector from "./EdInspector";
 
@@ -27,10 +28,7 @@ type Sort = "soonest" | "booked" | "az";
 
 const COLLEGE_CHIPS = [
   "All Colleges",
-  "Engineering",
-  "Arts & Science",
-  "Business",
-  "Design",
+  ...DEPARTMENTS.map((d) => d.short),
 ] as const;
 
 /** Map DB item → legacy EventItem shape for child components */

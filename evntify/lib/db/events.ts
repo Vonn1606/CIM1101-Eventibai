@@ -59,7 +59,6 @@ function rowToEventDetail(row: any, stats: StatsMap = {}): EventDetail {
     orgInitials: org?.initials ?? college?.code ?? "",
     orgEst: org?.est_year ? `EST. '${String(org.est_year).slice(-2)}` : undefined,
     breadcrumbDept: college?.name ?? "",
-    statusBadge: `VERIFIED ${row.category?.toUpperCase() ?? "EVENT"}`,
     briefingEyebrow: "BRIEFING • OBJECTIVES",
     overviewTitle: "Event Overview & Scope",
     category: row.category ?? "",

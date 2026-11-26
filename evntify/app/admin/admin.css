@@ -1451,10 +1451,10 @@
 /* ---- Chip bar ---- */
 .ed-root .ed-chip-bar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   padding-bottom: 4px;
-  overflow-x: auto;
 }
 
 .ed-root .ed-chip-bar .ed-label {

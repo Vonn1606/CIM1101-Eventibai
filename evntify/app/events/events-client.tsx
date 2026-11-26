@@ -6,17 +6,8 @@ import FeaturedCarousel from "@/component/dashboard/featuredeventhero";
 import EventGridCard from "@/component/dashboard/events/eventgridcard";
 import SortSelect, { type SortOption } from "@/component/dashboard/events/sortselect";
 import type { EventDetail, FeaturedEvent, CampusEvent } from "@/types/events";
-import Footer from "@/component/footer";
-
-// The 4 colleges from the DB schema
-const COLLEGE_PILLS = [
-  { id: "eng", label: "Engineering" },
-  { id: "sci", label: "Arts & Science" },
-  { id: "biz", label: "Business" },
-  { id: "art", label: "Design" },
-] as const;
-
-type CollegeSlug = "eng" | "sci" | "biz" | "art";
+import SiteFooter from "@/component/layout/site-footer";
+import { DEPARTMENTS, type DepartmentId } from "@/lib/department";
 
 interface EventsClientProps {
   initialEvents: (CampusEvent | EventDetail)[];
@@ -25,22 +16,8 @@ interface EventsClientProps {
 
 export default function EventsClient({ initialEvents, featuredEvents = [] }: EventsClientProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeCollege, setActiveCollege] = useState<CollegeSlug | "all">("all");
-  const [activeCategory, setActiveCategory] = useState<string>("all");
-  const [dateFilter, setDateFilter] = useState<"all" | "this-week" | "this-month">("all");
+  const [activeCollege, setActiveCollege] = useState<DepartmentId | "all">("all");
   const [sortOption, setSortOption] = useState<SortOption>("date");
-
-  // Extract unique categories from initial events
-  const categories = useMemo(() => {
-    const set = new Set<string>();
-    initialEvents.forEach((e) => {
-      const cat = ("category" in e && e.category) || ("tag" in e && e.tag);
-      if (cat && typeof cat === "string" && cat.trim()) {
-        set.add(cat.trim());
-      }
-    });
-    return Array.from(set);
-  }, [initialEvents]);
 
   // Filter and sort events
   const filteredEvents = useMemo(() => {
@@ -66,45 +43,6 @@ export default function EventsClient({ initialEvents, featuredEvents = [] }: Eve
       });
     }
 
-    // Filter by category
-    if (activeCategory !== "all") {
-      list = list.filter((e) => {
-        const cat = ("category" in e && e.category) || ("tag" in e && e.tag);
-        return cat === activeCategory;
-      });
-    }
-
-    // Filter by date range (This Week / This Month)
-    if (dateFilter !== "all") {
-      const now = new Date();
-      list = list.filter((e) => {
-        const startStr = ("startsAt" in e && e.startsAt) || ("date" in e && e.date);
-        if (!startStr) return true;
-        const evDate = new Date(startStr);
-        if (isNaN(evDate.getTime())) return true;
-
-        if (dateFilter === "this-week") {
-          const startOfWeek = new Date(now);
-          startOfWeek.setDate(now.getDate() - now.getDay());
-          startOfWeek.setHours(0, 0, 0, 0);
-
-          const endOfWeek = new Date(startOfWeek);
-          endOfWeek.setDate(startOfWeek.getDate() + 7);
-
-          return evDate >= startOfWeek && evDate <= endOfWeek;
-        }
-
-        if (dateFilter === "this-month") {
-          return (
-            evDate.getFullYear() === now.getFullYear() &&
-            evDate.getMonth() === now.getMonth()
-          );
-        }
-
-        return true;
-      });
-    }
-
     // Sort
     if (sortOption === "seats") {
       list.sort((a, b) => b.seatsLeft - a.seatsLeft);
@@ -120,7 +58,7 @@ export default function EventsClient({ initialEvents, featuredEvents = [] }: Eve
     // default: date — already sorted by server
 
     return list;
-  }, [initialEvents, searchQuery, activeCollege, activeCategory, dateFilter, sortOption]);
+  }, [initialEvents, searchQuery, activeCollege, sortOption]);
 
   return (
     <div className="min-h-screen bg-[#F9F9FC] flex flex-col justify-between">
@@ -149,66 +87,23 @@ export default function EventsClient({ initialEvents, featuredEvents = [] }: Eve
                 >
                   All Colleges
                 </button>
-                {COLLEGE_PILLS.map((d) => (
+                {DEPARTMENTS.map((d) => (
                   <button
-                    key={d.id}
+                    key={d.value}
                     type="button"
-                    onClick={() => setActiveCollege(d.id)}
+                    onClick={() => setActiveCollege(d.value)}
                     className={`px-3 py-1.5 rounded-full text-xs font-bold transition ${
-                      activeCollege === d.id
+                      activeCollege === d.value
                         ? "bg-[#6c0c28] text-white shadow-sm"
                         : "bg-white text-neutral-600 hover:bg-neutral-100 border border-neutral-200/60"
                     }`}
                   >
-                    {d.label}
+                    {d.short}
                   </button>
                 ))}
               </div>
 
               <SortSelect value={sortOption} onChange={setSortOption} />
-            </div>
-
-            {/* Additional Discovery Filters: Category & Date Range */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-neutral-100">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 mr-1">
-                  When:
-                </span>
-                {(["all", "this-week", "this-month"] as const).map((df) => (
-                  <button
-                    key={df}
-                    type="button"
-                    onClick={() => setDateFilter(df)}
-                    className={`px-2.5 py-1 rounded-md text-xs font-semibold transition ${
-                      dateFilter === df
-                        ? "bg-neutral-900 text-white"
-                        : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
-                    }`}
-                  >
-                    {df === "all" ? "Any Date" : df === "this-week" ? "This Week" : "This Month"}
-                  </button>
-                ))}
-              </div>
-
-              {categories.length > 0 && (
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">
-                    Category:
-                  </span>
-                  <select
-                    value={activeCategory}
-                    onChange={(e) => setActiveCategory(e.target.value)}
-                    className="rounded-lg border border-neutral-200 bg-white px-2.5 py-1 text-xs font-medium text-neutral-700"
-                  >
-                    <option value="all">All Categories</option>
-                    {categories.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
             </div>
           </div>
 
@@ -252,7 +147,7 @@ export default function EventsClient({ initialEvents, featuredEvents = [] }: Eve
         </main>
       </div>
 
-      <Footer />
+      <SiteFooter />
     </div>
   );
 }

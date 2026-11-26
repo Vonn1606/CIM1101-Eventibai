@@ -2,6 +2,7 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { signUp } from "@/app/actions/auth";
 
 const inputClass =
@@ -27,6 +28,7 @@ function getStrength(password: string) {
 }
 
 export default function SignUpForm({ colleges }: { colleges: CollegeOption[] }) {
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -59,9 +61,9 @@ export default function SignUpForm({ colleges }: { colleges: CollegeOption[] }) 
       return;
     }
 
-    // Show email confirmation message instead of silently redirecting
     setEmailSent(true);
     setLoading(false);
+    router.push("/signin?registered=1");
   }
 
   return (

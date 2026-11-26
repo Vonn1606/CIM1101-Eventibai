@@ -1,6 +1,6 @@
 import SignInForm from "./signinform";
 
-export default function SignInCard() {
+export default function SignInCard({ registered = false }: { registered?: boolean }) {
   return (
     <div className="w-full max-w-[440px] bg-white rounded-3xl border border-neutral-100 shadow-[0_4px_24px_rgba(0,0,0,0.04)] px-7 py-9 sm:px-9 sm:py-11">
       {/* Star Icon Badge */}
@@ -31,7 +31,7 @@ export default function SignInCard() {
       </div>
 
       {/* Sign In Form */}
-      <SignInForm />
+      <SignInForm registered={registered} />
     </div>
   );
 }

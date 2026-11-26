@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -41,21 +41,21 @@ export type Database = {
     Tables: {
       admin_notes: {
         Row: {
-          author_id: string
+          author_id: string | null
           created_at: string
           event_id: string
           id: string
           note: string
         }
         Insert: {
-          author_id: string
+          author_id?: string | null
           created_at?: string
           event_id: string
           id?: string
           note: string
         }
         Update: {
-          author_id?: string
+          author_id?: string | null
           created_at?: string
           event_id?: string
           id?: string
@@ -174,7 +174,7 @@ export type Database = {
           message: string
           recipient_count: number
           sent_at: string
-          sent_by: string
+          sent_by: string | null
         }
         Insert: {
           channels?: Database["public"]["Enums"]["broadcast_channel"][]
@@ -184,7 +184,7 @@ export type Database = {
           message: string
           recipient_count?: number
           sent_at?: string
-          sent_by: string
+          sent_by?: string | null
         }
         Update: {
           channels?: Database["public"]["Enums"]["broadcast_channel"][]
@@ -194,7 +194,7 @@ export type Database = {
           message?: string
           recipient_count?: number
           sent_at?: string
-          sent_by?: string
+          sent_by?: string | null
         }
         Relationships: [
           {
@@ -314,65 +314,65 @@ export type Database = {
         Row: {
           brief: string | null
           capacity_note: string | null
+          changes: Json | null
           decided_at: string | null
           decision: Database["public"]["Enums"]["approval_status"]
           decision_note: string | null
           event_id: string
           id: string
+          is_current: boolean
+          resubmitted_at: string | null
           reviewed_by: string | null
+          revision: number
           risk: Database["public"]["Enums"]["risk_level"]
           safety_check: string | null
           seats_expected: number | null
           stage: string | null
           submitted_at: string
           submitted_by: string | null
-          revision: number
-          is_current: boolean
-          changes: Json | null
           supersedes_id: string | null
-          resubmitted_at: string | null
         }
         Insert: {
           brief?: string | null
           capacity_note?: string | null
+          changes?: Json | null
           decided_at?: string | null
           decision?: Database["public"]["Enums"]["approval_status"]
           decision_note?: string | null
           event_id: string
           id?: string
+          is_current?: boolean
+          resubmitted_at?: string | null
           reviewed_by?: string | null
+          revision?: number
           risk?: Database["public"]["Enums"]["risk_level"]
           safety_check?: string | null
           seats_expected?: number | null
           stage?: string | null
           submitted_at?: string
           submitted_by?: string | null
-          revision?: number
-          is_current?: boolean
-          changes?: Json | null
           supersedes_id?: string | null
-          resubmitted_at?: string | null
         }
         Update: {
           brief?: string | null
           capacity_note?: string | null
+          changes?: Json | null
           decided_at?: string | null
           decision?: Database["public"]["Enums"]["approval_status"]
           decision_note?: string | null
           event_id?: string
           id?: string
+          is_current?: boolean
+          resubmitted_at?: string | null
           reviewed_by?: string | null
+          revision?: number
           risk?: Database["public"]["Enums"]["risk_level"]
           safety_check?: string | null
           seats_expected?: number | null
           stage?: string | null
           submitted_at?: string
           submitted_by?: string | null
-          revision?: number
-          is_current?: boolean
-          changes?: Json | null
           supersedes_id?: string | null
-          resubmitted_at?: string | null
         }
         Relationships: [
           {
@@ -401,6 +401,13 @@ export type Database = {
             columns: ["submitted_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_approvals_supersedes_id_fkey"
+            columns: ["supersedes_id"]
+            isOneToOne: false
+            referencedRelation: "event_approvals"
             referencedColumns: ["id"]
           },
         ]
@@ -774,6 +781,7 @@ export type Database = {
           est_year: number | null
           id: string
           initials: string | null
+          is_suspended: boolean
           name: string
           short_name: string | null
         }
@@ -784,6 +792,7 @@ export type Database = {
           est_year?: number | null
           id?: string
           initials?: string | null
+          is_suspended?: boolean
           name: string
           short_name?: string | null
         }
@@ -794,6 +803,7 @@ export type Database = {
           est_year?: number | null
           id?: string
           initials?: string | null
+          is_suspended?: boolean
           name?: string
           short_name?: string | null
         }
@@ -1090,14 +1100,12 @@ export type Database = {
         }
         Returns: undefined
       }
-      resubmit_event: {
-        Args: {
-          p_event: string
-          p_updates: Json
-          p_changes: Json
-          p_memo: string
-        }
-        Returns: undefined
+      get_organization_member_counts: {
+        Args: { p_org_ids: string[] }
+        Returns: {
+          member_count: number
+          organization_id: string
+        }[]
       }
       is_admin: { Args: never; Returns: boolean }
       log_audit: {
@@ -1118,6 +1126,7 @@ export type Database = {
         }
         Returns: number
       }
+      promote_next_waitlisted: { Args: { p_event: string }; Returns: string }
       register_for_event: {
         Args: { p_college: string; p_event: string; p_student_number: string }
         Returns: {
@@ -1139,6 +1148,15 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      resubmit_event: {
+        Args: {
+          p_changes: Json
+          p_event: string
+          p_memo: string
+          p_updates: Json
+        }
+        Returns: undefined
       }
       send_broadcast: {
         Args: {

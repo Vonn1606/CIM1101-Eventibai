@@ -1,7 +1,5 @@
 import { z } from "zod";
 
-// ── Auth ──────────────────────────────────────────────────────────────────────
-
 export const signUpSchema = z.object({
   full_name: z.string().min(2, "Full name must be at least 2 characters"),
   email: z
@@ -14,7 +12,6 @@ export const signUpSchema = z.object({
     .string()
     .min(1, "Student number is required")
     .regex(/^\d{11}$/, "Student number must be 11 digits (e.g. 20241234567)"),
-  // Slug of a row in the `colleges` table; existence is verified in the signUp action.
   college: z.string().min(1, "Please select a college"),
   password: z.string().min(8, "Password must be at least 8 characters"),
 });
@@ -28,7 +25,6 @@ export const signInSchema = z.object({
 
 export type SignInInput = z.infer<typeof signInSchema>;
 
-// ── Registration ───────────────────────────────────────────────────────────────
 
 export const registerSchema = z.object({
   eventId: z.string().min(1, "Event ID is required"),

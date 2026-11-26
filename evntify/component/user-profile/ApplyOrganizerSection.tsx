@@ -15,18 +15,20 @@ interface ApplyOrganizerSectionProps {
   } | null;
   userRole?: string;
   allOrganizations?: Array<{ id: string; name: string; short_name?: string | null }>;
+  defaultCollege?: string;
 }
 
 export default function ApplyOrganizerSection({
   existingApplication,
   userRole,
   allOrganizations = [],
+  defaultCollege = "",
 }: ApplyOrganizerSectionProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const [orgName, setOrgName] = useState("");
   const [selectedOrgId, setSelectedOrgId] = useState<string | undefined>(undefined);
   const [position, setPosition] = useState("");
-  const [department, setDepartment] = useState("");
+  const [department, setDepartment] = useState(defaultCollege);
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -80,7 +82,7 @@ export default function ApplyOrganizerSection({
       organizationId: selectedOrgId,
       orgName,
       position,
-      department,
+      department: defaultCollege || department,
       reason,
     });
     setSubmitting(false);
@@ -196,10 +198,17 @@ export default function ApplyOrganizerSection({
                   <label className="text-xs font-semibold text-[#1E1B19]">Department / College</label>
                   <input
                     type="text"
-                    placeholder="e.g. CCSS / Engineering"
-                    value={department}
-                    onChange={(e) => setDepartment(e.target.value)}
-                    className="w-full rounded-xl border border-[#ECE2DC] bg-[#FAF5F2] p-2.5 text-xs text-[#1E1B19] focus:bg-white focus:border-[#651C32] focus:outline-none"
+                    readOnly={Boolean(defaultCollege)}
+                    placeholder="e.g. College of Engineering"
+                    value={defaultCollege || department}
+                    onChange={(e) => {
+                      if (!defaultCollege) setDepartment(e.target.value);
+                    }}
+                    className={`w-full rounded-xl border border-[#ECE2DC] p-2.5 text-xs focus:outline-none ${
+                      defaultCollege
+                        ? "bg-neutral-100 text-neutral-600 cursor-not-allowed"
+                        : "bg-[#FAF5F2] text-[#1E1B19] focus:bg-white focus:border-[#651C32]"
+                    }`}
                   />
                 </div>
               </div>

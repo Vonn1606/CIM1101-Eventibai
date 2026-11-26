@@ -5,7 +5,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-export default function SignInForm() {
+export default function SignInForm({ registered = false }: { registered?: boolean }) {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
@@ -50,6 +50,16 @@ export default function SignInForm() {
 
   return (
     <form onSubmit={handleSubmit} className="mt-7 flex flex-col gap-4 w-full">
+      {registered && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-2.5 text-xs text-emerald-800 font-medium"
+        >
+          Account created! Check your UE email to confirm your account before signing in.
+        </div>
+      )}
+
       {/* Error message */}
       {error && (
         <div className="rounded-lg bg-rose-50 border border-rose-200 px-4 py-2.5 text-xs text-rose-700 font-medium">

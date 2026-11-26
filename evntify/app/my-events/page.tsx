@@ -9,7 +9,7 @@ import { getMyOrganizations, getActiveOrgId } from "@/lib/db/active-org";
 import ApplyOrganizerSection from "@/component/user-profile/ApplyOrganizerSection";
 import OrganizationSwitcher from "@/component/user-profile/OrganizationSwitcher";
 import Header from "@/component/user-profile/Header";
-import Footer from "@/component/user-profile/Footer";
+import SiteFooter from "@/component/layout/site-footer";
 import WelcomeBar from "@/component/user-profile/WelcomeBar";
 import CalendarSidebar from "@/component/user-profile/CalendarSidebar";
 import type { SelectedDayEventItem } from "@/component/user-profile/SelectedDayPreview";
@@ -143,7 +143,7 @@ export default async function MyEventsPage({ searchParams }: MyEventsPageProps) 
   ] = await Promise.all([
     getMyRegistrations(user.id),
     getUserOrganizerApplication(),
-    supabase.from("profiles").select("role").eq("id", user.id).maybeSingle(),
+    supabase.from("profiles").select("role, college_id, colleges ( name )").eq("id", user.id).maybeSingle(),
     getCalendarEvents(manilaYear, manilaMonth),
     getMyOrganizations(supabase, user.id),
     getActiveOrgId(supabase, user.id),
@@ -157,6 +157,8 @@ export default async function MyEventsPage({ searchParams }: MyEventsPageProps) 
   }));
 
   const userRole = userProfileRes.data?.role ?? "student";
+  const userCollegeName =
+    (userProfileRes.data as { colleges?: { name?: string | null } | null } | null)?.colleges?.name ?? "";
 
   // Map MyRegistration → UpcomingEvent
   const upcomingEvents: UpcomingEvent[] = upcomingRegs.map((r) => {
@@ -265,11 +267,14 @@ export default async function MyEventsPage({ searchParams }: MyEventsPageProps) 
 
           <OrganizationSwitcher organizations={userOrgs} activeOrgId={activeOrgId} />
 
-          <ApplyOrganizerSection
-            existingApplication={userApp}
-            userRole={userRole}
-            allOrganizations={allOrganizations}
-          />
+          {userRole !== "admin" && (
+            <ApplyOrganizerSection
+              existingApplication={userApp}
+              userRole={userRole}
+              allOrganizations={allOrganizations}
+              defaultCollege={userCollegeName}
+            />
+          )}
 
           <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,488px)_1fr]">
             <aside className="flex flex-col gap-5 lg:sticky lg:top-28">
@@ -317,7 +322,7 @@ export default async function MyEventsPage({ searchParams }: MyEventsPageProps) 
           </div>
         </div>
       </main>
-      <Footer />
+      <SiteFooter />
     </>
   );
 }

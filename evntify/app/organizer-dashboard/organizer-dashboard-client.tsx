@@ -1,18 +1,19 @@
 "use client";
 
-import React, { useState, useMemo, useTransition } from "react";
-import Image from "next/image";
+import React, { useState, useMemo, useTransition, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { toggleCheckIn, updateEvent, cancelEvent, checkInByTicketCode } from "@/app/actions/events";
+import { toggleCheckIn, updateEvent, cancelEvent, checkInByTicketCode, fetchOrgRoster } from "@/app/actions/events";
 import { setActiveOrganization } from "@/app/actions/organization";
 import { sendBroadcast, getBroadcastLogs } from "@/app/actions/broadcasts";
 import type { BroadcastLogItem } from "@/app/actions/broadcasts";
 import type { OrgEvent, OrgRosterStudent } from "@/lib/db/organizer";
 import ProfileDropdown from "@/component/auth/profile-dropdown";
+import BrandLink from "@/component/layout/brand-link";
+import NotificationBell from "@/component/ui/notification-bell";
+import QrScanner from "@/component/organizer/qr-scanner";
 import { useAuth } from "@/lib/use-auth";
 import {
-  Bell,
   CalendarDays,
   CheckCircle2,
   ChevronDown,
@@ -120,14 +121,17 @@ export default function OrganizerDashboardClient({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [orgDropdownOpen, setOrgDropdownOpen] = useState(false);
   const [isPendingOrg, startOrgTransition] = useTransition();
+  const [optimisticOrgId, setOptimisticOrgId] = useState<string | undefined>(activeOrgId);
 
-  const currentActiveOrg = organizations.find((o) => o.id === activeOrgId) ?? organizations[0];
+  const effectiveOrgId = optimisticOrgId ?? activeOrgId;
+  const currentActiveOrg = organizations.find((o) => o.id === effectiveOrgId) ?? organizations[0];
   const displayOrgName = currentActiveOrg?.name ?? orgName;
-  const displayOrgRole = currentActiveOrg?.position ?? "Officer";
+  const displayOrgRole = isPendingOrg ? "Switching organization…" : (currentActiveOrg?.position ?? "Officer");
 
   // App Data
   const [events, setEvents] = useState<OrgEvent[]>(initialEvents);
   const [roster, setRoster] = useState<OrgRosterStudent[]>(initialRoster);
+  const rosterLoadedForOrgRef = useRef<string | null>(initialRoster.length > 0 ? (activeOrgId ?? "init") : null);
   const [broadcastMessage, setBroadcastMessage] = useState(
     "Doors open in 15 mins! Have your student QR codes ready for fast gate tap at Tan Yan Kee 11th Flr."
   );
@@ -151,6 +155,26 @@ export default function OrganizerDashboardClient({
 
   // Modal State
   const [quickCheckinOpen, setQuickCheckinOpen] = useState(false);
+
+  // Lazy-load roster only when the organizer opens Roster or Quick Check-in
+  useEffect(() => {
+    if (activeTab !== "roster" && !quickCheckinOpen) return;
+    if (rosterLoadedForOrgRef.current === (activeOrgId ?? "init")) return;
+
+    const targetEvent =
+      events.find((e) => e.status === "live" || e.status === "soldout" || e.status === "completed") ??
+      events[0];
+    if (!targetEvent?.id) return;
+
+    rosterLoadedForOrgRef.current = activeOrgId ?? "init";
+    fetchOrgRoster(targetEvent.id, targetEvent.tier)
+      .then((res) => {
+        if (res.roster) setRoster(res.roster);
+      })
+      .catch(() => {
+        rosterLoadedForOrgRef.current = null;
+      });
+  }, [activeTab, quickCheckinOpen, activeOrgId, events]);
   // const [qrModalEvent, setQrModalEvent] = useState<EventItem | null>(null);
   const [editModalEvent, setEditModalEvent] = useState<EventItem | null>(null);
   const [editSaving, setEditSaving] = useState(false);
@@ -346,19 +370,7 @@ export default function OrganizerDashboardClient({
         <div className="flex flex-col gap-6">
           {/* Logo & Close on mobile */}
           <div className="flex items-center justify-between">
-            <Link
-              href="/organizer-dashboard"
-              className="flex items-center gap-2 group transition focus:outline-none"
-            >
-              <Image
-                src="/eventifytxt-cropped.svg"
-                alt="eventify."
-                width={120}
-                height={34}
-                className="h-8.5 w-auto object-contain transition transform group-hover:scale-105"
-                style={{ height: "34px", width: "auto" }}
-              />
-            </Link>
+            <BrandLink />
             <button
               onClick={() => setSidebarOpen(false)}
               className="rounded-lg p-1.5 text-[#7E6E6A] hover:bg-[#FAF5F2] lg:hidden"
@@ -402,13 +414,14 @@ export default function OrganizerDashboardClient({
                       Switch Organization
                     </div>
                     {organizations.map((org) => {
-                      const isCurrent = org.id === (activeOrgId ?? currentActiveOrg?.id);
+                      const isCurrent = org.id === (effectiveOrgId ?? currentActiveOrg?.id);
                       return (
                         <button
                           key={org.id}
                           type="button"
                           disabled={isPendingOrg || isCurrent}
                           onClick={() => {
+                            setOptimisticOrgId(org.id);
                             setOrgDropdownOpen(false);
                             startOrgTransition(async () => {
                               await setActiveOrganization(org.id);
@@ -568,14 +581,10 @@ export default function OrganizerDashboardClient({
             </div>
 
             {/* Notification Bell */}
-            <Link
-              href="/organizer-dashboard/notifications"
-              className="relative flex size-8 items-center justify-center rounded-xl border border-[#ECE2DC] bg-white text-[#554243] transition hover:bg-[#FAF5F2]"
-              aria-label="Notifications"
-            >
-              <Bell size={14} />
-              <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-[#E13654] ring-2 ring-white" />
-            </Link>
+            <NotificationBell
+              iconSize={14}
+              className="size-8 rounded-xl border border-[#ECE2DC] bg-white text-[#554243] hover:bg-[#FAF5F2]"
+            />
 
             {/* User Profile Avatar + Dropdown */}
             <div className="relative">
@@ -1434,23 +1443,54 @@ export default function OrganizerDashboardClient({
                 Quick Check-in Mode
               </h3>
               <p className="mt-1 text-xs text-[#7A6B68]">
-                Fast camera barcode &amp; student QR code scanner simulation.
+                Point your camera at a student&apos;s Fast-Pass QR code or enter their ticket code below.
               </p>
 
-              {/* Viewport Target */}
-              <div className="relative my-5 flex aspect-square w-64 items-center justify-center rounded-2xl border-2 border-dashed border-[#651C32] bg-[#FAF5F2]">
-                <div className="flex flex-col items-center">
-                  <Zap size={40} className="animate-pulse text-[#651C32]" />
-                  <p className="mt-2 text-[11px] font-bold uppercase tracking-wider text-[#8A7B78]">
-                    Ready for student pass
-                  </p>
-                </div>
-                {/* Visual Scanner corners */}
-                <div className="absolute left-2 top-2 h-4 w-4 border-l-2 border-t-2 border-[#651C32]" />
-                <div className="absolute right-2 top-2 h-4 w-4 border-r-2 border-t-2 border-[#651C32]" />
-                <div className="absolute bottom-2 left-2 h-4 w-4 border-b-2 border-l-2 border-[#651C32]" />
-                <div className="absolute bottom-2 right-2 h-4 w-4 border-b-2 border-r-2 border-[#651C32]" />
-              </div>
+              <QrScanner
+                active={quickCheckinOpen}
+                onScan={async (code) => {
+                  if (ticketScanning) return;
+                  setTicketInputCode(code);
+                  setTicketScanning(true);
+                  setTicketScanResult(null);
+
+                  const fallbackEvent =
+                    events.find((ev) => ev.status === "live" || ev.status === "soldout") ?? events[0];
+                  const resolvedEventId = selectedCheckinEventId || fallbackEvent?.id;
+                  if (!resolvedEventId) {
+                    setTicketScanResult({ success: false, message: "No event found to check into." });
+                    setTicketScanning(false);
+                    return;
+                  }
+
+                  const res = await checkInByTicketCode(code, resolvedEventId);
+                  setTicketScanning(false);
+                  if (res.error) {
+                    setTicketScanResult({ success: false, message: res.error });
+                  } else {
+                    setTicketScanResult({
+                      success: true,
+                      message: `Checked in ${res.studentName ?? "student"} (${res.studentNumber ?? "ID"}) at ${res.checkedInTime}`,
+                    });
+                    setTicketInputCode("");
+                    if (res.studentNumber) {
+                      setRoster((prev) =>
+                        prev.map((s) =>
+                          s.studentId === res.studentNumber
+                            ? {
+                                ...s,
+                                checkedIn: true,
+                                checkedInTime:
+                                  res.checkedInTime ??
+                                  new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+                              }
+                            : s
+                        )
+                      );
+                    }
+                  }
+                }}
+              />
 
               {/* Action Buttons */}
               <div className="w-full space-y-3">

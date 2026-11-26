@@ -1,10 +1,10 @@
 "use client";
-import Image from "next/image";
 import { useAuth } from "@/lib/use-auth";
 import React, { useState } from "react";
 import Link from "next/link";
 import { Search, ChevronLeft, User } from "lucide-react";
 import ProfileDropdown from "@/component/auth/profile-dropdown";
+import BrandLink from "@/component/layout/brand-link";
 
 export default function EventsNavbar({
   searchQuery,
@@ -34,8 +34,8 @@ export default function EventsNavbar({
             : "STUDENT";
 
   return (
-    <header className="sticky top-0 z-30 w-full border-b border-[#EAE4E1] bg-white/95 px-4 py-2.5 backdrop-blur-[6px]">
-      <div className="mx-auto flex h-[44px] max-w-[1280px] items-center justify-between gap-4">
+    <header className="sticky top-0 z-30 h-20 w-full border-b border-[#EAE4E1] bg-white/95 px-4 sm:px-6 lg:px-10 backdrop-blur-[6px]">
+      <div className="mx-auto flex h-full max-w-[1280px] items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Link
             href="/"
@@ -45,20 +45,7 @@ export default function EventsNavbar({
             <span className="hidden sm:inline">Home</span>
           </Link>
           <span className="h-4 w-px bg-neutral-200" />
-          <Link href="/events" className="flex items-center gap-2.5 group focus:outline-none">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#6c0c28] text-white font-extrabold text-sm">
-              E
-            </span>
-            <Image
-              src="/eventifytxt4.svg"
-              alt="Eventify"
-              width={120}
-              height={80}
-              priority
-              style={{ width: "auto" }}
-              className="h-20 w-auto object-contain transition transform group-hover:scale-105"
-            />
-          </Link>
+          <BrandLink />
         </div>
 
         {/* Live Search */}
@@ -78,15 +65,6 @@ export default function EventsNavbar({
             <div className="h-8 w-16 rounded-lg bg-neutral-100 animate-pulse" />
           ) : user ? (
             <>
-              {isAdmin && (
-                <Link
-                  href="/admin"
-                  className="hidden sm:inline-flex h-8 items-center px-3 rounded-lg text-xs font-bold text-neutral-700 hover:bg-neutral-100 transition"
-                >
-                  Admin Portal
-                </Link>
-              )}
-
               {/* Profile avatar button + dropdown */}
               <div className="relative">
                 <button
