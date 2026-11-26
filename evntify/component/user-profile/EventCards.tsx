@@ -4,9 +4,11 @@ import { useState, useEffect, useTransition } from "react";
 import { BadgeCheck, CalendarDays, CalendarPlus, CircleCheck, Clock, MapPin, QrCode, Ticket, X } from "lucide-react";
 import type { PastEvent, UpcomingEvent } from "@/app/actions/registration";
 import { cancelRegistration } from "@/app/actions/registration";
+import ConfirmDialog from "@/component/ui/confirm-dialog";
 
 export function UpcomingCard({ e }: { e: UpcomingEvent }) {
   const [modalOpen, setModalOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [qrUrl, setQrUrl] = useState<string>("");
   const [cancelled, setCancelled] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
@@ -30,12 +32,17 @@ export function UpcomingCard({ e }: { e: UpcomingEvent }) {
   if (cancelled) return null;
 
   const handleCancel = () => {
-    if (!window.confirm(`Cancel your registration for "${e.title}"?`)) return;
+    setConfirmOpen(true);
+  };
+
+  const confirmCancel = () => {
     startTransition(async () => {
       const res = await cancelRegistration(e.id);
       if (res.error) {
         setCancelError(res.error);
+        setConfirmOpen(false);
       } else {
+        setConfirmOpen(false);
         setCancelled(true);
       }
     });
@@ -157,6 +164,18 @@ export function UpcomingCard({ e }: { e: UpcomingEvent }) {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Cancel Registration?"
+        description={`Are you sure you want to cancel your registration for "${e.title}"? Your seat may be offered to the waitlist.`}
+        confirmLabel="Cancel Registration"
+        cancelLabel="Keep Ticket"
+        variant="danger"
+        loading={isPending}
+        onConfirm={confirmCancel}
+        onCancel={() => setConfirmOpen(false)}
+      />
     </article>
   );
 }

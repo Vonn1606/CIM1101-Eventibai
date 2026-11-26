@@ -23,7 +23,7 @@ export default async function CreateEventPage() {
   // This is used both for the guard check and to populate the org selector.
   const { data: memberRows, error: memberErr } = await supabase
     .from("organization_members")
-    .select("organization_id, organizations ( id, name, dept_label )")
+    .select("organization_id, organizations ( id, name, dept_label, college_id )")
     .eq("user_id", user.id);
 
   if (memberErr) {
@@ -45,13 +45,16 @@ export default async function CreateEventPage() {
   const venues = venuesRes.data ?? [];
   const colleges = collegesRes.data ?? [];
   const organizations = ((memberRows ?? []) as Array<{
-    organizations: { id: string; name: string; dept_label: string | null } | null;
+    organizations: { id: string; name: string; dept_label: string | null; college_id: string | null } | null;
   }>)
     .map((m) => m.organizations)
     .filter(
-      (org): org is { id: string; name: string; dept_label: string | null } =>
+      (org): org is { id: string; name: string; dept_label: string | null; college_id: string | null } =>
         Boolean(org)
     );
+
+  const selectedOrg = organizations.find((o) => o.id === activeOrgId) ?? organizations[0];
+  const defaultCollegeId = selectedOrg?.college_id ?? profile.collegeId ?? undefined;
 
   return (
     <div className="ce-page">
@@ -62,6 +65,7 @@ export default async function CreateEventPage() {
           colleges={colleges}
           organizations={organizations}
           defaultOrganizationId={activeOrgId ?? undefined}
+          defaultCollegeId={defaultCollegeId}
         />
       </main>
     </div>

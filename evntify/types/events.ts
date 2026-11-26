@@ -44,7 +44,6 @@ export type EventDetail = {
     orgDept: string;
     orgInitials: string;
     orgEst?: string;
-    statusBadge?: string;
     breadcrumbDept?: string;
     briefingEyebrow?: string;
     overviewTitle?: string;

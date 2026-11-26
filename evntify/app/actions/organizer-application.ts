@@ -66,6 +66,37 @@ export async function submitOrganizerApplication(input: SubmitOrganizerAppInput)
   return { success: true };
 }
 
+export async function toggleOrganizationSuspension(
+  organizationId: string,
+  suspend: boolean
+): Promise<{ success?: boolean; error?: string }> {
+  if (!organizationId) return { error: "Organization ID is required." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Authentication required." };
+
+  const adminCheck = await requireAdmin(supabase, user.id);
+  if (!adminCheck.ok) return { error: adminCheck.error };
+
+  const adminDb = createAdminClient() ?? supabase;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (adminDb as any)
+    .from("organizations")
+    .update({ is_suspended: suspend })
+    .eq("id", organizationId);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/admin/user-and-organizer");
+  return { success: true };
+}
+
 export async function getUserOrganizerApplication() {
   const supabase = await createClient();
   const {
@@ -159,6 +190,15 @@ export async function decideOrganizerApplication(
 
   // If approved:
   if (decision === "approved") {
+    // Fetch applicant's college_id from their profile so new/matched orgs get the real college
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: applicantProfile } = await (adminDb as any)
+      .from("profiles")
+      .select("college_id")
+      .eq("id", appRow.user_id)
+      .maybeSingle();
+    const applicantCollegeId: string | null = applicantProfile?.college_id ?? null;
+
     // 1. Resolve or create organization FIRST before role promotion
     let orgId = appRow.organization_id;
     if (!orgId) {
@@ -168,12 +208,19 @@ export async function decideOrganizerApplication(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: matchedOrgs } = await (adminDb as any)
         .from("organizations")
-        .select("id, name, short_name")
+        .select("id, name, short_name, college_id")
         .or(`name.ilike.${trimmedName},short_name.ilike.${trimmedName}`)
         .limit(1);
 
       if (matchedOrgs && matchedOrgs.length > 0) {
         orgId = matchedOrgs[0].id;
+        if (!matchedOrgs[0].college_id && applicantCollegeId) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (adminDb as any)
+            .from("organizations")
+            .update({ college_id: applicantCollegeId })
+            .eq("id", orgId);
+        }
       } else {
         const words = trimmedName.split(/\s+/);
         const autoShort =
@@ -191,6 +238,7 @@ export async function decideOrganizerApplication(
           .insert({
             name: trimmedName,
             short_name: autoShort,
+            college_id: applicantCollegeId,
             dept_label: appRow.department?.trim() || null,
           })
           .select("id")

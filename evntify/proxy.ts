@@ -27,9 +27,7 @@ export async function proxy(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
-  // Only call getUser() when the route actually requires authentication.
-  // On fully public paths (landing, events directory, signin, etc.) we skip
-  // the network round-trip entirely — saves ~775 ms per public request.
+
   const requiresAuth =
     pathname.startsWith("/admin") ||
     pathname.startsWith("/organizer-dashboard") ||
@@ -42,7 +40,6 @@ export async function proxy(request: NextRequest) {
     user = data.user;
   }
 
-  // Guard: /admin/* requires admin role
   if (pathname.startsWith("/admin")) {
     if (!user) {
       const url = request.nextUrl.clone();
@@ -55,14 +52,14 @@ export async function proxy(request: NextRequest) {
       return redirectResponse;
     }
 
-    // Fetch role from profiles table
+
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("role")
       .eq("id", user.id)
       .single();
 
-    // Fix #6 + #5: On DB error, do NOT redirect — let the page handle it gracefully
+
     if (profileError) {
       console.error("proxy: failed to load profile for admin guard:", profileError);
       return supabaseResponse;
@@ -79,7 +76,6 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // Guard: /organizer-dashboard requires organizer or admin role
   if (pathname.startsWith("/organizer-dashboard")) {
     if (!user) {
       const url = request.nextUrl.clone();
@@ -109,7 +105,6 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // Guard: /my-events requires any authenticated user
   if (pathname.startsWith("/my-events")) {
     if (!user) {
       const url = request.nextUrl.clone();
@@ -123,7 +118,6 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // Guard: /notifications requires any authenticated user
   if (pathname.startsWith("/notifications")) {
     if (!user) {
       const url = request.nextUrl.clone();

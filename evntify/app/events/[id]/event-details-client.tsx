@@ -1,8 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import SignInPrompt from "@/component/dashboard/events/signinprompt";
 import ProfileDropdown from "@/component/auth/profile-dropdown";
+import SiteHeader from "@/component/layout/site-header";
+import SiteFooter from "@/component/layout/site-footer";
+import NotificationBell from "@/component/ui/notification-bell";
 import { useAuth } from "@/lib/use-auth";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
@@ -12,7 +14,6 @@ import {
   Share2,
   Mail,
   Phone,
-  Bell,
   User,
   ExternalLink,
   QrCode,
@@ -73,9 +74,10 @@ export default function EventDetailsClient({ initialEvent, initialRegistration, 
     fullName: prefill?.fullName ?? "",
     studentNumber: prefill?.studentNumber ?? "",
     email: prefill?.email ?? "",
-    college: prefill?.collegeSlug ?? "eng",
+    college: prefill?.collegeSlug ?? "",
   });
-  const [fieldErrors, setFieldErrors] = useState<{ studentNumber?: string; college?: string }>({});
+  const [fieldErrors, setFieldErrors] = useState<{ studentNumber?: string; college?: string; policies?: string }>({});
+  const [agreedToPolicies, setAgreedToPolicies] = useState(false);
   const [ticketCode, setTicketCode] = useState<string>(initialRegistration.ticketCode);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>("");
   const [isRegistered, setIsRegistered] = useState(initialRegistration.isRegistered);
@@ -150,6 +152,9 @@ export default function EventDetailsClient({ initialEvent, initialRegistration, 
     if (!formData.college) {
       newFieldErrors.college = "Please select a college";
     }
+    if (!agreedToPolicies) {
+      newFieldErrors.policies = "You must agree to the Eventify Guidelines & Policies";
+    }
     if (Object.keys(newFieldErrors).length > 0) {
       setFieldErrors(newFieldErrors);
       setIsSubmitting(false);
@@ -216,76 +221,45 @@ export default function EventDetailsClient({ initialEvent, initialRegistration, 
   return (
     <div className="event-details-root">
       {/* ---------- Header ---------- */}
-      <header className="header" role="banner">
-        <div className="header__inner">
-          {/* Logo */}
-          <Link
-            href="/events"
-            className="flex items-center gap-2.5 group focus:outline-none"
-          >
-            <Image
-              src="/eventifytxt-cropped.svg"
-              alt="Eventify"
-              width={120}
-              height={36}
-              className="h-9  w-auto object-contain transition transform group-hover:scale-105"
-            />
-          </Link>
+      <SiteHeader
+        variant="public"
+        rightSlot={
+          authLoading ? (
+            <div className="h-8 w-16 rounded-lg bg-neutral-100 animate-pulse" />
+          ) : user ? (
+            <>
+              <NotificationBell className="icon-btn" iconSize={18} />
 
-          {/* Header Actions */}
-          <div className="header__actions">
-            {authLoading ? (
-              <div className="h-8 w-16 rounded-lg bg-neutral-100 animate-pulse" />
-            ) : user ? (
-              <>
-                {isAdmin && (
-                  <Link
-                    href="/admin"
-                    className="hidden sm:inline-flex h-8 items-center px-3 rounded-lg text-xs font-bold text-neutral-700 hover:bg-neutral-100 transition"
-                  >
-                    Admin Portal
-                  </Link>
-                )}
-
-                <Link
-                  href="/notifications"
-                  className="icon-btn"
-                  aria-label="Notifications"
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setDropdownOpen((o) => !o)}
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-[#4D0011] text-white transition hover:opacity-95 cursor-pointer"
+                  aria-label="Account menu"
+                  aria-expanded={dropdownOpen}
                 >
-                  <Bell size={18} />
-                </Link>
+                  <User size={15} strokeWidth={2.2} />
+                </button>
 
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setDropdownOpen((o) => !o)}
-                    className="flex h-8 w-8 items-center justify-center rounded-full bg-[#4D0011] text-white transition hover:opacity-95 cursor-pointer"
-                    aria-label="Account menu"
-                    aria-expanded={dropdownOpen}
-                  >
-                    <User size={15} strokeWidth={2.2} />
-                  </button>
-
-                  {dropdownOpen && (
-                    <ProfileDropdown
-                      name={displayName}
-                      role={roleLabel}
-                      onClose={() => setDropdownOpen(false)}
-                    />
-                  )}
-                </div>
-              </>
-            ) : (
-              <Link
-                href={`/signin?next=/events/${event.id}`}
-                className="inline-flex h-8 items-center rounded-lg bg-[#6c0c28] px-4 text-xs font-bold text-white transition hover:bg-[#8b263e]"
-              >
-                Sign In
-              </Link>
-            )}
-          </div>
-        </div>
-      </header>
+                {dropdownOpen && (
+                  <ProfileDropdown
+                    name={displayName}
+                    role={roleLabel}
+                    onClose={() => setDropdownOpen(false)}
+                  />
+                )}
+              </div>
+            </>
+          ) : (
+            <Link
+              href={`/signin?next=/events/${event.id}`}
+              className="inline-flex h-8 items-center rounded-lg bg-[#6c0c28] px-4 text-xs font-bold text-white transition hover:bg-[#8b263e]"
+            >
+              Sign In
+            </Link>
+          )
+        }
+      />
 
       {/* ---------- Main ---------- */}
       <main className="main">
@@ -318,11 +292,6 @@ export default function EventDetailsClient({ initialEvent, initialRegistration, 
                 </li>
               </ol>
             </nav>
-
-            <div className="pill">
-              <span className="pill__dot" />
-              <span>{event.statusBadge || "VERIFIED ACADEMIC COMPETITION"}</span>
-            </div>
           </div>
         </section>
 
@@ -660,6 +629,7 @@ export default function EventDetailsClient({ initialEvent, initialRegistration, 
                     disabled={!!prefill?.collegeSlug}
                     className={`w-full px-3.5 py-2 text-sm rounded-lg border bg-white focus:outline-none focus:ring-2 focus:ring-[#6c0c28]/30 ${fieldErrors.college ? "border-red-400" : "border-neutral-200"} ${prefill?.collegeSlug ? "cursor-not-allowed bg-neutral-50" : ""}`}
                   >
+                    <option value="">Select your college</option>
                     {DEPARTMENTS.map((d) => (
                       <option key={d.value} value={d.value}>{d.label}</option>
                     ))}
@@ -678,6 +648,46 @@ export default function EventDetailsClient({ initialEvent, initialRegistration, 
                     By registering, you confirm attendance for <strong>{event.venue}</strong>. Your QR ticket
                     is non-transferable and verified at entrance doors.
                   </span>
+                </div>
+
+                <div>
+                  <label className="flex items-start gap-2.5 text-xs text-neutral-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={agreedToPolicies}
+                      onChange={(e) => {
+                        setAgreedToPolicies(e.target.checked);
+                        if (fieldErrors.policies) {
+                          setFieldErrors((prev) => ({ ...prev, policies: undefined }));
+                        }
+                      }}
+                      className="mt-0.5 h-4 w-4 rounded border-neutral-300 accent-[#6c0c28]"
+                    />
+                    <span>
+                      I have read the{" "}
+                      <Link
+                        href="/guidelines"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-semibold text-[#6c0c28] underline"
+                      >
+                        Eventify Guidelines
+                      </Link>{" "}
+                      &amp;{" "}
+                      <Link
+                        href="/policies"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-semibold text-[#6c0c28] underline"
+                      >
+                        Policies
+                      </Link>
+                      .
+                    </span>
+                  </label>
+                  {fieldErrors.policies && (
+                    <p className="text-xs text-red-600 mt-1">{fieldErrors.policies}</p>
+                  )}
                 </div>
 
                 {regError && (
@@ -807,22 +817,7 @@ export default function EventDetailsClient({ initialEvent, initialRegistration, 
       }
 
       {/* ---------- Footer ---------- */}
-      <footer className="footer" role="contentinfo">
-        <div className="footer__inner">
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-            <p className="footer__brand">eventify.</p>
-            <p className="footer__tag">
-              © 2025 Eventify Campus Inc. All rights reserved. Connecting university life & student culture.
-            </p>
-          </div>
-          <nav className="footer__links" aria-label="Footer Navigation">
-            <Link href="#">Privacy Policy</Link>
-            <Link href="#">Terms of Service</Link>
-            <Link href="/events">Event Directory</Link>
-            <Link href="#">Academic Colleges</Link>
-          </nav>
-        </div>
-      </footer>
-    </div >
+      <SiteFooter />
+    </div>
   );
 }

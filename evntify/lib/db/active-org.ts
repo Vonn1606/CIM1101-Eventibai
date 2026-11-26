@@ -16,13 +16,11 @@ export interface UserOrganization {
 }
 
 /**
- * Returns all organizations of which the user is an active member,
- * along with real member counts and upcoming event counts from the database.
+ * Internal cached fetcher deduped by userId across a single server request,
+ * even when callers pass different Supabase client instances.
  */
-export async function getMyOrganizations(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  userId: string
-): Promise<UserOrganization[]> {
+const getMyOrganizationsCached = cache(async (userId: string): Promise<UserOrganization[]> => {
+  const supabase = await createClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
     .from("organization_members")
@@ -73,16 +71,15 @@ export async function getMyOrganizations(
 
     // Query real member counts and real upcoming events in parallel
     await Promise.all([
-      // 1. Real member counts
       (async () => {
         try {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const { data: memberCountRows } = await (supabase.rpc as any)(
+          const { data: memberCountRows, error: rpcError } = await (supabase.rpc as any)(
             "get_organization_member_counts",
             { p_org_ids: orgIds }
           );
 
-          if (memberCountRows && memberCountRows.length > 0) {
+          if (!rpcError && memberCountRows) {
             const mCounts: Record<string, number> = {};
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             memberCountRows.forEach((row: any) => {
@@ -93,8 +90,8 @@ export async function getMyOrganizations(
                 o.memberCount = mCounts[o.id];
               }
             });
-          } else {
-            // Direct table fallback
+          } else if (rpcError) {
+            // Fallback only if RPC errored
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const { data: mRows } = await (supabase as any)
               .from("organization_members")
@@ -119,7 +116,6 @@ export async function getMyOrganizations(
         }
       })(),
 
-      // 2. Real upcoming events
       (async () => {
         try {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -148,21 +144,24 @@ export async function getMyOrganizations(
   }
 
   return orgs;
+});
+
+/**
+ * Returns all organizations of which the user is an active member,
+ * along with real member counts and upcoming event counts from the database.
+ */
+export async function getMyOrganizations(
+  _supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string
+): Promise<UserOrganization[]> {
+  return getMyOrganizationsCached(userId);
 }
 
 /**
- * Resolves the user's active organization ID:
- * 1. Reads the `active_org_id` cookie.
- * 2. Validates that the user is actually a member of that organization.
- * 3. Falls back to the user's first organization membership.
- *
- * Wrapped in React.cache() so it runs once per server request.
+ * Resolves the active organization ID from an already-fetched organization list
+ * without issuing another database query.
  */
-export const getActiveOrgId = cache(async (
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  userId: string
-): Promise<string | null> => {
-  const orgs = await getMyOrganizations(supabase, userId);
+export async function resolveActiveOrgId(orgs: UserOrganization[]): Promise<string | null> {
   if (orgs.length === 0) return null;
 
   const cookieStore = await cookies();
@@ -173,6 +172,21 @@ export const getActiveOrgId = cache(async (
     if (valid) return savedOrgId;
   }
 
-  // Fallback to first membership
   return orgs[0].id;
+}
+
+/**
+ * Resolves the user's active organization ID:
+ * 1. Reads the `active_org_id` cookie.
+ * 2. Validates that the user is actually a member of that organization.
+ * 3. Falls back to the user's first organization membership.
+ *
+ * Wrapped in React.cache() and deduped by userId.
+ */
+export const getActiveOrgId = cache(async (
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string
+): Promise<string | null> => {
+  const orgs = await getMyOrganizations(supabase, userId);
+  return resolveActiveOrgId(orgs);
 });

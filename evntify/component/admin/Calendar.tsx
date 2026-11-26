@@ -19,12 +19,26 @@ export default function Calendar({
   month: propMonth,
 }: CalendarProps) {
   const router = useRouter();
-  const currentNow = useMemo(() => new Date(), []);
-  const year = propYear ?? currentNow.getFullYear();
-  const month = propMonth ?? currentNow.getMonth();
+  const manilaToday = useMemo(() => {
+    const now = new Date();
+    return {
+      year: Number(
+        new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila", year: "numeric" }).format(now)
+      ),
+      month:
+        Number(
+          new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Manila", month: "numeric" }).format(now)
+        ) - 1,
+      day: Number(
+        new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila", day: "numeric" }).format(now)
+      ),
+    };
+  }, []);
+  const year = propYear ?? manilaToday.year;
+  const month = propMonth ?? manilaToday.month;
   const viewKey = `${year}-${month}`;
 
-  const isCurrentMonth = year === currentNow.getFullYear() && month === currentNow.getMonth();
+  const isCurrentMonth = year === manilaToday.year && month === manilaToday.month;
   const [selection, setSelection] = useState<{ key: string; day: number | null }>({
     key: viewKey,
     day: null,
@@ -79,10 +93,9 @@ export default function Calendar({
     };
   }, [year, month, events]);
 
-  const todayDay = currentNow.getDate();
-  const todayHasEvents = isCurrentMonth && (dayEventsMap.get(todayDay)?.length ?? 0) > 0;
+  const todayDay = manilaToday.day;
   const userSelectedDay = selection.key === viewKey ? selection.day : null;
-  const selectedDay = userSelectedDay ?? (todayHasEvents ? todayDay : null);
+  const selectedDay = userSelectedDay ?? (isCurrentMonth ? todayDay : 1);
   const setSelectedDay = (day: number | null) => setSelection({ key: viewKey, day });
 
   const handlePrevMonth = () => {
@@ -151,16 +164,19 @@ export default function Calendar({
             const hasEv = evs && evs.length > 0;
             const firstEv = evs?.[0];
             const isSel = d === selectedDay;
+            const isToday = isCurrentMonth && d === todayDay;
             return (
               <button
                 key={d}
                 type="button"
                 onClick={() => setSelectedDay(d)}
-                className={`day ${isSel ? "selected" : ""} ${hasEv && !isSel ? "week" : ""}`}
+                className={`day ${isSel ? "selected" : ""} ${hasEv && !isSel ? "week" : ""} ${
+                  isToday && !isSel ? "ring-1 ring-[#B80035]/50" : ""
+                }`}
               >
                 <span className="day-top">
                   <span
-                    className={`day-num ${isWeekend(d) ? "dim" : ""} ${hasEv ? "red-text" : ""}`}
+                    className={`day-num ${isWeekend(d) ? "dim" : ""} ${hasEv || isToday ? "red-text" : ""}`}
                   >
                     {d}
                   </span>
@@ -189,7 +205,7 @@ export default function Calendar({
         </div>
       </div>
 
-      {hasSpotlight && selectedDay !== null && (
+      {selectedDay !== null && (
         <div className="card spotlight">
           <div className="spot-head">
             <div className="spot-left">
@@ -200,18 +216,31 @@ export default function Calendar({
                 <b>{selectedDay}</b>
               </div>
               <div>
-                <div className="chips">
-                  <span className="chip" style={{ background: "#DAE2FD", color: "#131B2E" }}>
-                    {selectedDayEvents[0]?.category || "Campus Event"}
-                  </span>
-                  <span className="chip" style={{ background: "#FFDADA", color: "#40000C" }}>
-                    Confirmed
-                  </span>
-                </div>
-                <h4>
-                  {selectedDayEvents[0]?.title}
-                  {selectedDayEvents.length > 1 ? ` (+${selectedDayEvents.length - 1} more)` : ""}
-                </h4>
+                {hasSpotlight ? (
+                  <>
+                    <div className="chips">
+                      <span className="chip" style={{ background: "#DAE2FD", color: "#131B2E" }}>
+                        {selectedDayEvents[0]?.category || "Campus Event"}
+                      </span>
+                      <span className="chip" style={{ background: "#FFDADA", color: "#40000C" }}>
+                        Confirmed
+                      </span>
+                    </div>
+                    <h4>
+                      {selectedDayEvents[0]?.title}
+                      {selectedDayEvents.length > 1 ? ` (+${selectedDayEvents.length - 1} more)` : ""}
+                    </h4>
+                  </>
+                ) : (
+                  <>
+                    <div className="chips">
+                      <span className="chip" style={{ background: "#F3EFEA", color: "#5C3F40" }}>
+                        {isCurrentMonth && selectedDay === todayDay ? "Today" : "Selected Date"}
+                      </span>
+                    </div>
+                    <h4>No Event Scheduled Today!</h4>
+                  </>
+                )}
               </div>
             </div>
             <button type="button" className="ghost-btn" aria-label="Details">
@@ -219,47 +248,53 @@ export default function Calendar({
             </button>
           </div>
 
-          <div className="space-y-3 pt-2">
-            {selectedDayEvents.map((ev, idx) => {
-              const timeStr = ev.starts_at
-                ? new Date(ev.starts_at).toLocaleTimeString("en-US", {
-                    timeZone: "Asia/Manila",
-                    hour: "numeric",
-                    minute: "2-digit",
-                  })
-                : "TBD";
-              return (
-                <div key={ev.id || idx} className={idx > 0 ? "pt-3 border-t border-neutral-100" : ""}>
-                  {idx > 0 && (
-                    <h5 className="font-semibold text-xs text-neutral-800 mb-1.5">{ev.title}</h5>
-                  )}
-                  <div className="spot-meta">
-                    <div>
-                      <Clock size={15} color="#B80035" />
+          {hasSpotlight ? (
+            <div className="space-y-3 pt-2">
+              {selectedDayEvents.map((ev, idx) => {
+                const timeStr = ev.starts_at
+                  ? new Date(ev.starts_at).toLocaleTimeString("en-US", {
+                      timeZone: "Asia/Manila",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })
+                  : "TBD";
+                return (
+                  <div key={ev.id || idx} className={idx > 0 ? "pt-3 border-t border-neutral-100" : ""}>
+                    {idx > 0 && (
+                      <h5 className="font-semibold text-xs text-neutral-800 mb-1.5">{ev.title}</h5>
+                    )}
+                    <div className="spot-meta">
                       <div>
-                        <span className="label-sm">Time</span>
-                        <p>{timeStr}</p>
+                        <Clock size={15} color="#B80035" />
+                        <div>
+                          <span className="label-sm">Time</span>
+                          <p>{timeStr}</p>
+                        </div>
                       </div>
-                    </div>
-                    <div>
-                      <MapPin size={15} color="#B80035" />
                       <div>
-                        <span className="label-sm">Venue</span>
-                        <p>{ev.venue || "Campus Venue"}</p>
+                        <MapPin size={15} color="#B80035" />
+                        <div>
+                          <span className="label-sm">Venue</span>
+                          <p>{ev.venue || "Campus Venue"}</p>
+                        </div>
                       </div>
-                    </div>
-                    <div>
-                      <Users size={15} color="#B80035" />
                       <div>
-                        <span className="label-sm">Status</span>
-                        <p>Open for attendance</p>
+                        <Users size={15} color="#B80035" />
+                        <div>
+                          <span className="label-sm">Status</span>
+                          <p>Open for attendance</p>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="py-3 text-xs text-neutral-500">
+              There are no approved campus events scheduled for this date.
+            </p>
+          )}
 
           <div className="spot-foot">
             <div>

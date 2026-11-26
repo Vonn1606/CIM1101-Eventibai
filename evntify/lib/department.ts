@@ -2,8 +2,8 @@
 export const DEPARTMENTS = [
   { value: "eng", label: "College of Engineering", short: "Engineering", code: "COE" },
   { value: "sci", label: "College of Art and Science", short: "Arts & Science", code: "CAS" },
-  { value: "biz", label: "College of Business Administration", short: "Business", code: "CBA" },
-  { value: "art", label: "College of Fine Arts, Architecture and Design", short: "Design", code: "CFAD" },
+  { value: "biz", label: "College of Business Administration", short: "Business Administration", code: "CBA" },
+  { value: "art", label: "College of Fine Arts, Architecture and Design", short: "Fine Arts, Architecture, and Design", code: "CFAD" },
 ] as const;
 
 export type DepartmentId = (typeof DEPARTMENTS)[number]["value"];

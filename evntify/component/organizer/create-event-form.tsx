@@ -32,6 +32,7 @@ export type OrgOption = {
   id: string;
   name: string;
   dept_label: string | null;
+  college_id?: string | null;
 };
 
 interface CreateEventFormProps {
@@ -39,6 +40,7 @@ interface CreateEventFormProps {
   colleges?: CollegeOption[];
   organizations?: OrgOption[];
   defaultOrganizationId?: string;
+  defaultCollegeId?: string;
 }
 
 /* ---------- Sub-components ---------- */
@@ -92,17 +94,22 @@ export default function CreateEventForm({
   colleges = [],
   organizations = [],
   defaultOrganizationId,
+  defaultCollegeId,
 }: CreateEventFormProps) {
   const router = useRouter();
 
   const [minEventDate] = useState(() => getFutureIsoDate(7));
 
+  const initialOrgId = defaultOrganizationId ?? organizations[0]?.id ?? "";
+  const initialOrgCollegeId =
+    organizations.find((o) => o.id === initialOrgId)?.college_id ?? defaultCollegeId ?? "";
+
   const [form, setForm] = useState(() => ({
     name: "",
     category: "Seminar" as "Seminar" | "Workshop" | "Competition" | "Symposium" | "Social" | "General",
     description: "",
-    organizationId: defaultOrganizationId ?? organizations[0]?.id ?? "",
-    collegeId: colleges[0]?.id ?? "",
+    organizationId: initialOrgId,
+    collegeId: initialOrgCollegeId,
     venueId: venues[0]?.id ?? "",
     venue: venues[0]?.name ?? "",
     date: getFutureIsoDate(7),
@@ -311,7 +318,15 @@ export default function CreateEventForm({
               <div className="ce-select-wrap">
                 <select
                   value={form.organizationId}
-                  onChange={(e) => set("organizationId", e.target.value)}
+                  onChange={(e) => {
+                    const orgId = e.target.value;
+                    const org = organizations.find((o) => o.id === orgId);
+                    setForm((f) => ({
+                      ...f,
+                      organizationId: orgId,
+                      collegeId: org?.college_id ?? f.collegeId,
+                    }));
+                  }}
                 >
                   {organizations.length > 0 ? (
                     organizations.map((o) => (
@@ -333,7 +348,9 @@ export default function CreateEventForm({
                 <select
                   value={form.collegeId}
                   onChange={(e) => set("collegeId", e.target.value)}
+                  required
                 >
+                  <option value="">Select college...</option>
                   {colleges.length > 0 ? (
                     colleges.map((c) => (
                       <option key={c.id} value={c.id}>

@@ -13,11 +13,13 @@ import {
     Layers,
     PlusCircle,
 } from "lucide-react";
-import type { OrganizerItem } from "@/lib/db/stats";
+import type { OrganizerItem, OrganizationSummary } from "@/lib/db/stats";
+import { DEPARTMENTS } from "@/lib/department";
 import OrOrganizerCard from "./OrOrganizerCard";
 import {
     createOrganizationWithOrganizer,
     decideOrganizerApplication,
+    toggleOrganizationSuspension,
 } from "@/app/actions/organizer-application";
 
 type Sort = "name" | "pending" | "events";
@@ -40,11 +42,13 @@ export interface ApplicationItem {
 
 interface OrOrganizersViewProps {
     initialOrganizers?: OrganizerItem[];
+    initialOrganizations?: OrganizationSummary[];
     initialApplications?: ApplicationItem[];
 }
 
 export default function OrOrganizersView({
     initialOrganizers = [],
+    initialOrganizations = [],
     initialApplications = [],
 }: OrOrganizersViewProps) {
     const [college, setCollege] = useState("ALL");
@@ -65,6 +69,53 @@ export default function OrOrganizersView({
     const [applications, setApplications] = useState<ApplicationItem[]>(initialApplications);
     const [appFilter, setAppFilter] = useState<"pending" | "all">("pending");
     const [decidingId, setDecidingId] = useState<string | null>(null);
+
+    // Organizations directory state (A1)
+    const [organizations, setOrganizations] = useState<OrganizationSummary[]>(initialOrganizations);
+    const [orgQuery, setOrgQuery] = useState("");
+    const [orgCollege, setOrgCollege] = useState("ALL");
+    const [togglingOrgId, setTogglingOrgId] = useState<string | null>(null);
+
+    const filteredOrgs = useMemo(() => {
+        const q = orgQuery.trim().toLowerCase();
+        return organizations.filter((o) => {
+            const matchesCollege = orgCollege === "ALL" || o.collegeSlug === orgCollege;
+            const matchesQuery =
+                !q ||
+                o.name.toLowerCase().includes(q) ||
+                o.shortName.toLowerCase().includes(q) ||
+                o.leadOrganizer.toLowerCase().includes(q) ||
+                o.college.toLowerCase().includes(q);
+            return matchesCollege && matchesQuery;
+        });
+    }, [organizations, orgQuery, orgCollege]);
+
+    async function handleToggleSuspend(org: OrganizationSummary) {
+        setTogglingOrgId(org.id);
+        const nextSuspended = !org.isSuspended;
+        const res = await toggleOrganizationSuspension(org.id, nextSuspended);
+        setTogglingOrgId(null);
+        if (res.error) {
+            flash(res.error);
+            return;
+        }
+        setOrganizations((prev) =>
+            prev.map((item) =>
+                item.id === org.id
+                    ? {
+                          ...item,
+                          isSuspended: nextSuspended,
+                          isActive: item.memberCount > 0 && !nextSuspended,
+                      }
+                    : item
+            )
+        );
+        flash(
+            nextSuspended
+                ? `${org.name} has been suspended.`
+                : `${org.name} has been reactivated.`
+        );
+    }
 
     const ORGANIZERS = initialOrganizers;
 
@@ -565,6 +616,178 @@ export default function OrOrganizersView({
                         </button>
                     </div>
                 </footer>
+            </section>
+
+            {/* Organizations Section (A1) */}
+            <section
+                className="ed-card"
+                style={{
+                    padding: "24px",
+                    background: "#fff",
+                    borderRadius: "12px",
+                    border: "1px solid #ECE5DF",
+                    marginTop: "24px",
+                }}
+            >
+                <div
+                    style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        flexWrap: "wrap",
+                        gap: "12px",
+                        marginBottom: "16px",
+                    }}
+                >
+                    <div>
+                        <h2 style={{ fontSize: "18px", fontWeight: "700", color: "#1E1B19" }}>
+                            Organizations
+                        </h2>
+                        <p style={{ fontSize: "12px", color: "#7A6B68", marginTop: "2px" }}>
+                            Active campus organizations, member counts, upcoming approved events, and suspension status.
+                        </p>
+                    </div>
+
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                        <div className="or-search" style={{ minWidth: "220px" }}>
+                            <Search size={14} />
+                            <input
+                                value={orgQuery}
+                                onChange={(e) => setOrgQuery(e.target.value)}
+                                placeholder="Search organizations…"
+                                aria-label="Search organizations"
+                            />
+                            {orgQuery && (
+                                <button type="button" aria-label="Clear organization search" onClick={() => setOrgQuery("")}>
+                                    <X size={13} />
+                                </button>
+                            )}
+                        </div>
+
+                        <select
+                            value={orgCollege}
+                            onChange={(e) => setOrgCollege(e.target.value)}
+                            aria-label="Filter organizations by college"
+                            style={{
+                                padding: "8px 12px",
+                                borderRadius: "8px",
+                                border: "1px solid #ECE2DC",
+                                background: "#FAF5F2",
+                                fontSize: "12px",
+                                fontWeight: "600",
+                                color: "#1E1B19",
+                            }}
+                        >
+                            <option value="ALL">All Colleges</option>
+                            {DEPARTMENTS.map((d) => (
+                                <option key={d.value} value={d.value}>
+                                    {d.short}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+
+                {filteredOrgs.length > 0 ? (
+                    <div
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+                            gap: "14px",
+                        }}
+                    >
+                        {filteredOrgs.map((org) => (
+                            <div
+                                key={org.id}
+                                style={{
+                                    border: "1px solid #ECE2DC",
+                                    borderRadius: "12px",
+                                    padding: "16px",
+                                    background: org.isSuspended ? "#FFF5F5" : "#FAF5F2",
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: "10px",
+                                }}
+                            >
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "8px" }}>
+                                    <div>
+                                        <h3 style={{ fontSize: "14px", fontWeight: "700", color: "#1E1B19" }}>
+                                            {org.name}
+                                        </h3>
+                                        <p style={{ fontSize: "11px", color: "#7A6B68", marginTop: "2px" }}>
+                                            {org.college}
+                                        </p>
+                                    </div>
+                                    <span
+                                        style={{
+                                            fontSize: "10px",
+                                            fontWeight: "700",
+                                            padding: "3px 8px",
+                                            borderRadius: "9999px",
+                                            background: org.isSuspended
+                                                ? "#FEE2E2"
+                                                : org.isActive
+                                                    ? "#DCFCE7"
+                                                    : "#F3F4F6",
+                                            color: org.isSuspended
+                                                ? "#991B1B"
+                                                : org.isActive
+                                                    ? "#166534"
+                                                    : "#4B5563",
+                                            whiteSpace: "nowrap",
+                                        }}
+                                    >
+                                        {org.isSuspended ? "Suspended" : org.isActive ? "Active" : "No Members"}
+                                    </span>
+                                </div>
+
+                                <div style={{ fontSize: "12px", color: "#554243", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+                                    <div>
+                                        <span style={{ color: "#8A7B78", fontSize: "11px", display: "block" }}>Lead Organizer</span>
+                                        <strong>{org.leadOrganizer}</strong>
+                                    </div>
+                                    <div>
+                                        <span style={{ color: "#8A7B78", fontSize: "11px", display: "block" }}>Members</span>
+                                        <strong>{org.memberCount}</strong>
+                                    </div>
+                                    <div>
+                                        <span style={{ color: "#8A7B78", fontSize: "11px", display: "block" }}>Upcoming Events</span>
+                                        <strong>{org.upcomingEvents}</strong>
+                                    </div>
+                                </div>
+
+                                <div style={{ display: "flex", justifyContent: "flex-end", paddingTop: "4px" }}>
+                                    <button
+                                        type="button"
+                                        disabled={togglingOrgId === org.id}
+                                        onClick={() => void handleToggleSuspend(org)}
+                                        style={{
+                                            fontSize: "11px",
+                                            fontWeight: "600",
+                                            padding: "6px 10px",
+                                            borderRadius: "8px",
+                                            border: "1px solid #ECE2DC",
+                                            background: "#fff",
+                                            color: org.isSuspended ? "#166534" : "#991B1B",
+                                            cursor: "pointer",
+                                        }}
+                                    >
+                                        {togglingOrgId === org.id
+                                            ? "Updating…"
+                                            : org.isSuspended
+                                                ? "Reactivate"
+                                                : "Suspend"}
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="or-empty">
+                        <Users size={20} />
+                        <p>No organizations match these filters. Clear the search or pick another college.</p>
+                    </div>
+                )}
             </section>
 
             {toast && (

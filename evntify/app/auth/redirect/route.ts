@@ -35,9 +35,14 @@ export async function GET(request: Request) {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const role = (profile as any)?.role as string | undefined;
-    // B3: Organizers and students land on their student profile (/my-events) by default.
-    // Admin goes to /admin. If a specific valid `next` was provided, it takes precedence.
-    const home = role === "admin" ? "/admin" : "/my-events";
+    // P0-3: Admin -> /admin, Organizer -> /organizer-dashboard, Student -> /events.
+    // If a specific valid `next` was provided, it takes precedence.
+    const home =
+      role === "admin"
+        ? "/admin"
+        : role === "organizer"
+          ? "/organizer-dashboard"
+          : "/events";
 
     // Validate `next` param — must be a safe relative path and role-appropriate
     const safe =

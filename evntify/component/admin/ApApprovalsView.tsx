@@ -281,9 +281,14 @@ export default function ApApprovalsView({
             </p>
           </div>
         </div>
-        <button type="button" className="white-btn">
+        <a
+          href="/docs/UE_Student_Manual_2023_Edition.pdf"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="white-btn"
+        >
           Open policy handbook <ExternalLink size={13} />
-        </button>
+        </a>
       </section>
 
       <section className="ap-filter">

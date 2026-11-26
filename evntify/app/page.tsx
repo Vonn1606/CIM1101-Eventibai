@@ -2,7 +2,7 @@ import Header from "@/component/landingpage/header";
 import Hero from "@/component/landingpage/hero";
 import Showcase from "@/component/landingpage/showcase";
 import About from "@/component/landingpage/about";
-import Footer from "@/component/footer";
+import SiteFooter from "@/component/layout/site-footer";
 
 export default function Home() {
   return (
@@ -18,7 +18,7 @@ export default function Home() {
           <About />
         </div>
       </main>
-      <Footer />
+      <SiteFooter />
     </>
   );
 }

@@ -1,12 +1,12 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
-import { Bell, User } from "lucide-react";
-import { useState, useEffect } from "react";
+import { User } from "lucide-react";
+import { useState } from "react";
 import { useAuth } from "@/lib/use-auth";
-import { createClient } from "@/lib/supabase/client";
 import ProfileDropdown from "@/component/auth/profile-dropdown";
+import BrandLink from "@/component/layout/brand-link";
+import NotificationBell from "@/component/ui/notification-bell";
 import type { UserOrganization } from "@/lib/db/active-org";
 
 interface HeaderProps {
@@ -19,8 +19,7 @@ interface HeaderProps {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export default function Header({ organizations = [], activeOrgId: _activeOrgId }: HeaderProps = {}) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [hasUnread, setHasUnread] = useState(false);
-  const { user, profile, isAdmin, loading: authLoading } = useAuth();
+  const { user, profile } = useAuth();
 
   /* Derive display name and role label from Supabase user, fallback to student profile */
   const displayName =
@@ -36,43 +35,12 @@ export default function Header({ organizations = [], activeOrgId: _activeOrgId }
         ? `STUDENT • ${user.user_metadata.department}`
         : "STUDENT";
 
-  useEffect(() => {
-    if (!user) return;
-    const supabase = createClient();
-    supabase
-      .from("notifications")
-      .select("id", { count: "exact", head: true })
-      .is("read_at", null)
-      .then(({ count, error }) => {
-        if (!error && typeof count === "number") {
-          setHasUnread(count > 0);
-        }
-      });
-  }, [user]);
-
   return (
     <header className="sticky top-0 z-20 h-20 bg-white/90 shadow-[0_1px_8px_rgba(0,0,0,0.04)] backdrop-blur-md">
       <div className="mx-auto flex h-full max-w-[1440px] items-center justify-between gap-6 px-6 lg:px-10">
-        <Link href="/my-events" className="flex items-center gap-2.5 group focus:outline-none shrink-0">
-          <Image
-            src="/eventifytxt-cropped.svg"
-            alt="Eventify"
-            width={120}
-            height={36}
-            className="h-9 w-auto object-contain transition transform group-hover:scale-105"
-          />
-        </Link>
+        <BrandLink />
 
         <div className="flex items-center gap-3 shrink-0">
-          {!authLoading && isAdmin && (
-            <Link
-              href="/admin"
-              className="hidden sm:inline-flex items-center rounded-full border border-[#ECE2DC] bg-[#FAF5F2] px-3.5 py-1.5 text-[12px] font-bold text-neutral-800 shadow-xs hover:bg-[#F3ECE7] transition"
-            >
-              Admin Portal
-            </Link>
-          )}
-
           <Link
             href="/events"
             className="flex items-center rounded-full bg-maroon px-4 py-1.5 text-[12px] font-bold tracking-wide text-white shadow-xs hover:bg-maroon-light transition"
@@ -80,16 +48,7 @@ export default function Header({ organizations = [], activeOrgId: _activeOrgId }
             Explore
           </Link>
 
-          <Link
-            href="/notifications"
-            className="relative flex size-9 items-center justify-center rounded-xl bg-[#FAF2EE] text-[#554243] transition hover:bg-[#F4ECE8]"
-            aria-label="Notifications"
-          >
-            <Bell className="size-4" />
-            {hasUnread && (
-              <span className="absolute right-2 top-2 size-2 rounded-full bg-[#FDA8B3] ring-2 ring-[#FAF2EE]" />
-            )}
-          </Link>
+          <NotificationBell className="rounded-xl bg-[#FAF2EE] text-[#554243] hover:bg-[#F4ECE8]" iconSize={16} />
 
           {/* Profile avatar + dropdown matching organizer & admin dashboards */}
           <div className="relative">

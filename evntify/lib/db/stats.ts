@@ -1,12 +1,12 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth/server";
+import { isDepartmentId, getDepartment } from "@/lib/department";
 
 export type AdminStats = {
   totalStudents: number;
   totalOrganizations: number;
-  scheduledEvents: number; // next 30 days
+  scheduledEvents: number;
   pendingApprovals: number;
 };
 
@@ -114,7 +114,7 @@ export const getApprovals = cache(async (): Promise<ApprovalItem[]> => {
         profiles!submitted_by ( full_name, email )
       `)
       .order("submitted_at", { ascending: false })
-    .limit(25);
+      .limit(25);
   }
 
   const { data, error } = res;
@@ -131,7 +131,7 @@ export const getApprovals = cache(async (): Promise<ApprovalItem[]> => {
     }
   }
 
-   
+
   return rawList.map((row) => {
     const ev = row.events;
     const startsAt = ev?.starts_at ? new Date(ev.starts_at) : null;
@@ -260,17 +260,13 @@ export const getEventsDirectory = cache(async (
     });
   }
 
-   
+
   const items: EventDirectoryItem[] = (data as any[]).map((row) => {
     const collegeName: string = row.colleges?.name ?? "";
     const collegeSlug: string = row.colleges?.slug ?? "";
-    const SHORT_MAP: Record<string, string> = {
-      eng: "Engineering",
-      sci: "Arts & Science",
-      biz: "Business",
-      art: "Design",
-    };
-    const collegeShort = SHORT_MAP[collegeSlug] || collegeName.split(" ").slice(-1)[0] || "Unknown";
+    const collegeShort = isDepartmentId(collegeSlug)
+      ? getDepartment(collegeSlug).short
+      : collegeName.split(" ").slice(-1)[0] || "Unknown";
     return {
       id: row.id,
       slug: row.slug,
@@ -323,7 +319,7 @@ export type OrganizerItem = {
 export const getOrganizers = cache(async (): Promise<OrganizerItem[]> => {
   const supabase = await createClient();
 
-   
+
   const { data, error } = await (supabase as any)
     .from("profiles")
     .select(`
@@ -337,7 +333,7 @@ export const getOrganizers = cache(async (): Promise<OrganizerItem[]> => {
 
   // Collect all org IDs so we can batch-query pending + active counts
   const orgIds = new Set<string>();
-   
+
   (data as any[]).forEach((p) => {
     const members = Array.isArray(p.organization_members) ? p.organization_members : [];
     members.forEach((m: { organization_id?: string }) => {
@@ -351,7 +347,7 @@ export const getOrganizers = cache(async (): Promise<OrganizerItem[]> => {
   if (orgIds.size > 0) {
     const ids = Array.from(orgIds);
 
-     
+
     const [pendingRes, activeRes] = await Promise.all([
       (supabase as any)
         .from("event_approvals")
@@ -367,14 +363,14 @@ export const getOrganizers = cache(async (): Promise<OrganizerItem[]> => {
     ]);
 
     if (pendingRes.data) {
-       
+
       (pendingRes.data as any[]).forEach((r) => {
         const oid = r.events?.organization_id as string | undefined;
         if (oid) pendingByOrg[oid] = (pendingByOrg[oid] ?? 0) + 1;
       });
     }
     if (activeRes.data) {
-       
+
       (activeRes.data as any[]).forEach((r) => {
         const oid = r.organization_id as string;
         activeByOrg[oid] = (activeByOrg[oid] ?? 0) + 1;
@@ -382,7 +378,7 @@ export const getOrganizers = cache(async (): Promise<OrganizerItem[]> => {
     }
   }
 
-   
+
   return (data as any[]).map((p) => {
     const member = Array.isArray(p.organization_members) ? p.organization_members[0] : null;
     const orgId = member?.organization_id as string | undefined;
@@ -411,7 +407,7 @@ export const getFeaturedEvent = cache(async (): Promise<FeaturedEventItem | null
   const supabase = await createClient();
 
   // Query explicitly featured events that are approved and upcoming
-   
+
   const { data, error } = await (supabase as any)
     .from("events")
     .select(`title, starts_at, status, summary, description, is_featured, venues ( name )`)
@@ -445,7 +441,7 @@ export type UpcomingEventItem = {
 export const getUpcomingEvents = cache(async (limit = 4): Promise<UpcomingEventItem[]> => {
   const supabase = await createClient();
 
-   
+
   const { data, error } = await (supabase as any)
     .from("events")
     .select(`id, title, starts_at, category, venues ( name )`)
@@ -457,7 +453,7 @@ export const getUpcomingEvents = cache(async (limit = 4): Promise<UpcomingEventI
 
   if (error || !data) return [];
 
-   
+
   return (data as any[]).map((row) => ({
     id: row.id,
     title: row.title ?? "Untitled",
@@ -500,7 +496,7 @@ export const getCalendarEvents = cache(async (
   const monthStart = new Date(Date.UTC(year, month, 1) - manilaOffsetMs).toISOString();
   const monthEnd = new Date(Date.UTC(year, month + 1, 1) - manilaOffsetMs).toISOString();
 
-   
+
   const { data, error } = await (supabase as any)
     .from("events")
     .select(`id, title, starts_at, ends_at, category, slug, venues ( name )`)
@@ -512,7 +508,7 @@ export const getCalendarEvents = cache(async (
 
   if (error || !data) return [];
 
-   
+
   return (data as any[]).map((row) => ({
     id: row.id,
     title: row.title ?? "Untitled",
@@ -522,5 +518,79 @@ export const getCalendarEvents = cache(async (
     venue: row.venues?.name ?? "TBD",
     slug: row.slug ?? "",
   }));
+});
+
+// ── Organizations Directory (Admin A1) ────────────────────────────────────────
+
+export type OrganizationSummary = {
+  id: string;
+  name: string;
+  shortName: string;
+  college: string;
+  collegeSlug: string;
+  leadOrganizer: string;
+  memberCount: number;
+  upcomingEvents: number;
+  isSuspended: boolean;
+  isActive: boolean;
+};
+
+export const getOrganizations = cache(async (): Promise<OrganizationSummary[]> => {
+  const supabase = await createClient();
+  const nowIso = new Date().toISOString();
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any)
+    .from("organizations")
+    .select(`
+      id, name, short_name, dept_label, is_suspended,
+      colleges ( name, slug ),
+      organization_members ( position, profiles ( full_name ) ),
+      events ( id, approval, status, starts_at )
+    `)
+    .order("name", { ascending: true });
+
+  if (error || !data) {
+    console.error("[getOrganizations] Failed to fetch organizations:", error?.message);
+    return [];
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data as any[]).map((row) => {
+    const members = Array.isArray(row.organization_members) ? row.organization_members : [];
+    const leadMember =
+      members.find((m: { position?: string }) =>
+        /president|lead|chair|head/i.test(m.position ?? "")
+      ) ?? members[0];
+    const leadOrganizer: string = leadMember?.profiles?.full_name ?? "None";
+    const memberCount = members.length;
+
+    const events = Array.isArray(row.events) ? row.events : [];
+    const upcomingEvents = events.filter(
+      (ev: { approval?: string; status?: string; starts_at?: string | null }) =>
+        ev.approval === "approved" &&
+        !["draft", "suspended", "cancelled", "completed"].includes(ev.status ?? "") &&
+        (!ev.starts_at || ev.starts_at >= nowIso)
+    ).length;
+
+    const isSuspended = Boolean(row.is_suspended);
+    const collegeSlug: string = row.colleges?.slug ?? "";
+    const collegeName: string =
+      row.colleges?.name ??
+      (isDepartmentId(collegeSlug) ? getDepartment(collegeSlug).label : row.dept_label ?? "Unassigned");
+
+    return {
+      id: row.id,
+      name: row.name,
+      shortName: row.short_name ?? "",
+      college: collegeName,
+      collegeSlug,
+      leadOrganizer,
+      memberCount,
+      upcomingEvents,
+      isSuspended,
+      isActive: memberCount > 0 && !isSuspended,
+    };
+  });
 });
 
